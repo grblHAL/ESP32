@@ -1,0 +1,21 @@
+[submodule "main/grbl"]
+	path = main/grbl
+	url = https://github.com/grblHAL/core
+[submodule "main/eeprom"]
+	path = main/eeprom
+	url = https://github.com/grblHAL/Plugin_EEPROM
+[submodule "main/keypad"]
+	path = main/keypad
+	url = https://github.com/grblHAL/Plugin_I2C_keypad
+[submodule "main/motors"]
+	path = main/motors
+	url = https://github.com/grblHAL/Plugins_motor
+[submodule "main/networking"]
+	path = main/networking
+	url = https://github.com/grblHAL/Plugin_networking
+[submodule "main/sdcard"]
+	path = main/sdcard
+	url = https://github.com/grblHAL/Plugin_SD_card
+[submodule "main/spindle"]
+	path = main/spindle
+	url = https://github.com/grblHAL/Plugins_spindle
