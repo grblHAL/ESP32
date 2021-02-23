@@ -19,3 +19,6 @@
 [submodule "main/spindle"]
 	path = main/spindle
 	url = https://github.com/grblHAL/Plugins_spindle
+[submodule "main/trinamic"]
+	path = main/trinamic
+	url = https://github.com/terjeio/Trinamic-library
