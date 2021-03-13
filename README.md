@@ -2,7 +2,7 @@
 
 A GrblHAL driver for the ESP32 processor. *** Preview version ***
 
-### How to build using ESP-IDF v3.3:
+### How to build using ESP-IDF v4.3:
 
 While this manual briefly describes basic build process on Linux OS, you can find more details
 as well as differences for building on other OS at this webpage:
