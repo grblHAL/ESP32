@@ -7,6 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
+      with:
+        submodules: recursive
     - name: Build grblHAL
       uses: docker://espressif/idf:release-v4.3
       with:
