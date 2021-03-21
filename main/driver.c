@@ -1474,7 +1474,7 @@ bool driver_init (void)
     serialInit();
 
     hal.info = "ESP32";
-    hal.driver_version = "210314";
+    hal.driver_version = "210321";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -1622,7 +1622,7 @@ bool driver_init (void)
 
 //    grbl_esp32_if_init();
 
-    my_plugin_init();
+//    my_plugin_init(); causes run time crash for some silly reason
 
     // no need to move version check before init - compiler will fail any mismatch for existing entries
     return hal.version == 8;
