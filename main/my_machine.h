@@ -47,8 +47,9 @@
 
 #if NETWORKING_ENABLE
 #define NETWORK_PARAMETERS_OK   1
-#define TELNET_ENABLE           1 // Telnet daemon - requires Ethernet streaming enabled.
-#define WEBSOCKET_ENABLE        1 // Websocket daemon - requires Ethernet streaming enabled.
+#define TELNET_ENABLE           1 // Telnet daemon - requires networking enabled.
+#define FTP_ENABLE              1 // FTP daemon - requires networking and SD card enabled.
+#define WEBSOCKET_ENABLE        1 // Websocket daemon - requires networking enabled.
 #define NETWORK_HOSTNAME        "Grbl"
 #define NETWORK_IPMODE          1 // 0 = static, 1 = DHCP, 2 = AutoIP
 #define NETWORK_IP              "192.168.5.1"

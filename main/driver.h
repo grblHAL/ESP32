@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2020 Terje Io
+  Copyright (c) 2018-2021 Terje Io
   Copyright (c) 2011-2015 Sungeun K. Jeon
   Copyright (c) 2009-2011 Simen Svale Skogsrud
 
@@ -84,6 +84,7 @@
 #define WIFI_ENABLE      1
 #define HTTP_ENABLE      0
 #define TELNET_ENABLE    1
+#define FTP_ENABLE       1
 #define WEBSOCKET_ENABLE 1
 #define NETWORK_TELNET_PORT     23
 #define NETWORK_HTTP_PORT       80
@@ -108,7 +109,7 @@
 #define EEPROM_ENABLE 0
 #endif
 
-#endif
+#endif // CMakeLists options
 
 #include "soc/rtc.h"
 #include "driver/gpio.h"
@@ -147,11 +148,20 @@ static const DRAM_ATTR float FZERO = 0.0f;
 #define KEYPAD_ENABLE    0
 #endif
 
+#ifndef FTP_ENABLE
+#define FTP_ENABLE       0
+#endif
+
 #ifndef NETWORKING_ENABLE
 #define WIFI_ENABLE      0
 #define HTTP_ENABLE      0
 #define TELNET_ENABLE    0
 #define WEBSOCKET_ENABLE 0
+#endif
+
+#if FTP_ENABLE && !SDCARD_ENABLE
+#undef FTP_ENABLE
+#define FTP_ENABLE 0
 #endif
 
 #ifndef BLUETOOTH_ENABLE

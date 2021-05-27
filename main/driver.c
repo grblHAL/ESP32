@@ -1431,23 +1431,39 @@ ccc
 #if SDCARD_ENABLE
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
+    host.max_freq_khz = 20000; //SDMMC_FREQ_DEFAULT; //SDMMC_FREQ_PROBING; 19000;
+
+    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+    slot_config.gpio_cs   = PIN_NUM_CS;
+
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
         .format_if_mount_failed = false,
         .max_files = 5
-//        .allocation_unit_size = 16 * 1024
     };
 
-    slot_config.gpio_miso = PIN_NUM_MISO;
-    slot_config.gpio_mosi = PIN_NUM_MOSI;
-    slot_config.gpio_sck  = PIN_NUM_CLK;
-    slot_config.gpio_cs   = PIN_NUM_CS;
+    spi_bus_config_t bus_config = {
+        .mosi_io_num     = PIN_NUM_MOSI,
+        .miso_io_num     = PIN_NUM_MISO,
+        .sclk_io_num     = PIN_NUM_CLK,
+        .quadwp_io_num   = -1,
+        .quadhd_io_num   = -1,
+        .max_transfer_sz = 0,
+        .flags           = SPICOMMON_BUSFLAG_MASTER,
+        .intr_flags      = ESP_INTR_FLAG_IRAM
+    };
+    spi_bus_initialize(host.slot, &bus_config, 1);
 
-    host.max_freq_khz = 20000; //SDMMC_FREQ_DEFAULT; //SDMMC_FREQ_PROBING; 19000;
-
-    sdmmc_card_t* card;
-    esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
-
+    sdmmc_card_t *card;
+    esp_err_t ret = esp_vfs_fat_sdspi_mount("/sdcard", &host, &slot_config, &mount_config, &card);
+    if (ret != ESP_OK) {
+        if (ret == ESP_FAIL) {
+            ESP_LOGE("xx", "Failed to mount filesystem. "
+                "If you want the card to be formatted, set format_if_mount_failed = true.");
+        } else {
+            ESP_LOGE("cx", "Failed to initialize the card (%d). "
+                "Make sure SD card lines have pull-up resistors in place.", ret);
+        }
+    }
     sdcard_init();
 #endif
 
@@ -1478,7 +1494,7 @@ bool driver_init (void)
     serialInit();
 
     hal.info = "ESP32";
-    hal.driver_version = "210423";
+    hal.driver_version = "210527";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif

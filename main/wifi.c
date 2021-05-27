@@ -115,9 +115,13 @@ static void reportIP (bool newopt)
 {
     on_report_options(newopt);
 
-    if(newopt)
+    if(newopt) {
+#if FTP_ENABLE
+        hal.stream.write(",WIFI,FTP");
+#else
         hal.stream.write(",WIFI");
-    else {
+#endif
+    } else {
         hal.stream.write("[WIFI MAC:");
         hal.stream.write(wifi_get_mac());
         hal.stream.write("]" ASCII_EOL);
@@ -143,6 +147,10 @@ static void lwIPHostTimerHandler (void *arg)
     if(services.websocket)
         WsStreamPoll();
 #endif
+#if FTP_ENABLE
+    if(services.ftp)
+        ftpd_poll();
+#endif
     if(services.mask)
         sys_timeout(STREAM_POLL_INTERVAL, lwIPHostTimerHandler, NULL);
 }
@@ -163,6 +171,12 @@ static void start_services (void)
         WsStreamListen(network.websocket_port == 0 ? 80 : network.websocket_port);
         services.websocket = On;
         sys_timeout(STREAM_POLL_INTERVAL, lwIPHostTimerHandler, NULL);
+    }
+#endif
+#if FTP_ENABLE
+    if(network.services.ftp && !services.ftp) {
+        ftpd_init();
+        services.ftp = On;
     }
 #endif
 #if HTTP_ENABLE
@@ -544,7 +558,11 @@ static const setting_detail_t ethernet_settings[] = {
 #endif
     { Setting_WiFi_STA_SSID, Group_Networking_Wifi, "WiFi Station (STA) SSID", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.sta.ssid, NULL, NULL },
     { Setting_WiFi_STA_Password, Group_Networking_Wifi, "WiFi Station (STA) Password", NULL, Format_Password, "x(32)", NULL, "32", Setting_NonCore, &wifi.sta.password, NULL, NULL },
+#if FTP_ENABLE
+    { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, "Telnet,Websocket,HTTP,FTP,DNS", NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL },
+#else
     { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, "Telnet,Websocket,HTTP,DNS", NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL },
+#endif
     { Setting_Hostname, Group_Networking, "Hostname", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.sta.network.hostname, NULL, NULL },
 /*    { Setting_IpMode, Group_Networking, "IP Mode", NULL, Format_RadioButtons, "Static,DHCP,AutoIP", NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL }, */
     { Setting_IpAddress, Group_Networking, "IP Address", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL },
@@ -601,6 +619,9 @@ static status_code_t wifi_set_int (setting_id_t setting, uint_fast16_t value)
                 network_services_t is_available = {0};
         #if TELNET_ENABLE
                 is_available.telnet = On;
+        #endif
+        #if FTP_ENABLE
+                is_available.ftp = On;
         #endif
         #if HTTP_ENABLE
                 is_available.http = On;
@@ -823,6 +844,11 @@ static void wifi_settings_restore (void)
 #if TELNET_ENABLE
     wifi.sta.network.services.telnet =
     wifi.ap.network.services.telnet = On;
+#endif
+
+#if FTP_ENABLE
+    wifi.sta.network.services.ftp =
+    wifi.ap.network.services.ftp = On;
 #endif
 
 #if HTTP_ENABLE

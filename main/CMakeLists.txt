@@ -4,19 +4,19 @@
 # If none is enabled pin mappings from generic_map.h will be used.
 
 OPTION(BOARD_BDRING_V3P5 "Compile for v3.5 3-axis board" OFF)
-OPTION(BOARD_BDRING_V4 "Compile for bdring v4 3-axis board" ON)
+OPTION(BOARD_BDRING_V4 "Compile for bdring v4 3-axis board" OFF)
 OPTION(BOARD_BDRING_I2S6A "Compile for bdring 6-axis I2S board - untested!" OFF)
-OPTION(BOARD_CNC_BOOSTERPACK "Compile for CNC BoosterPack" OFF)
+OPTION(BOARD_CNC_BOOSTERPACK "Compile for CNC BoosterPack" ON)
 OPTION(BOARD_ESPDUINO32 "Compile for ESPDUINO-32 Wemos D1 R32" OFF)
 OPTION(BOARD_SOURCERABBIT_4AXIS "Compile for SourceRabbit 4-axis board" OFF)
 OPTION(BOARD_MY_MACHINE "Compile for my_machine_map.h" OFF)
 
 # The following plugins/options are supported:
 
-OPTION(Networking "Wifi + protocols" OFF)
+OPTION(Networking "Wifi + protocols" ON)
 OPTION(Bluetooth "Bluetooth" OFF)
 OPTION(Keypad "I2C Keypad" OFF)
-OPTION(SDcard "SD Card Streaming" OFF)
+OPTION(SDcard "SD Card Streaming" ON)
 OPTION(Trinamic "Trinamic driver support over I2C" OFF)
 OPTION(WebUI "WebUI services" OFF)
 OPTION(WebAuth "WebUI authentication" OFF)
@@ -40,11 +40,25 @@ OPTION(NOPROBE "Compile without probe support" OFF)
 set(SDCARD_SOURCE sdcard/sdcard.c sdcard/ymodem.c)
 set(KEYPAD_SOURCE keypad/keypad.c)
 set(TRINAMIC_SOURCE motors/trinamic.c trinamic/tmc2130.c trinamic/tmc2130hal.c trinamic/common.c trinamic/tmc_interface.c)
-set(NETWORKING_SOURCE wifi.c dns_server.c web/backend.c web/upload.c networking/TCPStream.c networking/WsStream.c networking/base64.c networking/sha1.c networking/urldecode.c networking/strutils.c networking/utils.c networking/multipartparser.c )
 set(WEBUI_SOURCE webui/server.c webui/response.c webui/commands.c webui/flashfs.c )
 set(BLUETOOTH_SOURCE bluetooth.c )
 set(HUANYANG_SOURCE spindle/huanyang.c spindle/modbus)
 set(EEPROM_SOURCE eeprom/eeprom_24LC16B.c eeprom/eeprom_24AAxxx.c)
+set(NETWORKING_FTP_SOURCE networking/ftpd.c networking/sfifo.c networking/vfs.c)
+set(NETWORKING_SOURCE
+ wifi.c
+ dns_server.c
+ web/backend.c
+ web/upload.c
+ networking/TCPStream.c
+ networking/WsStream.c
+ networking/base64.c
+ networking/sha1.c
+ networking/urldecode.c
+ networking/strutils.c
+ networking/utils.c
+ networking/multipartparser.c
+ )
 
 set(SRCS main.c driver.c nvs.c esp32-hal-uart.c
  i2c.c
@@ -75,6 +89,9 @@ set(SRCS main.c driver.c nvs.c esp32-hal-uart.c
 
 if(Networking)
 list (APPEND SRCS ${NETWORKING_SOURCE})
+if(SDcard)
+list (APPEND SRCS ${NETWORKING_FTP_SOURCE})
+endif()
 endif()
 
 if(SDcard)
