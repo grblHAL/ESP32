@@ -40,6 +40,7 @@
 #include "esp_spp_api.h"
 
 #include "driver.h"
+#include "bluetooth.h"
 #include "grbl/grbl.h"
 #include "grbl/report.h"
 #include "grbl/nvs_buffer.h"
@@ -73,6 +74,17 @@ typedef struct {
     uint16_t length;
     uint8_t data[1];
 } tx_chunk_t;
+
+static const io_stream_t bluetooth_stream = {
+    .type = StreamType_Bluetooth,
+	.connected = true,
+    .read = BTStreamGetC,
+    .write = BTStreamWriteS,
+    .write_char = BTStreamPutC,
+    .get_rx_buffer_available = BTStreamRXFree,
+    .reset_read_buffer = BTStreamFlush,
+    .cancel_read_buffer = BTStreamCancel
+};
 
 static uint32_t connection = 0;
 static bool is_second_attempt = false;
@@ -271,7 +283,7 @@ static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
                 txbuffer.head = 0;
                 uint8_t *mac = param->srv_open.rem_bda;
                 sprintf(client_mac, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-                selectStream(StreamType_Bluetooth);
+                hal.stream_select(&bluetooth_stream);
 
                 if(eTaskGetState(polltask) == eSuspended)
                     vTaskResume(polltask);
@@ -288,11 +300,11 @@ static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
             if(is_second_attempt)
                 is_second_attempt = false;
 
-            else { // flush TX queue and reenable serial stream
+            else { // flush TX queue and reenable default stream
                 connection = 0;
                 client_mac[0] = '\0';
                 flush_tx_queue();
-                selectStream(StreamType_Serial);
+                hal.stream_select(NULL);
             }
             break;
 

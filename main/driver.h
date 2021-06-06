@@ -317,6 +317,4 @@ extern SemaphoreHandle_t i2cBusy;
   #endif
 #endif
 
-void selectStream (stream_type_t stream);
-
 #endif // __DRIVER_H__

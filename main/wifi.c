@@ -271,7 +271,7 @@ static esp_err_t wifi_event_handler (void *ctx, system_event_t *event)
             break;
 
         case SYSTEM_EVENT_AP_STADISCONNECTED:
-            selectStream(StreamType_Serial); // Fall back to previous?
+            hal.stream_select(NULL); // Fall back to previous?
             hal.stream.write_all("[MSG:WIFI AP DISCONNECTED]\r\n");
 //          ESP_LOGI(TAG, "station:"MACSTR"leave, AID=%d", MAC2STR(event->event_info.sta_disconnected.mac), event->event_info.sta_disconnected.aid);
             break;
@@ -302,7 +302,7 @@ static esp_err_t wifi_event_handler (void *ctx, system_event_t *event)
 
         case SYSTEM_EVENT_STA_DISCONNECTED:
             //stop_services();
-            selectStream(StreamType_Serial); // Fall back to previous?
+            hal.stream_select(NULL); // Fall back to previous?
             hal.stream.write_all("[MSG:WIFI STA DISCONNECTED]\r\n");
 
             switch(event->event_info.disconnected.reason) {

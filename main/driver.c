@@ -29,14 +29,14 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "grbl/limits.h"
-
 #include "driver.h"
 #include "esp32-hal-uart.h"
 #include "nvs.h"
-#include "grbl/protocol.h"
 #include "esp_log.h"
 //#include "grbl_esp32_if/grbl_esp32_if.h"
+
+#include "grbl/limits.h"
+#include "grbl/protocol.h"
 
 #ifdef USE_I2S_OUT
 #include "i2s_out.h"
@@ -114,39 +114,22 @@ typedef struct {
 static pwm_ramp_t pwm_ramp;
 #endif
 
-typedef enum {
-    Input_Probe = 0,
-    Input_Reset,
-    Input_FeedHold,
-    Input_CycleStart,
-    Input_SafetyDoor,
-    Input_ModeSelect,
-    Input_LimitX,
-    Input_LimitX_Max,
-    Input_LimitY,
-    Input_LimitY_Max,
-    Input_LimitZ,
-    Input_LimitZ_Max,
-    Input_LimitA,
-    Input_LimitA_Max,
-    Input_LimitB,
-    Input_LimitB_Max,
-    Input_LimitC,
-    Input_LimitC_Max,
-    Input_KeypadStrobe
-} input_t;
-
 typedef struct {
-    input_t id;
+    pin_function_t id;
+    pin_group_t group;
     uint8_t pin;
-    uint8_t group;
     uint32_t mask;
     uint8_t offset;
     bool invert;
     volatile bool active;
     volatile bool debounce;
-} state_signal_t;
+} input_signal_t;
 
+typedef struct {
+    pin_function_t id;
+    pin_group_t group;
+    uint8_t pin;
+} output_signal_t;
 
 #if MPG_MODE_ENABLE
 static io_stream_t prev_stream = {0};
@@ -169,7 +152,7 @@ const io_stream_t serial_stream = {
 
 static network_services_t services = {0};
 
-void tcpStreamWriteS (const char *data)
+void enetStreamWriteS (const char *data)
 {
 #if TELNET_ENABLE
     if(services.telnet)
@@ -182,36 +165,6 @@ void tcpStreamWriteS (const char *data)
     serialWriteS(data);
 }
 
-#if TELNET_ENABLE
-const io_stream_t telnet_stream = {
-    .type = StreamType_Telnet,
-    .read = TCPStreamGetC,
-    .write = TCPStreamWriteS,
-    .write_all = tcpStreamWriteS,
-    .write_char = TCPStreamPutC,
-    .get_rx_buffer_available = TCPStreamRxFree,
-    .reset_read_buffer = TCPStreamRxFlush,
-    .cancel_read_buffer = TCPStreamRxCancel,
-    .suspend_read = TCPStreamSuspendInput,
-    .enqueue_realtime_command = protocol_enqueue_realtime_command
-};
-#endif
-
-#if WEBSOCKET_ENABLE
-const io_stream_t websocket_stream = {
-    .type = StreamType_WebSocket,
-    .read = WsStreamGetC,
-    .write = WsStreamWriteS,
-    .write_all = tcpStreamWriteS,
-    .write_char = WsStreamPutC,
-    .get_rx_buffer_available = WsStreamRxFree,
-    .reset_read_buffer = WsStreamRxFlush,
-    .cancel_read_buffer = WsStreamRxCancel,
-    .suspend_read = WsStreamSuspendInput,
-    .enqueue_realtime_command = protocol_enqueue_realtime_command,
-};
-#endif
-
 #endif // WIFI_ENABLE
 
 #if BLUETOOTH_ENABLE
@@ -220,84 +173,64 @@ void btStreamWriteS (const char *data)
     BTStreamWriteS(data);
     serialWriteS(data);
 }
-
-const io_stream_t bluetooth_stream = {
-    .type = StreamType_Bluetooth,
-    .read = BTStreamGetC,
-    .write = BTStreamWriteS,
-    .write_all = btStreamWriteS,
-    .write_char = BTStreamPutC,
-    .get_rx_buffer_available = BTStreamRXFree,
-    .reset_read_buffer = BTStreamFlush,
-    .cancel_read_buffer = BTStreamCancel,
-    .suspend_read = serialSuspendInput,
-    .enqueue_realtime_command = protocol_enqueue_realtime_command
-};
-
 #endif
 
-#define INPUT_GROUP_CONTROL (1 << 0)
-#define INPUT_GROUP_PROBE   (1 << 1)
-#define INPUT_GROUP_LIMIT   (1 << 2)
-#define INPUT_GROUP_KEYPAD  (1 << 3)
-#define INPUT_GROUP_MPG     (1 << 4)
-
-state_signal_t inputpin[] = {
+input_signal_t inputpin[] = {
 #ifdef RESET_PIN
-    { .id = Input_Reset,        .pin = RESET_PIN,       .group = INPUT_GROUP_CONTROL },
+    { .id = Input_Reset,        .pin = RESET_PIN,         .group = PinGroup_Control },
 #endif
 #ifdef FEED_HOLD_PIN
-    { .id = Input_FeedHold,     .pin = FEED_HOLD_PIN,   .group = INPUT_GROUP_CONTROL },
+    { .id = Input_FeedHold,     .pin = FEED_HOLD_PIN,     .group = PinGroup_Control },
 #endif
 #ifdef CYCLE_START_PIN
-    { .id = Input_CycleStart,   .pin = CYCLE_START_PIN, .group = INPUT_GROUP_CONTROL },
+    { .id = Input_CycleStart,   .pin = CYCLE_START_PIN,   .group = PinGroup_Control },
 #endif
 #ifdef SAFETY_DOOR_PIN
-    { .id = Input_SafetyDoor,   .pin = SAFETY_DOOR_PIN, .group = INPUT_GROUP_CONTROL },
+    { .id = Input_SafetyDoor,   .pin = SAFETY_DOOR_PIN,   .group = PinGroup_Control },
 #endif
 #ifdef PROBE_PIN
-    { .id = Input_Probe,        .pin = PROBE_PIN,       .group = INPUT_GROUP_PROBE },
+    { .id = Input_Probe,        .pin = PROBE_PIN,         .group = PinGroup_Probe },
 #endif
-    { .id = Input_LimitX,       .pin = X_LIMIT_PIN,     .group = INPUT_GROUP_LIMIT },
-    { .id = Input_LimitY,       .pin = Y_LIMIT_PIN,     .group = INPUT_GROUP_LIMIT },
-    { .id = Input_LimitZ,       .pin = Z_LIMIT_PIN,     .group = INPUT_GROUP_LIMIT }
+    { .id = Input_LimitX,       .pin = X_LIMIT_PIN,       .group = PinGroup_Limit },
+    { .id = Input_LimitY,       .pin = Y_LIMIT_PIN,       .group = PinGroup_Limit },
+    { .id = Input_LimitZ,       .pin = Z_LIMIT_PIN,       .group = PinGroup_Limit }
 #ifdef A_LIMIT_PIN
-  , { .id = Input_LimitA,       .pin = A_LIMIT_PIN,     .group = INPUT_GROUP_LIMIT }
+  , { .id = Input_LimitA,       .pin = A_LIMIT_PIN,       .group = PinGroup_Limit }
 #endif
 #ifdef B_LIMIT_PIN
-  , { .id = Input_LimitB,       .pin = B_LIMIT_PIN,     .group = INPUT_GROUP_LIMIT }
+  , { .id = Input_LimitB,       .pin = B_LIMIT_PIN,       .group = PinGroup_Limit }
 #endif
 #ifdef C_LIMIT_PIN
-  , { .id = Input_LimitC,       .pin = C_LIMIT_PIN,     .group = INPUT_GROUP_LIMIT }
+  , { .id = Input_LimitC,       .pin = C_LIMIT_PIN,       .group = PinGroup_Limit }
 #endif
 #if MPG_MODE_ENABLE
-  , { .id = Input_ModeSelect,   .pin = MPG_ENABLE_PIN,  .group = INPUT_GROUP_MPG }
+  , { .id = Input_ModeSelect,   .pin = MPG_ENABLE_PIN,    .group = PinGroup_MPG }
 #endif
 #if KEYPAD_ENABLE
-  , { .id = Input_KeypadStrobe, .pin = KEYPAD_STROBE_PIN, .group = INPUT_GROUP_KEYPAD }
+  , { .id = Input_KeypadStrobe, .pin = KEYPAD_STROBE_PIN, .group = PinGroup_Keypad }
 #endif
 };
 
-gpio_num_t outputpin[] =
+output_signal_t outputpin[] =
 {
 #ifdef STEPPERS_DISABLE_PIN
-    STEPPERS_DISABLE_PIN,
+    { .id = Output_StepperEnable, .pin = STEPPERS_DISABLE_PIN,  .group = PinGroup_StepperEnable },
 #endif
 #if defined(SPINDLE_ENABLE_PIN) && SPINDLE_ENABLE_PIN != IOEXPAND
-    SPINDLE_ENABLE_PIN,
+    { .id = Output_SpindleOn,     .pin = SPINDLE_ENABLE_PIN,    .group = PinGroup_SpindleControl },
 #endif
 #if defined(SPINDLE_DIRECTION_PIN) && SPINDLE_DIRECTION_PIN != IOEXPAND
-    SPINDLE_DIRECTION_PIN,
+    { .id = Output_SpindleDir,    .pin = SPINDLE_DIRECTION_PIN, .group = PinGroup_SpindleControl },
 #endif
 #if defined(COOLANT_FLOOD_PIN) && COOLANT_FLOOD_PIN != IOEXPAND
-    COOLANT_FLOOD_PIN,
+    { .id = Output_CoolantFlood,  .pin = COOLANT_FLOOD_PIN,     .group = PinGroup_Coolant },
 #endif
 #if defined(COOLANT_MIST_PIN) && COOLANT_MIST_PIN != IOEXPAND
-    COOLANT_MIST_PIN,
+    { .id = Output_CoolantMist,   .pin = COOLANT_MIST_PIN,      .group = PinGrouPinGroup_Coolantp_MPG },
 #endif
-    X_DIRECTION_PIN,
-    Y_DIRECTION_PIN,
-    Z_DIRECTION_PIN
+    { .id = Output_DirX,          .pin = X_DIRECTION_PIN,       .group = PinGroup_StepperDir },
+    { .id = Output_DirY,          .pin = Y_DIRECTION_PIN,       .group = PinGroup_StepperDir },
+    { .id = Output_DirZ,          .pin = Z_DIRECTION_PIN,       .group = PinGroup_StepperDir }
 };
 
 static volatile uint32_t ms_count = 1; // NOTE: initial value 1 is for "resetting" systick timer
@@ -368,49 +301,57 @@ static void activateStream (const io_stream_t *stream)
         memcpy(&hal.stream, stream, sizeof(io_stream_t));
 }
 
-void selectStream (stream_type_t stream)
+static bool selectStream (const io_stream_t *stream)
 {
-    static stream_type_t active_stream = StreamType_Serial;
+	static stream_type_t active_stream = StreamType_Serial;
 
-    switch(stream) {
+    if(!stream)
+        stream = &serial_stream;
 
-#if BLUETOOTH_ENABLE
-        case StreamType_Bluetooth:
-            activateStream(&bluetooth_stream);
-//            services.bluetooth = On;
-            break;
-#endif
+    activateStream(stream);
+
+    if(!hal.stream.enqueue_realtime_command)
+        hal.stream.enqueue_realtime_command = protocol_enqueue_realtime_command;
+
+    switch(stream->type) {
 
 #if TELNET_ENABLE
         case StreamType_Telnet:
-            hal.stream.write_all("[MSG:TELNET STREAM ACTIVE]\r\n");
-            activateStream(&telnet_stream);
+		    if(!hal.stream.write_all)
+				hal.stream.write_all = enetStreamWriteS;
+            hal.stream.write_all("[MSG:TELNET STREAM ACTIVE]" ASCII_EOL);
             services.telnet = On;
             break;
 #endif
-
 #if WEBSOCKET_ENABLE
         case StreamType_WebSocket:
-            hal.stream.write_all("[MSG:WEBSOCKET STREAM ACTIVE]\r\n");
-            activateStream(&websocket_stream);
+			if(!hal.stream.write_all)
+				hal.stream.write_all = enetStreamWriteS;
+            hal.stream.write_all("[MSG:WEBSOCKET STREAM ACTIVE]" ASCII_EOL);
             services.websocket = On;
             break;
 #endif
-
+#if BLUETOOTH_ENABLE
+        case StreamType_Bluetooth:
+		    if(!hal.stream.write_all)
+				hal.stream.write_all = btStreamWriteS;
+			// no break
+#endif
         case StreamType_Serial:
-            activateStream(&serial_stream);
-#if WIFI_ENABLE
+#if ETHERNET_ENABLE
             services.mask = 0;
 #endif
             if(active_stream != StreamType_Serial)
-                hal.stream.write_all("[MSG:SERIAL STREAM ACTIVE]\r\n");
+                hal.stream.write_all("[MSG:SERIAL STREAM ACTIVE]" ASCII_EOL);
             break;
 
         default:
             break;
     }
 
-    active_stream = stream;
+    active_stream = hal.stream.type;
+
+    return stream->type == hal.stream.type;
 }
 
 void initRMT (settings_t *settings)
@@ -730,9 +671,9 @@ static void limitsEnable (bool on, bool homing)
     i2s_set_streaming_mode(!homing);
 #endif
 
-    uint32_t i = sizeof(inputpin) / sizeof(state_signal_t);
+    uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
     do {
-        if(inputpin[--i].group == INPUT_GROUP_LIMIT)
+        if(inputpin[--i].group == PinGroup_Limit)
             gpio_set_intr_type(inputpin[i].pin, on ? (inputpin[i].invert ? GPIO_INTR_NEGEDGE : GPIO_INTR_POSEDGE) : GPIO_INTR_DISABLE);
     } while(i);
 
@@ -1100,7 +1041,7 @@ void debounceTimerCallback (TimerHandle_t xTimer)
 {
       uint8_t grp = 0;
 
-      uint32_t i = sizeof(inputpin) / sizeof(state_signal_t);
+      uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
       do {
           i--;
           if(inputpin[i].debounce && inputpin[i].active) {
@@ -1111,10 +1052,10 @@ void debounceTimerCallback (TimerHandle_t xTimer)
 
 //    printf("Debounce %d %d\n", grp, limitsGetState().value);
 
-      if(grp & INPUT_GROUP_LIMIT)
+      if(grp & PinGroup_Limit)
             hal.limits.interrupt_callback(limitsGetState());
 
-      if(grp & INPUT_GROUP_CONTROL)
+      if(grp & PinGroup_Control)
           hal.control.interrupt_callback(systemGetState());
 }
 
@@ -1211,7 +1152,7 @@ static void settings_changed (settings_t *settings)
         axes_signals_t limit_fei;
         limit_fei.mask = settings->limits.disable_pullup.mask ^ settings->limits.invert.mask;
 
-        uint32_t i = sizeof(inputpin) / sizeof(state_signal_t);
+        uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
 
         do {
 
@@ -1242,23 +1183,29 @@ static void settings_changed (settings_t *settings)
                     inputpin[i].invert = control_fei.safety_door_ajar;
                     config.intr_type = inputpin[i].invert ? GPIO_INTR_NEGEDGE : GPIO_INTR_POSEDGE;
                     break;
-#ifdef PROBE_PIN
+
                 case Input_Probe:
                     pullup = hal.driver_cap.probe_pull_up;
                     inputpin[i].invert = false;
                     break;
-#endif
+
                 case Input_LimitX:
+                case Input_LimitX_2:
+                case Input_LimitX_Max:
                     pullup = !settings->limits.disable_pullup.x;
                     inputpin[i].invert = limit_fei.x;
                     break;
 
                 case Input_LimitY:
+                case Input_LimitY_2:
+                case Input_LimitY_Max:
                     pullup = !settings->limits.disable_pullup.y;
                     inputpin[i].invert = limit_fei.y;
                     break;
 
                 case Input_LimitZ:
+                case Input_LimitZ_2:
+                case Input_LimitZ_Max:
                     pullup = !settings->limits.disable_pullup.z;
                     inputpin[i].invert = limit_fei.z;
                     break;
@@ -1316,7 +1263,7 @@ static void settings_changed (settings_t *settings)
                 gpio_config(&config);
 
                 inputpin[i].active   = gpio_get_level(inputpin[i].pin) == (inputpin[i].invert ? 0 : 1);
-                inputpin[i].debounce = hal.driver_cap.software_debounce && !(inputpin[i].group == INPUT_GROUP_PROBE || inputpin[i].group == INPUT_GROUP_KEYPAD || inputpin[i].group == INPUT_GROUP_MPG);
+                inputpin[i].debounce = hal.driver_cap.software_debounce && !(inputpin[i].group == PinGroup_Probe || inputpin[i].group == PinGroup_Keypad || inputpin[i].group == PinGroup_MPG);
             }
         } while(i);
 
@@ -1369,9 +1316,9 @@ static bool driver_setup (settings_t *settings)
         rmt_set_source_clk(idx, RMT_BASECLK_APB);
 
     uint32_t mask = 0; // this is insane...
-    idx = sizeof(outputpin) / sizeof(gpio_num_t);
+    idx = sizeof(outputpin) / sizeof(output_signal_t);
     do {
-        mask |= (1ULL << outputpin[--idx]);
+        mask |= (1ULL << outputpin[--idx].pin);
     } while(idx);
 
     gpio_config_t gpioConfig = {
@@ -1385,7 +1332,7 @@ static bool driver_setup (settings_t *settings)
     gpio_config(&gpioConfig);
 
 #if MPG_MODE_ENABLE
-ccc
+
     /************************
      *  MPG mode (pre)init  *
      ************************/
@@ -1494,7 +1441,7 @@ bool driver_init (void)
     serialInit();
 
     hal.info = "ESP32";
-    hal.driver_version = "210527";
+    hal.driver_version = "210605";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -1544,7 +1491,8 @@ bool driver_init (void)
 
     hal.control.get_state = systemGetState;
 
-    selectStream(StreamType_Serial);
+    hal.stream_select = selectStream;
+    hal.stream_select(&serial_stream);
 
 #if I2C_ENABLE
     I2CInit();
@@ -1670,7 +1618,7 @@ IRAM_ATTR static void gpio_isr (void *arg)
   SET_PERI_REG_MASK(GPIO_STATUS_W1TC_REG, intr_status[0]);  // clear intr for gpio0-gpio31
   SET_PERI_REG_MASK(GPIO_STATUS1_W1TC_REG, intr_status[1]); // clear intr for gpio32-39
 
-  uint32_t i = sizeof(inputpin) / sizeof(state_signal_t);
+  uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
   do {
       i--;
       if(intr_status[inputpin[i].offset] & inputpin[i].mask) {
@@ -1687,17 +1635,17 @@ IRAM_ATTR static void gpio_isr (void *arg)
       xTimerStartFromISR(debounceTimer, &xHigherPriorityTaskWoken);
   }
 
-  if(grp & INPUT_GROUP_LIMIT)
+  if(grp & PinGroup_Limit)
       hal.limits.interrupt_callback(limitsGetState());
 
-  if(grp & INPUT_GROUP_CONTROL)
+  if(grp & PinGroup_Control)
       hal.control.interrupt_callback(systemGetState());
 
 #if MPG_MODE_ENABLE
 
   static bool mpg_mutex = false;
 
-  if((grp & INPUT_GROUP_MPG) && !mpg_mutex) {
+  if((grp & PinGroup_MPG) && !mpg_mutex) {
       mpg_mutex = true;
       modeChange();
      // hal.delay_ms(50, modeChange); // causes intermittent panic... stacked calls due to debounce?
@@ -1706,7 +1654,7 @@ IRAM_ATTR static void gpio_isr (void *arg)
 #endif
 
 #if KEYPAD_ENABLE
-  if(grp & INPUT_GROUP_KEYPAD)
+  if(grp & PinGroup_Keypad)
       keypad_keyclick_handler(gpio_get_level(KEYPAD_STROBE_PIN));
 #endif
 }
