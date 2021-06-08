@@ -103,6 +103,8 @@
 #else
 #define RS485_DIR_ENABLE 0
 #endif
+#else
+#define RS485_DIR_ENABLE 0
 #endif
 
 #ifndef EEPROM_ENABLE

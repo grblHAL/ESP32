@@ -4,19 +4,19 @@
 # If none is enabled pin mappings from generic_map.h will be used.
 
 OPTION(BOARD_BDRING_V3P5 "Compile for v3.5 3-axis board" OFF)
-OPTION(BOARD_BDRING_V4 "Compile for bdring v4 3-axis board" OFF)
+OPTION(BOARD_BDRING_V4 "Compile for bdring v4 3-axis board" ON)
 OPTION(BOARD_BDRING_I2S6A "Compile for bdring 6-axis I2S board - untested!" OFF)
-OPTION(BOARD_CNC_BOOSTERPACK "Compile for CNC BoosterPack" ON)
+OPTION(BOARD_CNC_BOOSTERPACK "Compile for CNC BoosterPack" OFF)
 OPTION(BOARD_ESPDUINO32 "Compile for ESPDUINO-32 Wemos D1 R32" OFF)
 OPTION(BOARD_SOURCERABBIT_4AXIS "Compile for SourceRabbit 4-axis board" OFF)
 OPTION(BOARD_MY_MACHINE "Compile for my_machine_map.h" OFF)
 
 # The following plugins/options are supported:
 
-OPTION(Networking "Wifi + protocols" ON)
+OPTION(Networking "Wifi + protocols" OFF)
 OPTION(Bluetooth "Bluetooth" OFF)
 OPTION(Keypad "I2C Keypad" OFF)
-OPTION(SDcard "SD Card Streaming" ON)
+OPTION(SDcard "SD Card Streaming" OFF)
 OPTION(Trinamic "Trinamic driver support over I2C" OFF)
 OPTION(WebUI "WebUI services" OFF)
 OPTION(WebAuth "WebUI authentication" OFF)
@@ -58,6 +58,7 @@ set(NETWORKING_SOURCE
  networking/strutils.c
  networking/utils.c
  networking/multipartparser.c
+ networking/networking.c
  )
 
 set(SRCS main.c driver.c nvs.c esp32-hal-uart.c
@@ -122,7 +123,7 @@ if(EEPROM OR FRAM OR BOARD_CNC_BOOSTERPACK)
 list (APPEND SRCS ${EEPROM_SOURCE})
 endif()
 
-idf_component_register(SRCS "${SRCS}" INCLUDE_DIRS ".")
+idf_component_register(SRCS "wifi.c" "driver.c" "${SRCS}" INCLUDE_DIRS ".")
 
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC GRBL_ESP32)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC OVERRIDE_MY_MACHINE)

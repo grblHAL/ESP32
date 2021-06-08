@@ -60,13 +60,14 @@ const static int CONNECTED_BIT = BIT0;
 const static int SCANNING_BIT = BIT1;
 const static int APSTA_BIT = BIT2;
 
-static network_services_t services = {0};
+static network_services_t services = {0}, allowed_services;
 static wifi_config_t wifi_sta_config;
 static SemaphoreHandle_t aplist_mutex = NULL;
 static ap_list_t ap_list = {0};
 static wifi_settings_t wifi;
 static nvs_address_t nvs_address;
 static on_report_options_ptr on_report_options;
+static char netservices[40] = ""; // must be large enough to hold all service names
 
 ap_list_t *wifi_get_aplist (void)
 {
@@ -552,17 +553,13 @@ static const setting_group_detail_t ethernet_groups [] = {
 };
 
 static const setting_detail_t ethernet_settings[] = {
+    { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, netservices, NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL },
 #if AUTH_ENABLE
     { Setting_AdminPassword, Group_General, "Admin Password", NULL, Format_Password, "x(32)", NULL, "32", Setting_NonCore, &wifi.admin_password, NULL, NULL },
     { Setting_UserPassword, Group_General, "User Password", NULL, Format_Password, "x(32)", NULL, "32", Setting_NonCore, &wifi.user_password, NULL, NULL },
 #endif
     { Setting_WiFi_STA_SSID, Group_Networking_Wifi, "WiFi Station (STA) SSID", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.sta.ssid, NULL, NULL },
     { Setting_WiFi_STA_Password, Group_Networking_Wifi, "WiFi Station (STA) Password", NULL, Format_Password, "x(32)", NULL, "32", Setting_NonCore, &wifi.sta.password, NULL, NULL },
-#if FTP_ENABLE
-    { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, "Telnet,Websocket,HTTP,FTP,DNS", NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL },
-#else
-    { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, "Telnet,Websocket,HTTP,DNS", NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL },
-#endif
     { Setting_Hostname, Group_Networking, "Hostname", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.sta.network.hostname, NULL, NULL },
 /*    { Setting_IpMode, Group_Networking, "IP Mode", NULL, Format_RadioButtons, "Static,DHCP,AutoIP", NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL }, */
     { Setting_IpAddress, Group_Networking, "IP Address", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL },
@@ -615,24 +612,7 @@ static status_code_t wifi_set_int (setting_id_t setting, uint_fast16_t value)
     switch(setting) {
 
         case Setting_NetworkServices:
-            {
-                network_services_t is_available = {0};
-        #if TELNET_ENABLE
-                is_available.telnet = On;
-        #endif
-        #if FTP_ENABLE
-                is_available.ftp = On;
-        #endif
-        #if HTTP_ENABLE
-                is_available.http = On;
-        #endif
-        #if WEBSOCKET_ENABLE
-                is_available.websocket = On;
-        #endif
-                wifi.sta.network.services.mask =
-                 wifi.ap.network.services.mask = (uint8_t)value & is_available.mask;
-                // TODO: fault if attempt to select services not available?
-            }
+            wifi.sta.network.services.mask = wifi.ap.network.services.mask = (uint8_t)value & allowed_services.mask;
             break;
 
 #if TELNET_ENABLE
@@ -666,7 +646,7 @@ static uint_fast16_t wifi_get_int (setting_id_t setting)
     switch(setting) {
 
         case Setting_NetworkServices:
-            value = wifi.sta.network.services.mask;
+            value = wifi.sta.network.services.mask & allowed_services.mask;
             break;
 
 #if TELNET_ENABLE
@@ -832,34 +812,10 @@ static void wifi_settings_restore (void)
 
 // Common
 
-    wifi.sta.network.services.mask =
-    wifi.ap.network.services.mask = 0;
-    wifi.sta.network.telnet_port =
-    wifi.ap.network.telnet_port = NETWORK_TELNET_PORT;
-    wifi.sta.network.http_port =
-    wifi.ap.network.http_port = NETWORK_HTTP_PORT;
-    wifi.sta.network.websocket_port =
-    wifi.ap.network.websocket_port = NETWORK_WEBSOCKET_PORT;
-
-#if TELNET_ENABLE
-    wifi.sta.network.services.telnet =
-    wifi.ap.network.services.telnet = On;
-#endif
-
-#if FTP_ENABLE
-    wifi.sta.network.services.ftp =
-    wifi.ap.network.services.ftp = On;
-#endif
-
-#if HTTP_ENABLE
-    wifi.sta.network.services.http =
-    wifi.ap.network.services.http = On;
-#endif
-
-#if WEBSOCKET_ENABLE
-    wifi.sta.network.services.websocket =
-    wifi.ap.network.services.websocket = On;
-#endif
+    wifi.sta.network.telnet_port = wifi.ap.network.telnet_port = NETWORK_TELNET_PORT;
+    wifi.sta.network.http_port = wifi.ap.network.http_port = NETWORK_HTTP_PORT;
+    wifi.sta.network.websocket_port = wifi.ap.network.websocket_port = NETWORK_WEBSOCKET_PORT;
+    wifi.sta.network.services = wifi.ap.network.services = allowed_services;
 
     hal.nvs.memcpy_to_nvs(nvs_address, (uint8_t *)&wifi, sizeof(wifi_settings_t), true);
 }
@@ -868,6 +824,9 @@ static void wifi_settings_load (void)
 {
     if(hal.nvs.memcpy_from_nvs((uint8_t *)&wifi, nvs_address, sizeof(wifi_settings_t), true) != NVS_TransferResult_OK)
         wifi_settings_restore();
+
+    wifi.sta.network.services.mask &= allowed_services.mask;
+    wifi.ap.network.services.mask &= allowed_services.mask;
 }
 
 bool wifi_init (void)
@@ -879,6 +838,8 @@ bool wifi_init (void)
 
         details.on_get_settings = grbl.on_get_settings;
         grbl.on_get_settings = on_get_settings;
+
+        allowed_services.mask = networking_get_services_list((char *)netservices).mask;
     }
 
     return nvs_address != 0;
