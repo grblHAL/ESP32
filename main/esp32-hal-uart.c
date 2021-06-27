@@ -54,6 +54,8 @@ typedef struct {
     intr_handle_t intr_handle;
 } uart_t;
 
+static int16_t serialRead (void);
+
 #if CONFIG_DISABLE_HAL_LOCKS
 #define UART_MUTEX_LOCK(u)
 #define UART_MUTEX_UNLOCK(u)
@@ -225,36 +227,26 @@ IRAM_ATTR static void flush (uart_t *uart)
     UART_MUTEX_UNLOCK(uart);
 }
 
-void serialInit (void)
-{
-    uart1 = &_uart_bus_array[0]; // use UART 0
-
-    uartConfig(uart1, BAUD_RATE);
-
-    serialFlush();
-    uartEnableInterrupt(uart1, _uart1_isr, true);
-}
-
-uint32_t serialAvailable (void)
+static uint16_t serialAvailable (void)
 {
     uint16_t head = rxbuffer.head, tail = rxbuffer.tail;
 
     return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
-uint16_t serialRXFree (void)
+static uint16_t serialRXFree (void)
 {
     uint16_t head = rxbuffer.head, tail = rxbuffer.tail;
 
     return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
-
-uint32_t serialAvailableForWrite (void)
+/*
+static uint32_t serialAvailableForWrite (void)
 {
     return uart1 ? 0x7f - uart1->dev->status.txfifo_cnt : 0;
 }
-
-int16_t serialRead (void)
+*/
+static int16_t serialRead (void)
 {
     UART_MUTEX_LOCK(uart1);
     int16_t data;
@@ -271,7 +263,7 @@ int16_t serialRead (void)
     return data;
 }
 
-bool serialPutC (const char c)
+static bool serialPutC (const char c)
 {
     UART_MUTEX_LOCK(uart1);
 
@@ -286,7 +278,7 @@ bool serialPutC (const char c)
     return true;
 }
 
-void serialWriteS (const char *data)
+static void serialWriteS (const char *data)
 {
     char c, *ptr = (char *)data;
 
@@ -294,14 +286,14 @@ void serialWriteS (const char *data)
         serialPutC(c);
 }
 
-IRAM_ATTR void serialFlush (void)
+IRAM_ATTR static void serialFlush (void)
 {
     flush(uart1);
 
     rxbuffer.tail = rxbuffer.head;
 }
 
-IRAM_ATTR void serialCancel (void)
+IRAM_ATTR static void serialCancel (void)
 {
 //    UART_MUTEX_LOCK(uart1);
     rxbuffer.data[rxbuffer.head] = ASCII_CAN;
@@ -310,7 +302,7 @@ IRAM_ATTR void serialCancel (void)
 //    UART_MUTEX_UNLOCK(uart1);
 }
 
-IRAM_ATTR bool serialSuspendInput (bool suspend)
+IRAM_ATTR static bool serialSuspendInput (bool suspend)
 {
     bool ok;
     UART_MUTEX_LOCK(uart1);
@@ -318,6 +310,58 @@ IRAM_ATTR bool serialSuspendInput (bool suspend)
     UART_MUTEX_UNLOCK(uart1);
 
     return ok;
+}
+
+IRAM_ATTR static bool serialDisable (bool disable)
+{
+    if(disable) {
+        // Disable interrupts
+        uart1->dev->int_ena.rxfifo_full = 0;
+        uart1->dev->int_ena.frm_err = 0;
+        uart1->dev->int_ena.rxfifo_tout = 0;
+    } else {
+        flush(uart1);
+        // Clear and enable interrupts
+        uart1->dev->int_clr.rxfifo_full = 1;
+        uart1->dev->int_clr.frm_err = 1;
+        uart1->dev->int_clr.rxfifo_tout = 1;
+        uart1->dev->int_ena.rxfifo_full = 1;
+        uart1->dev->int_ena.frm_err = 1;
+        uart1->dev->int_ena.rxfifo_tout = 1;
+    }
+
+    return true;
+}
+
+const io_stream_t *serialInit (void)
+{
+    static const io_stream_t stream = {
+        .type = StreamType_Serial,
+        .connected = true,
+        .read = serialRead,
+        .write = serialWriteS,
+//        .write_n =  serialWrite,
+        .write_char = serialPutC,
+        .write_all = serialWriteS,
+        .get_rx_buffer_free = serialRXFree,
+        .get_rx_buffer_count = serialAvailable,
+//        .get_tx_buffer_count = serialTxCount,
+//        .reset_write_buffer = serialTxFlush,
+        .reset_read_buffer = serialFlush,
+        .cancel_read_buffer = serialCancel,
+        .suspend_read = serialSuspendInput,
+    //    .set_baud_rate = serialSetBaudRate
+        .disable = serialDisable
+    };
+    
+    uart1 = &_uart_bus_array[0]; // use UART 0
+
+    uartConfig(uart1, BAUD_RATE);
+
+    serialFlush();
+    uartEnableInterrupt(uart1, _uart1_isr, true);
+    
+    return &stream;
 }
 
 #if SERIAL2_ENABLE
@@ -383,33 +427,168 @@ IRAM_ATTR void serial2Direction(bool tx)
     gpio_set_level(MODBUS_DIRECTION_PIN, tx);
 }
 
-#else
-
-IRAM_ATTR void serialSelect(bool mpg_mode)
-{
-    uart_t *uart_on = mpg_mode ? uart2 : uart1;
-    uart_t *uart_off = mpg_mode ? uart1 : uart2;
-
-    // Disable interrupts
-    uart_off->dev->int_ena.rxfifo_full = 0;
-    uart_off->dev->int_ena.frm_err = 0;
-    uart_off->dev->int_ena.rxfifo_tout = 0;
-
-    flush(uart_on);
-
-    // Clear and enable interrupts
-    uart_on->dev->int_clr.rxfifo_full = 1;
-    uart_on->dev->int_clr.frm_err = 1;
-    uart_on->dev->int_clr.rxfifo_tout = 1;
-    uart_on->dev->int_ena.rxfifo_full = 1;
-    uart_on->dev->int_ena.frm_err = 1;
-    uart_on->dev->int_ena.rxfifo_tout = 1;
-}
-
 #endif
 
-void serial2Init (uint32_t baud_rate)
+IRAM_ATTR static bool serial2Disable (bool disable)
 {
+    if(disable) {
+        // Disable interrupts
+        uart2->dev->int_ena.rxfifo_full = 0;
+        uart2->dev->int_ena.frm_err = 0;
+        uart2->dev->int_ena.rxfifo_tout = 0;
+    } else {
+        flush(uart2);
+
+        // Clear and enable interrupts
+        uart2->dev->int_clr.rxfifo_full = 1;
+        uart2->dev->int_clr.frm_err = 1;
+        uart2->dev->int_clr.rxfifo_tout = 1;
+        uart2->dev->int_ena.rxfifo_full = 1;
+        uart2->dev->int_ena.frm_err = 1;
+        uart2->dev->int_ena.rxfifo_tout = 1;
+    }
+
+    return true;
+}
+
+uint16_t static serial2Available (void)
+{
+    uint16_t head = rxbuffer2.head, tail = rxbuffer2.tail;
+
+    return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
+}
+
+uint16_t static serial2txCount (void)
+{
+    return (uint16_t)uart2->dev->status.txfifo_cnt + (uart2->dev->int_raw.tx_done ? 0 : 1);
+}
+
+uint16_t static serial2RXFree (void)
+{
+    uint16_t head = rxbuffer2.head, tail = rxbuffer2.tail;
+
+    return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
+}
+
+bool static serial2PutC (const char c)
+{
+    UART_MUTEX_LOCK(uart2);
+
+    while(uart2->dev->status.txfifo_cnt == 0x7F);
+
+    uart2->dev->fifo.rw_byte = c;
+    UART_MUTEX_UNLOCK(uart2);
+
+    return true;
+}
+
+void static serial2WriteS (const char *data)
+{
+    char c, *ptr = (char *)data;
+
+    while((c = *ptr++) != '\0')
+        serial2PutC(c);
+}
+
+//
+// Writes a number of characters from a buffer to the serial output stream, blocks if buffer full
+//
+void static serial2Write (const char *s, uint16_t length)
+{
+    char *ptr = (char *)s;
+
+#if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
+    gpio_set_level(MODBUS_DIRECTION_PIN, true);
+#endif
+
+    while(length--)
+        serial2PutC(*ptr++);
+
+#if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
+    uart2->dev->int_clr.tx_done = 1;
+    uart2->dev->int_ena.tx_done = 1;
+#endif
+}
+
+int16_t static serial2Read (void)
+{
+    UART_MUTEX_LOCK(uart2);
+    int16_t data;
+    uint16_t bptr = rxbuffer2.tail;
+
+    if(bptr == rxbuffer2.head) {
+        UART_MUTEX_UNLOCK(uart2);
+        return -1; // no data available else EOF
+    }
+
+    data = rxbuffer2.data[bptr++];                 // Get next character, increment tmp pointer
+    rxbuffer2.tail = bptr & (RX_BUFFER_SIZE - 1);  // and update pointer
+    UART_MUTEX_UNLOCK(uart2);
+
+    return data;
+}
+
+IRAM_ATTR static void serial2Flush (void)
+{
+    flush(uart2);
+
+    rxbuffer2.tail = rxbuffer2.head;
+}
+
+IRAM_ATTR static void serial2Cancel (void)
+{
+//    UART_MUTEX_LOCK(uart2);
+    rxbuffer2.data[rxbuffer2.head] = ASCII_CAN;
+    rxbuffer2.tail = rxbuffer2.head;
+    rxbuffer2.head = (rxbuffer2.tail + 1) & (RX_BUFFER_SIZE - 1);
+//    UART_MUTEX_UNLOCK(uart2);
+}
+
+static bool serial2SuspendInput (bool suspend)
+{
+    bool ok;
+    UART_MUTEX_LOCK(uart2);
+    ok = stream_rx_suspend(&rxbuffer2, suspend);
+    UART_MUTEX_UNLOCK(uart2);
+
+    return ok;
+}
+
+static bool serial2SetBaudRate (uint32_t baud_rate)
+{
+    static bool init_ok = false;
+
+    if(!init_ok) {
+        serial2Init(baud_rate);
+        init_ok = true;
+    }
+
+    uartSetBaudRate(uart2, baud_rate);
+
+    return true;
+}
+
+const io_stream_t *serial2Init (uint32_t baud_rate)
+{
+    static const io_stream_t stream = {
+        .type = StreamType_Serial,
+        .connected = true,
+        .read = serial2Read,
+        .write = serial2WriteS,
+        .write_n =  serial2Write,
+        .write_char = serial2PutC,
+        .write_all = serial2WriteS,
+        .get_rx_buffer_free = serial2RXFree,
+        .get_rx_buffer_count = serial2Available,
+        .get_tx_buffer_count = serial2txCount,
+        .reset_write_buffer = serial2Flush,
+        .reset_read_buffer = serial2Flush,
+        .cancel_read_buffer = serial2Cancel,
+        .suspend_read = serial2SuspendInput,
+        .set_baud_rate = serial2SetBaudRate,
+        .disable = serial2Disable
+    };
+
     uart2 = &_uart_bus_array[1]; // use UART 1
 
     uartConfig(uart2, baud_rate);
@@ -431,115 +610,8 @@ void serial2Init (uint32_t baud_rate)
 #else
     uartEnableInterrupt(uart2, _uart2_isr, false);
 #endif
-}
 
-bool serial2SetBaudRate (uint32_t baud_rate)
-{
-    static bool init_ok = false;
-
-    if(!init_ok) {
-        serial2Init(baud_rate);
-        init_ok = true;
-    }
-
-    uartSetBaudRate(uart2, baud_rate);
-
-    return true;
-}
-
-uint16_t serial2Available (void)
-{
-    uint16_t head = rxbuffer2.head, tail = rxbuffer2.tail;
-
-    return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
-}
-
-uint16_t serial2txCount (void)
-{
-    return (uint16_t)uart2->dev->status.txfifo_cnt + (uart2->dev->int_raw.tx_done ? 0 : 1);
-}
-
-uint16_t serial2RXFree (void)
-{
-    uint16_t head = rxbuffer2.head, tail = rxbuffer2.tail;
-
-    return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
-}
-
-bool serial2PutC (const char c)
-{
-    UART_MUTEX_LOCK(uart2);
-
-    while(uart2->dev->status.txfifo_cnt == 0x7F);
-
-    uart2->dev->fifo.rw_byte = c;
-    UART_MUTEX_UNLOCK(uart2);
-
-    return true;
-}
-
-// Writes a number of characters from a buffer to the serial output stream, blocks if buffer full
-//
-void serial2Write (const char *s, uint16_t length)
-{
-    char *ptr = (char *)s;
-
-#if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
-    gpio_set_level(MODBUS_DIRECTION_PIN, true);
-#endif
-
-    while(length--)
-        serial2PutC(*ptr++);
-
-#if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
-    uart2->dev->int_clr.tx_done = 1;
-    uart2->dev->int_ena.tx_done = 1;
-#endif
-}
-
-
-int16_t serial2Read (void)
-{
-    UART_MUTEX_LOCK(uart2);
-    int16_t data;
-    uint16_t bptr = rxbuffer2.tail;
-
-    if(bptr == rxbuffer2.head) {
-        UART_MUTEX_UNLOCK(uart2);
-        return -1; // no data available else EOF
-    }
-
-    data = rxbuffer2.data[bptr++];                 // Get next character, increment tmp pointer
-    rxbuffer2.tail = bptr & (RX_BUFFER_SIZE - 1);  // and update pointer
-    UART_MUTEX_UNLOCK(uart2);
-
-    return data;
-}
-
-IRAM_ATTR void serial2Flush (void)
-{
-    flush(uart2);
-
-    rxbuffer2.tail = rxbuffer2.head;
-}
-
-IRAM_ATTR void serial2Cancel (void)
-{
-//    UART_MUTEX_LOCK(uart2);
-    rxbuffer2.data[rxbuffer2.head] = ASCII_CAN;
-    rxbuffer2.tail = rxbuffer2.head;
-    rxbuffer2.head = (rxbuffer2.tail + 1) & (RX_BUFFER_SIZE - 1);
-//    UART_MUTEX_UNLOCK(uart2);
-}
-
-bool serial2SuspendInput (bool suspend)
-{
-    bool ok;
-    UART_MUTEX_LOCK(uart2);
-    ok = stream_rx_suspend(&rxbuffer2, suspend);
-    UART_MUTEX_UNLOCK(uart2);
-
-    return ok;
+    return &stream;
 }
 
 #endif

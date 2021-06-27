@@ -37,6 +37,7 @@
 
 #include "grbl/limits.h"
 #include "grbl/protocol.h"
+#include "grbl/state_machine.h"
 
 #ifdef USE_I2S_OUT
 #include "i2s_out.h"
@@ -114,6 +115,14 @@ typedef struct {
 static pwm_ramp_t pwm_ramp;
 #endif
 
+typedef enum
+{
+    Pin_GPIO = 0,
+    Pin_RMT,
+    Pin_IoExpand,
+    Pin_I2S
+} esp_pin_t;
+
 typedef struct {
     pin_function_t id;
     pin_group_t group;
@@ -121,6 +130,7 @@ typedef struct {
     uint32_t mask;
     uint8_t offset;
     bool invert;
+    gpio_int_type_t intr_type;
     volatile bool active;
     volatile bool debounce;
 } input_signal_t;
@@ -129,24 +139,13 @@ typedef struct {
     pin_function_t id;
     pin_group_t group;
     uint8_t pin;
+    esp_pin_t mode;
 } output_signal_t;
 
+const io_stream_t *serial_stream;
 #if MPG_MODE_ENABLE
-static io_stream_t prev_stream = {0};
+static io_stream_t prev_stream = {0}, *mpg_stream;
 #endif
-
-const io_stream_t serial_stream = {
-    .type = StreamType_Serial,
-    .read = serialRead,
-    .write = serialWriteS,
-    .write_all = serialWriteS,
-    .write_char = serialPutC,
-    .get_rx_buffer_available = serialRXFree,
-    .reset_read_buffer = serialFlush,
-    .cancel_read_buffer = serialCancel,
-    .suspend_read = serialSuspendInput,
-    .enqueue_realtime_command = protocol_enqueue_realtime_command
-};
 
 #if WIFI_ENABLE
 
@@ -213,7 +212,12 @@ input_signal_t inputpin[] = {
 
 output_signal_t outputpin[] =
 {
-#ifdef STEPPERS_DISABLE_PIN
+#ifndef USE_I2S_OUT
+    { .id = Output_StepX,         .pin = X_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
+    { .id = Output_StepY,         .pin = Y_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
+    { .id = Output_StepZ,         .pin = Z_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
+#endif
+#if defined(STEPPERS_DISABLE_PIN) && STEPPERS_DISABLE_PIN != IOEXPAND
     { .id = Output_StepperEnable, .pin = STEPPERS_DISABLE_PIN,  .group = PinGroup_StepperEnable },
 #endif
 #if defined(SPINDLE_ENABLE_PIN) && SPINDLE_ENABLE_PIN != IOEXPAND
@@ -278,10 +282,6 @@ static ledc_channel_config_t ledConfig = {
 
 #endif
 
-#if MODBUS_ENABLE
-static modbus_stream_t modbus_stream = {0};
-#endif
-
 // Interrupt handler prototypes
 static void gpio_isr (void *arg);
 static void stepper_driver_isr (void *arg);
@@ -306,7 +306,7 @@ static bool selectStream (const io_stream_t *stream)
 	static stream_type_t active_stream = StreamType_Serial;
 
     if(!stream)
-        stream = &serial_stream;
+        stream = serial_stream;
 
     activateStream(stream);
 
@@ -673,8 +673,13 @@ static void limitsEnable (bool on, bool homing)
 
     uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
     do {
-        if(inputpin[--i].group == PinGroup_Limit)
-            gpio_set_intr_type(inputpin[i].pin, on ? (inputpin[i].invert ? GPIO_INTR_NEGEDGE : GPIO_INTR_POSEDGE) : GPIO_INTR_DISABLE);
+        if(inputpin[--i].group == PinGroup_Limit) {
+            gpio_set_intr_type(inputpin[i].pin, on ? inputpin[i].intr_type : GPIO_INTR_DISABLE);
+            if(on)
+                gpio_intr_enable(inputpin[i].pin);
+            else
+                gpio_intr_disable(inputpin[i].pin);
+        }
     } while(i);
 
 #if TRINAMIC_ENABLE
@@ -996,24 +1001,29 @@ static void disable_irq (void)
 IRAM_ATTR static void modeSelect (bool mpg_mode)
 {
     // Deny entering MPG mode if busy
-    if(mpg_mode == sys.mpg_mode || (mpg_mode && (gc_state.file_run || !(sys.state == STATE_IDLE || (sys.state & (STATE_ALARM|STATE_ESTOP)))))) {
+    if(mpg_mode == sys.mpg_mode || (mpg_mode && (gc_state.file_run || !(state_get() == STATE_IDLE || (state_get() & (STATE_ALARM|STATE_ESTOP)))))) {
         hal.stream.enqueue_realtime_command(CMD_STATUS_REPORT_ALL);
         return;
     }
 
-    serialSelect(mpg_mode);
-
     if(mpg_mode) {
+        if(hal.stream.disable)
+            hal.stream.disable(true);
+        mpg_stream->disable(false);
         memcpy(&prev_stream, &hal.stream, sizeof(io_stream_t));
         hal.stream.type = StreamType_MPG;
-        hal.stream.read = serial2Read;
-        hal.stream.write = serial_stream.write;
-        hal.stream.get_rx_buffer_available = serial2RXFree;
-        hal.stream.reset_read_buffer = serial2Flush;
-        hal.stream.cancel_read_buffer = serial2Cancel;
-        hal.stream.suspend_read = serial2SuspendInput;
-    } else if(hal.stream.read != NULL)
+        hal.stream.read = mpg_stream->read;
+        hal.stream.write = serial_stream->write;
+        hal.stream.get_rx_buffer_free = serial_stream->get_rx_buffer_free;
+        hal.stream.reset_read_buffer = serial_stream->reset_read_buffer;
+        hal.stream.cancel_read_buffer = serial_stream->cancel_read_buffer;
+        hal.stream.suspend_read = serial_stream->suspend_read;
+    } else if(hal.stream.read != NULL) {
+        mpg_stream->disable(true);
         memcpy(&hal.stream, &prev_stream, sizeof(io_stream_t));
+        if(hal.stream.disable)
+            hal.stream.disable(false);
+    }
 
     hal.stream.reset_read_buffer();
 
@@ -1039,9 +1049,7 @@ IRAM_ATTR static void modeEnable (void)
 
 void debounceTimerCallback (TimerHandle_t xTimer)
 {
-      uint8_t grp = 0;
-
-      uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
+      uint32_t grp = 0, i = sizeof(inputpin) / sizeof(input_signal_t);
       do {
           i--;
           if(inputpin[i].debounce && inputpin[i].active) {
@@ -1146,6 +1154,7 @@ static void settings_changed (settings_t *settings)
         bool pullup = true;
         control_signals_t control_fei;
         gpio_config_t config;
+        input_signal_t *signal;
 
         control_fei.mask = settings->control_disable_pullup.mask ^ settings->control_invert.mask;
 
@@ -1156,114 +1165,124 @@ static void settings_changed (settings_t *settings)
 
         do {
 
+            signal = &inputpin[--i];   
             config.intr_type = GPIO_INTR_DISABLE;
 
-            switch(inputpin[--i].id) {
+            switch(signal->id) {
 
                 case Input_Reset:
                     pullup = !settings->control_disable_pullup.reset;
-                    inputpin[i].invert = control_fei.reset;
-                    config.intr_type = inputpin[i].invert ? GPIO_INTR_NEGEDGE : GPIO_INTR_POSEDGE;
+                    signal->invert = control_fei.reset;
                     break;
 
                 case Input_FeedHold:
                     pullup = !settings->control_disable_pullup.feed_hold;
-                    inputpin[i].invert = control_fei.feed_hold;
-                    config.intr_type = inputpin[i].invert ? GPIO_INTR_NEGEDGE : GPIO_INTR_POSEDGE;
+                    signal->invert = control_fei.feed_hold;
                     break;
 
                 case Input_CycleStart:
                     pullup = !settings->control_disable_pullup.cycle_start;
-                    inputpin[i].invert = control_fei.cycle_start;
-                    config.intr_type = inputpin[i].invert ? GPIO_INTR_NEGEDGE : GPIO_INTR_POSEDGE;
+                    signal->invert = control_fei.cycle_start;
                     break;
 
                 case Input_SafetyDoor:
                     pullup = !settings->control_disable_pullup.safety_door_ajar;
-                    inputpin[i].invert = control_fei.safety_door_ajar;
-                    config.intr_type = inputpin[i].invert ? GPIO_INTR_NEGEDGE : GPIO_INTR_POSEDGE;
+                    signal->invert = control_fei.safety_door_ajar;
                     break;
 
                 case Input_Probe:
                     pullup = hal.driver_cap.probe_pull_up;
-                    inputpin[i].invert = false;
+                    signal->invert = false;
                     break;
 
                 case Input_LimitX:
                 case Input_LimitX_2:
                 case Input_LimitX_Max:
                     pullup = !settings->limits.disable_pullup.x;
-                    inputpin[i].invert = limit_fei.x;
+                    signal->invert = limit_fei.x;
                     break;
 
                 case Input_LimitY:
                 case Input_LimitY_2:
                 case Input_LimitY_Max:
                     pullup = !settings->limits.disable_pullup.y;
-                    inputpin[i].invert = limit_fei.y;
+                    signal->invert = limit_fei.y;
                     break;
 
                 case Input_LimitZ:
                 case Input_LimitZ_2:
                 case Input_LimitZ_Max:
                     pullup = !settings->limits.disable_pullup.z;
-                    inputpin[i].invert = limit_fei.z;
-                    break;
+                    signal->invert = limit_fei.z;
+                   break;
 #ifdef A_LIMIT_PIN
                 case Input_LimitA:
                     pullup = !settings->limits.disable_pullup.a;
-                    inputpin[i].invert = limit_fei.a;
+                    signal->invert = limit_fei.a;
                     break;
 #endif
 #ifdef B_LIMIT_PIN
                 case Input_LimitB:
                     pullup = !settings->limits.disable_pullup.b;
-                    inputpin[i].invert = limit_fei.b;
+                    signal->invert = limit_fei.b;
                     break;
 #endif
 #ifdef C_LIMIT_PIN
                 case Input_LimitC:
                     pullup = !settings->limits.disable_pullup.c;
-                    inputpin[i].invert = limit_fei.c;
+                    signal->invert = limit_fei.c;
                     break;
 #endif
 #if MPG_MODE_ENABLE
                 case Input_ModeSelect:
                     pullup = true;
-                    inputpin[i].invert = false;
+                    signal->invert = false;
                     config.intr_type = GPIO_INTR_ANYEDGE;
                     break;
 #endif
 #if KEYPAD_ENABLE
                 case Input_KeypadStrobe:
                     pullup = true;
-                    inputpin[i].invert = false;
+                    signal->invert = false;
                     config.intr_type = GPIO_INTR_ANYEDGE;
                     break;
 #endif
                 default:
                     break;
-
             }
 
-            if(inputpin[i].pin != 0xFF) {
+            switch(signal->group) {
 
-                gpio_intr_disable(inputpin[i].pin);
+                case PinGroup_Control:
+                    config.intr_type = signal->invert ? GPIO_INTR_NEGEDGE : GPIO_INTR_POSEDGE;
+                    break;
 
-                config.pin_bit_mask = 1ULL << inputpin[i].pin;
+                case PinGroup_Limit:
+                    signal->intr_type = signal->invert ? GPIO_INTR_NEGEDGE : GPIO_INTR_POSEDGE;
+                    break;
+
+                default:
+                    break;
+            }
+
+            if(signal->pin != 0xFF) {
+
+                gpio_intr_disable(signal->pin);
+
+                config.pin_bit_mask = 1ULL << signal->pin;
                 config.mode = GPIO_MODE_INPUT;
-                config.pull_up_en = pullup && inputpin[i].pin < 34 ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
-                config.pull_down_en = pullup || inputpin[i].pin >= 34 ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE;
+                config.pull_up_en = pullup && signal->pin < 34 ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
+                config.pull_down_en = pullup || signal->pin >= 34 ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE;
 
-                inputpin[i].offset = config.pin_bit_mask > (1ULL << 31) ? 1 : 0;
-                inputpin[i].mask = inputpin[i].offset == 0 ? (uint32_t)config.pin_bit_mask : (uint32_t)(config.pin_bit_mask >> 32);
+                signal->offset = config.pin_bit_mask > (1ULL << 31) ? 1 : 0;
+                signal->mask = signal->offset == 0 ? (uint32_t)config.pin_bit_mask : (uint32_t)(config.pin_bit_mask >> 32);
 
-    //            printf("IN %d - %d - %d : %x\n", inputpin[i].pin,  inputpin[i].offset, inputpin[i].mask, inputpin[i].invert);
+    //            printf("IN %d - %d - %d : %x\n", signal->pin,  signal->offset, signal->mask, signal->invert);
 
                 gpio_config(&config);
 
-                inputpin[i].active   = gpio_get_level(inputpin[i].pin) == (inputpin[i].invert ? 0 : 1);
-                inputpin[i].debounce = hal.driver_cap.software_debounce && !(inputpin[i].group == PinGroup_Probe || inputpin[i].group == PinGroup_Keypad || inputpin[i].group == PinGroup_MPG);
+                signal->active   = gpio_get_level(signal->pin) == (signal->invert ? 0 : 1);
+                signal->debounce = hal.driver_cap.software_debounce && !(signal->group == PinGroup_Probe || signal->group == PinGroup_Keypad || signal->group == PinGroup_MPG);
             }
         } while(i);
 
@@ -1273,6 +1292,34 @@ static void settings_changed (settings_t *settings)
             hal.delay_ms(50, modeEnable);
 #endif
     }
+}
+
+static void enumeratePins (bool low_level, pin_info_ptr pin_info)
+{
+    static xbar_t pin = {0};
+    uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
+
+    pin.mode.input = On;
+
+    for(i = 0; i < sizeof(inputpin) / sizeof(input_signal_t); i++) {
+        pin.pin = inputpin[i].pin;
+        pin.function = inputpin[i].id;
+        pin.group = inputpin[i].group;
+        pin.mode.pwm = pin.group == PinGroup_SpindlePWM;
+
+        pin_info(&pin);
+    };
+
+    pin.mode.mask = 0;
+    pin.mode.output = On;
+
+    for(i = 0; i < sizeof(outputpin) / sizeof(output_signal_t); i++) {
+        pin.pin = outputpin[i].pin;
+        pin.function = outputpin[i].id;
+        pin.group = outputpin[i].group;
+
+        pin_info(&pin);
+    };
 }
 
 #if WIFI_ENABLE
@@ -1318,7 +1365,8 @@ static bool driver_setup (settings_t *settings)
     uint32_t mask = 0; // this is insane...
     idx = sizeof(outputpin) / sizeof(output_signal_t);
     do {
-        mask |= (1ULL << outputpin[--idx].pin);
+        if(outputpin[--idx].mode == Pin_GPIO)
+            mask |= (1ULL << outputpin[idx].pin);
     } while(idx);
 
     gpio_config_t gpioConfig = {
@@ -1438,10 +1486,10 @@ bool driver_init (void)
 {
     // Enable EEPROM and serial port here for Grbl to be able to configure itself and report any errors
 
-    serialInit();
+    serial_stream = serialInit();
 
     hal.info = "ESP32";
-    hal.driver_version = "210605";
+    hal.driver_version = "210626";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -1492,7 +1540,7 @@ bool driver_init (void)
     hal.control.get_state = systemGetState;
 
     hal.stream_select = selectStream;
-    hal.stream_select(&serial_stream);
+    hal.stream_select(serial_stream);
 
 #if I2C_ENABLE
     I2CInit();
@@ -1516,6 +1564,7 @@ bool driver_init (void)
     hal.clear_bits_atomic = bitsClearAtomic;
     hal.set_value_atomic = valueSetAtomic;
     hal.get_elapsed_ticks = xTaskGetTickCountFromISR;
+    hal.enumerate_pins = enumeratePins;
 
 #ifdef DEBUGOUT
     hal.debug_out = debug_out;
@@ -1551,25 +1600,15 @@ bool driver_init (void)
 #endif
 #if MPG_MODE_ENABLE
     hal.driver_cap.mpg_mode = On;
+    mpg_stream = serial2Init(115200);
 #endif
-
-#if MODBUS_ENABLE
-
-    modbus_stream.write = serial2Write;
-    modbus_stream.read = serial2Read;
-    modbus_stream.flush_rx_buffer = serial2Flush;
-    modbus_stream.flush_tx_buffer = serial2Flush;
-    modbus_stream.get_rx_buffer_count = serial2Available;
-    modbus_stream.get_tx_buffer_count = serial2txCount;
-    modbus_stream.set_baud_rate = serial2SetBaudRate;
-
-    bool modbus = modbus_init(&modbus_stream);
 
 #if SPINDLE_HUANYANG > 0
-    if(modbus)
-        huanyang_init(&modbus_stream);
+#if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
+    huanyang_init(modbus_init(serial2Init(115200), serial2Direction));
+#else
+    huanyang_init(modbus_init(serial2Init(115200), NULL));
 #endif
-
 #endif
 
 #if WIFI_ENABLE
@@ -1610,51 +1649,50 @@ IRAM_ATTR static void stepper_driver_isr (void *arg)
   //GPIO intr process
 IRAM_ATTR static void gpio_isr (void *arg)
 {
-  bool debounce = false;
-  uint8_t grp = 0;
-  uint32_t intr_status[2];
-  intr_status[0] = READ_PERI_REG(GPIO_STATUS_REG);          // get interrupt status for GPIO0-31
-  intr_status[1] = READ_PERI_REG(GPIO_STATUS1_REG);         // get interrupt status for GPIO32-39
-  SET_PERI_REG_MASK(GPIO_STATUS_W1TC_REG, intr_status[0]);  // clear intr for gpio0-gpio31
-  SET_PERI_REG_MASK(GPIO_STATUS1_W1TC_REG, intr_status[1]); // clear intr for gpio32-39
+    bool debounce = false;
+    uint32_t grp = 0, intr_status[2];
+    intr_status[0] = READ_PERI_REG(GPIO_STATUS_REG);          // get interrupt status for GPIO0-31
+    intr_status[1] = READ_PERI_REG(GPIO_STATUS1_REG);         // get interrupt status for GPIO32-39
+    SET_PERI_REG_MASK(GPIO_STATUS_W1TC_REG, intr_status[0]);  // clear intr for gpio0-gpio31
+    SET_PERI_REG_MASK(GPIO_STATUS1_W1TC_REG, intr_status[1]); // clear intr for gpio32-39
 
-  uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
-  do {
-      i--;
-      if(intr_status[inputpin[i].offset] & inputpin[i].mask) {
-          inputpin[i].active = true;
-          if(inputpin[i].debounce)
-              debounce = true;
-          else
-              grp |= inputpin[i].group;
-      }
-  } while(i);
+    uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
+    do {
+        i--;
+        if(intr_status[inputpin[i].offset] & inputpin[i].mask) {
+            inputpin[i].active = true;
+            if(inputpin[i].debounce)
+                debounce = true;
+            else
+                grp |= inputpin[i].group;
+        }
+    } while(i);
 
-  if(debounce) {
-      BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-      xTimerStartFromISR(debounceTimer, &xHigherPriorityTaskWoken);
-  }
+    if(debounce) {
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        xTimerStartFromISR(debounceTimer, &xHigherPriorityTaskWoken);
+    }
 
-  if(grp & PinGroup_Limit)
-      hal.limits.interrupt_callback(limitsGetState());
+    if(grp & PinGroup_Limit)
+        hal.limits.interrupt_callback(limitsGetState());
 
-  if(grp & PinGroup_Control)
-      hal.control.interrupt_callback(systemGetState());
+    if(grp & PinGroup_Control)
+        hal.control.interrupt_callback(systemGetState());
 
 #if MPG_MODE_ENABLE
 
-  static bool mpg_mutex = false;
+    static bool mpg_mutex = false;
 
-  if((grp & PinGroup_MPG) && !mpg_mutex) {
-      mpg_mutex = true;
-      modeChange();
-     // hal.delay_ms(50, modeChange); // causes intermittent panic... stacked calls due to debounce?
-      mpg_mutex = false;
-  }
+    if((grp & PinGroup_MPG) && !mpg_mutex) {
+        mpg_mutex = true;
+        modeChange();
+        // hal.delay_ms(50, modeChange); // causes intermittent panic... stacked calls due to debounce?
+        mpg_mutex = false;
+    }
 #endif
 
 #if KEYPAD_ENABLE
-  if(grp & PinGroup_Keypad)
-      keypad_keyclick_handler(gpio_get_level(KEYPAD_STROBE_PIN));
+    if(grp & PinGroup_Keypad)
+        keypad_keyclick_handler(gpio_get_level(KEYPAD_STROBE_PIN));
 #endif
 }

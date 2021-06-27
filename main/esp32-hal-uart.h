@@ -55,40 +55,13 @@ extern "C" {
 
 #define DEBUG_PRINT(string) uartWriteS(string)
 
-void serialInit (void);
-uint32_t serialAvailable (void);
-uint16_t serialRXFree (void);
-uint32_t serialAvailableForWrite (void);
-int16_t serialRead (void);
-bool serialSuspendInput (bool suspend);
-
-bool serialPutC (const char c);
-void serialWriteS (const char *data);
-
-void serialFlush (void);
-void serialCancel (void);
+const io_stream_t *serialInit (void);
 
 #if SERIAL2_ENABLE
-
-void serial2Init (uint32_t baud_rate);
-bool serial2SetBaudRate (uint32_t baud_rate);
-void serial2Stop (void);
-void serial2Start (void);
-uint16_t serial2txCount (void);
-uint16_t serial2Available (void);
-uint16_t serial2RXFree (void);
-int16_t serial2Read (void);
-bool serial2SuspendInput (bool suspend);
-
-bool serial2PutC (const char c);
-void serial2Write (const char *s, uint16_t length);
-
-void serial2Flush (void);
-void serial2Cancel (void);
-void serial2Direction (bool tx);
-
-void serialSelect (bool mpg_mode);
-
+const io_stream_t *serial2Init (uint32_t baud_rate);
+#if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
+void serial2Direction(bool tx);
+#endif
 #endif
 
 #ifdef __cplusplus
