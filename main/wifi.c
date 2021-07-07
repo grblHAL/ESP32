@@ -232,7 +232,7 @@ static esp_err_t wifi_event_handler (void *ctx, system_event_t *event)
     switch(event->event_id) {
 
         case SYSTEM_EVENT_AP_START:
-            hal.stream.write_all("[MSG:WIFI AP READY]\r\n");
+            hal.stream.write_all("[MSG:WIFI AP READY]" ASCII_EOL);
             start_services();
             if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT) {
                 dns_server_start();
@@ -241,7 +241,7 @@ static esp_err_t wifi_event_handler (void *ctx, system_event_t *event)
             break;
 
         case SYSTEM_EVENT_AP_STACONNECTED:
-            hal.stream.write_all("[MSG:WIFI AP CONNECTED]\r\n");
+            hal.stream.write_all("[MSG:WIFI AP CONNECTED]" ASCII_EOL);
 //          start_services();
 //          ESP_LOGI(TAG, "station:"MACSTR" join, AID=%d", MAC2STR(event->event_info.sta_connected.mac), event->event_info.sta_connected.aid);
             break;
@@ -273,7 +273,7 @@ static esp_err_t wifi_event_handler (void *ctx, system_event_t *event)
 
         case SYSTEM_EVENT_AP_STADISCONNECTED:
             hal.stream_select(NULL); // Fall back to previous?
-            hal.stream.write_all("[MSG:WIFI AP DISCONNECTED]\r\n");
+            hal.stream.write_all("[MSG:WIFI AP DISCONNECTED]"  ASCII_EOL);
 //          ESP_LOGI(TAG, "station:"MACSTR"leave, AID=%d", MAC2STR(event->event_info.sta_disconnected.mac), event->event_info.sta_disconnected.aid);
             break;
                 
@@ -284,7 +284,7 @@ static esp_err_t wifi_event_handler (void *ctx, system_event_t *event)
 
         case SYSTEM_EVENT_STA_GOT_IP:
             // handle IP change (ip_change)
-            hal.stream.write_all("[MSG:WIFI STA ACTIVE]\r\n");
+            hal.stream.write_all("[MSG:WIFI STA ACTIVE]"  ASCII_EOL);
             xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
             ap_list.ap_selected = wifi_sta_config.sta.ssid;
             memcpy(&ap_list.ip_addr, &event->event_info.got_ip.ip_info.ip, sizeof(ip4_addr_t));
@@ -304,13 +304,15 @@ static esp_err_t wifi_event_handler (void *ctx, system_event_t *event)
         case SYSTEM_EVENT_STA_DISCONNECTED:
             //stop_services();
             hal.stream_select(NULL); // Fall back to previous?
-            hal.stream.write_all("[MSG:WIFI STA DISCONNECTED]\r\n");
+            hal.stream.write_all("[MSG:WIFI STA DISCONNECTED]" ASCII_EOL);
 
             switch(event->event_info.disconnected.reason) {
 
                 case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+                // fall through
                 case WIFI_REASON_NO_AP_FOUND:
                     strcpy(ap_list.ap_status, "Connection failed");
+                // fall through
                 case WIFI_REASON_ASSOC_LEAVE:
                     memset(&wifi_sta_config, 0, sizeof(wifi_config_t));
                     esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_sta_config);
@@ -482,10 +484,10 @@ bool wifi_start (void)
     if(esp_wifi_start() != ESP_OK)
         return false;
 
-    if(wifi.mode == WiFiMode_AP ||wifi.mode == WiFiMode_APSTA)
+    if(wifi.mode == WiFiMode_AP || wifi.mode == WiFiMode_APSTA)
         tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_AP, wifi.ap.network.hostname);
 
-    if(wifi.mode == WiFiMode_STA ||wifi.mode == WiFiMode_APSTA)
+    if(wifi.mode == WiFiMode_STA || wifi.mode == WiFiMode_APSTA)
         tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, wifi.sta.network.hostname);
 
     if(wifi.mode == WiFiMode_APSTA)
@@ -752,7 +754,7 @@ static char *wifi_get_ip (setting_id_t setting)
             inet_ntop(AF_INET, &wifi.ap.network.mask, ip, INET6_ADDRSTRLEN);
             break;
 
-            #endif
+#endif
 
         default:
             *ip = '\0';

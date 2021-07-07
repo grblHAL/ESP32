@@ -161,7 +161,7 @@ void enetStreamWriteS (const char *data)
     if(services.websocket)
         WsStreamWriteS(data);
 #endif
-    serialWriteS(data);
+    serial_stream->write(data);
 }
 
 #endif // WIFI_ENABLE
@@ -170,7 +170,7 @@ void enetStreamWriteS (const char *data)
 void btStreamWriteS (const char *data)
 {
     BTStreamWriteS(data);
-    serialWriteS(data);
+    serial_stream->write(data);
 }
 #endif
 
@@ -295,10 +295,10 @@ static void activateStream (const io_stream_t *stream)
         hal.stream.write_all = stream->write_all;
         if(prev_stream.reset_read_buffer != NULL)
             prev_stream.reset_read_buffer();
-        memcpy(&prev_stream, stream, sizeof(io_stream_t));
+        memcpy(&prev_stream, stream, offsetof(io_stream_t, enqueue_realtime_command));
     } else
 #endif
-        memcpy(&hal.stream, stream, sizeof(io_stream_t));
+        memcpy(&hal.stream, stream, offsetof(io_stream_t, enqueue_realtime_command));
 }
 
 static bool selectStream (const io_stream_t *stream)
@@ -338,7 +338,7 @@ static bool selectStream (const io_stream_t *stream)
 			// no break
 #endif
         case StreamType_Serial:
-#if ETHERNET_ENABLE
+#if WIFI_ENABLE
             services.mask = 0;
 #endif
             if(active_stream != StreamType_Serial)
@@ -1489,7 +1489,7 @@ bool driver_init (void)
     serial_stream = serialInit();
 
     hal.info = "ESP32";
-    hal.driver_version = "210626";
+    hal.driver_version = "210705";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
