@@ -32,7 +32,8 @@
 #include "esp_intr_alloc.h"
 
 #include "esp32-hal-uart.h"
-#include "grbl/grbl.h"
+#include "grbl/hal.h"
+#include "grbl/protocol.h"
 
 #define TWO_STOP_BITS_CONF 0x3
 #define ONE_STOP_BITS_CONF 0x1
@@ -81,10 +82,12 @@ static const DRAM_ATTR uint8_t ESP_CMD_TOOL_ACK = CMD_TOOL_ACK;
 
 static uart_t *uart1 = NULL;
 static stream_rx_buffer_t rxbuffer = {0};
+static enqueue_realtime_command_ptr enqueue_realtime_command = protocol_enqueue_realtime_command;
 
 #if SERIAL2_ENABLE
 static uart_t *uart2 = NULL;
 static stream_rx_buffer_t rxbuffer2 = {0};
+static enqueue_realtime_command_ptr enqueue_realtime_command2 = protocol_enqueue_realtime_command;
 #endif
 
 IRAM_ATTR static void _uart1_isr (void *arg)
@@ -103,7 +106,7 @@ IRAM_ATTR static void _uart1_isr (void *arg)
 	        stream_rx_backup(&rxbuffer);
             hal.stream.read = serialRead; // restore normal input
 
-        } else if(!hal.stream.enqueue_realtime_command(c)) {
+        } else if(!enqueue_realtime_command(c)) {
 
             uint32_t bptr = (rxbuffer.head + 1) & RX_BUFFER_SIZE_MASK;  // Get next head pointer
 
@@ -333,6 +336,16 @@ IRAM_ATTR static bool serialDisable (bool disable)
     return true;
 }
 
+static enqueue_realtime_command_ptr serialSetRtHandler (enqueue_realtime_command_ptr handler)
+{
+    enqueue_realtime_command_ptr prev = enqueue_realtime_command;
+
+    if(handler)
+        enqueue_realtime_command = handler;
+
+    return prev;
+}
+
 const io_stream_t *serialInit (void)
 {
     static const io_stream_t stream = {
@@ -351,7 +364,8 @@ const io_stream_t *serialInit (void)
         .cancel_read_buffer = serialCancel,
         .suspend_read = serialSuspendInput,
     //    .set_baud_rate = serialSetBaudRate
-        .disable = serialDisable
+        .disable = serialDisable,
+        .set_enqueue_rt_handler = serialSetRtHandler
     };
     
     uart1 = &_uart_bus_array[0]; // use UART 0
@@ -399,7 +413,7 @@ static void IRAM_ATTR _uart2_isr (void *arg)
         if(c == ESP_CMD_TOOL_ACK && !rxbuffer.backup) {
             stream_rx_backup(&rxbuffer2);
             hal.stream.read = serial2Read; // restore normal input
-        } else if(!hal.stream.enqueue_realtime_command(c)) {
+        } else if(!enqueue_realtime_command2(c)) {
 
             uint32_t bptr = (rxbuffer2.head + 1) & RX_BUFFER_SIZE_MASK;  // Get next head pointer
 
@@ -568,6 +582,16 @@ static bool serial2SetBaudRate (uint32_t baud_rate)
     return true;
 }
 
+static enqueue_realtime_command_ptr serial2SetRtHandler (enqueue_realtime_command_ptr handler)
+{
+    enqueue_realtime_command_ptr prev = enqueue_realtime_command2;
+
+    if(handler)
+        enqueue_realtime_command2 = handler;
+
+    return prev;
+}
+
 const io_stream_t *serial2Init (uint32_t baud_rate)
 {
     static const io_stream_t stream = {
@@ -586,7 +610,8 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
         .cancel_read_buffer = serial2Cancel,
         .suspend_read = serial2SuspendInput,
         .set_baud_rate = serial2SetBaudRate,
-        .disable = serial2Disable
+        .disable = serial2Disable,
+        .set_enqueue_rt_handler = serial2SetRtHandler
     };
 
     uart2 = &_uart_bus_array[1]; // use UART 1

@@ -38,7 +38,6 @@ static const DRAM_ATTR char ESP_LF = ASCII_CR;
 static const DRAM_ATTR char ESP_QUESTION_MARK = '?';
 static const esp_partition_t *grblNVS = NULL;
 
-static bool (*realtime_command_handler)(char data); // NOTE: set by grbl at startup
 
 // Strip top bit set characters, control characters except CR and LF and question mark
 static IRAM_ATTR bool nvs_enqueue_realtime_command (char c)
@@ -58,17 +57,18 @@ bool nvsRead (uint8_t *dest)
 
 bool nvsWrite (uint8_t *source)
 {
+    enqueue_realtime_command_ptr realtime_command_handler;
+
     // Save and redirect real time command handler here to avoid panic in uart isr
     // due to constants in standard handler residing in flash.
-    realtime_command_handler = hal.stream.enqueue_realtime_command;
-    hal.stream.enqueue_realtime_command = nvs_enqueue_realtime_command;
+    realtime_command_handler = hal.stream.set_enqueue_rt_handler(nvs_enqueue_realtime_command);
 
     bool ok = grblNVS &&
                esp_partition_erase_range(grblNVS, 0, SPI_FLASH_SEC_SIZE) == ESP_OK &&
                 esp_partition_write(grblNVS, 0, (void *)source, hal.nvs.size) == ESP_OK;
 
     // Restore real time command handler
-    hal.stream.enqueue_realtime_command = realtime_command_handler;
+    hal.stream.set_enqueue_rt_handler(realtime_command_handler);
 
     return ok;
 }

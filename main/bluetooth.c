@@ -44,6 +44,7 @@
 #include "grbl/grbl.h"
 #include "grbl/report.h"
 #include "grbl/nvs_buffer.h"
+#include "grbl/protocol.h"
 
 #define SPP_RUNNING      (1 << 0)
 #define SPP_CONNECTED    (1 << 1)
@@ -75,15 +76,18 @@ typedef struct {
     uint8_t data[1];
 } tx_chunk_t;
 
+static enqueue_realtime_command_ptr BTSetRtHandler (enqueue_realtime_command_ptr handler);
+
 static const io_stream_t bluetooth_stream = {
     .type = StreamType_Bluetooth,
 	.connected = true,
     .read = BTStreamGetC,
     .write = BTStreamWriteS,
     .write_char = BTStreamPutC,
-    .get_rx_buffer_available = BTStreamRXFree,
+    .get_rx_buffer_free = BTStreamRXFree,
     .reset_read_buffer = BTStreamFlush,
-    .cancel_read_buffer = BTStreamCancel
+    .cancel_read_buffer = BTStreamCancel,
+    .set_enqueue_rt_handler = BTSetRtHandler
 };
 
 static uint32_t connection = 0;
@@ -101,6 +105,17 @@ static stream_rx_buffer_t rxbuffer = {0};
 static stream_rx_buffer_t rxbackup;
 static nvs_address_t nvs_address;
 static on_report_options_ptr on_report_options;
+static enqueue_realtime_command_ptr enqueue_realtime_command = protocol_enqueue_realtime_command;
+
+static enqueue_realtime_command_ptr BTSetRtHandler (enqueue_realtime_command_ptr handler)
+{
+    enqueue_realtime_command_ptr prev = enqueue_realtime_command;
+
+    if(handler)
+        enqueue_realtime_command = handler;
+
+    return prev;
+}
 
 uint32_t BTStreamAvailable (void)
 {
@@ -325,7 +340,7 @@ static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
                         rxbuffer.tail = rxbuffer.head;
                         hal.stream.read = BTStreamGetC; // restore normal input
 
-                    } else if(!hal.stream.enqueue_realtime_command(c)) {
+                    } else if(!enqueue_realtime_command(c)) {
 
                         uint32_t bptr = (rxbuffer.head + 1) & (RX_BUFFER_SIZE - 1);  // Get next head pointer
 

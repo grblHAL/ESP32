@@ -295,10 +295,10 @@ static void activateStream (const io_stream_t *stream)
         hal.stream.write_all = stream->write_all;
         if(prev_stream.reset_read_buffer != NULL)
             prev_stream.reset_read_buffer();
-        memcpy(&prev_stream, stream, offsetof(io_stream_t, enqueue_realtime_command));
+        memcpy(&prev_stream, stream, sizeof(io_stream_t));
     } else
 #endif
-        memcpy(&hal.stream, stream, offsetof(io_stream_t, enqueue_realtime_command));
+        memcpy(&hal.stream, stream, sizeof(io_stream_t));
 }
 
 static bool selectStream (const io_stream_t *stream)
@@ -310,8 +310,7 @@ static bool selectStream (const io_stream_t *stream)
 
     activateStream(stream);
 
-    if(!hal.stream.enqueue_realtime_command)
-        hal.stream.enqueue_realtime_command = protocol_enqueue_realtime_command;
+    hal.stream.set_enqueue_rt_handler(protocol_enqueue_realtime_command);
 
     switch(stream->type) {
 
@@ -1489,7 +1488,7 @@ bool driver_init (void)
     serial_stream = serialInit();
 
     hal.info = "ESP32";
-    hal.driver_version = "210705";
+    hal.driver_version = "210716";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
