@@ -230,7 +230,7 @@ output_signal_t outputpin[] =
     { .id = Output_CoolantFlood,  .pin = COOLANT_FLOOD_PIN,     .group = PinGroup_Coolant },
 #endif
 #if defined(COOLANT_MIST_PIN) && COOLANT_MIST_PIN != IOEXPAND
-    { .id = Output_CoolantMist,   .pin = COOLANT_MIST_PIN,      .group = PinGrouPinGroup_Coolantp_MPG },
+    { .id = Output_CoolantMist,   .pin = COOLANT_MIST_PIN,      .group = PinGroup_Coolant },
 #endif
     { .id = Output_DirX,          .pin = X_DIRECTION_PIN,       .group = PinGroup_StepperDir },
     { .id = Output_DirY,          .pin = Y_DIRECTION_PIN,       .group = PinGroup_StepperDir },
@@ -1488,7 +1488,7 @@ bool driver_init (void)
     serial_stream = serialInit();
 
     hal.info = "ESP32";
-    hal.driver_version = "210716";
+    hal.driver_version = "210806";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif

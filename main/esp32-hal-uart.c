@@ -78,7 +78,6 @@ static uart_t _uart_bus_array[3] = {
 #endif
 
 static const DRAM_ATTR uint16_t RX_BUFFER_SIZE_MASK = RX_BUFFER_SIZE - 1;
-static const DRAM_ATTR uint8_t ESP_CMD_TOOL_ACK = CMD_TOOL_ACK;
 
 static uart_t *uart1 = NULL;
 static stream_rx_buffer_t rxbuffer = {0};
@@ -102,11 +101,7 @@ IRAM_ATTR static void _uart1_isr (void *arg)
 
         c = uart1->dev->fifo.rw_byte;
 
-        if(c == ESP_CMD_TOOL_ACK && !rxbuffer.backup) {
-	        stream_rx_backup(&rxbuffer);
-            hal.stream.read = serialRead; // restore normal input
-
-        } else if(!enqueue_realtime_command(c)) {
+        if(!enqueue_realtime_command(c)) {
 
             uint32_t bptr = (rxbuffer.head + 1) & RX_BUFFER_SIZE_MASK;  // Get next head pointer
 
@@ -400,20 +395,7 @@ static void IRAM_ATTR _uart2_isr (void *arg)
 
         c = uart2->dev->fifo.rw_byte;
 
-#if MODBUS_ENABLE
-        uint32_t bptr = (rxbuffer2.head + 1) & RX_BUFFER_SIZE_MASK;  // Get next head pointer
-
-        if(bptr == rxbuffer2.tail)                    // If buffer full
-            rxbuffer2.overflow = 1;                   // flag overflow,
-        else {
-            rxbuffer2.data[rxbuffer2.head] = (char)c; // else add data to buffer
-            rxbuffer2.head = bptr;                    // and update pointer
-        }
-#else
-        if(c == ESP_CMD_TOOL_ACK && !rxbuffer.backup) {
-            stream_rx_backup(&rxbuffer2);
-            hal.stream.read = serial2Read; // restore normal input
-        } else if(!enqueue_realtime_command2(c)) {
+        if(!enqueue_realtime_command2(c)) {
 
             uint32_t bptr = (rxbuffer2.head + 1) & RX_BUFFER_SIZE_MASK;  // Get next head pointer
 
@@ -424,7 +406,6 @@ static void IRAM_ATTR _uart2_isr (void *arg)
                 rxbuffer2.head = bptr;                    // and update pointer
             }
         }
-#endif
     }
 
 /*
