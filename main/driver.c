@@ -463,19 +463,8 @@ static void stepperEnable (axes_signals_t enable)
 {
     enable.mask ^= settings.steppers.enable_invert.mask;
 
-#if TRINAMIC_ENABLE && TRINAMIC_I2C
-    axes_signals_t tmc_enable = trinamic_stepper_enable(enable);
- #if !CNC_BOOSTERPACK // Trinamic BoosterPack does not support mixed drivers
-  #if IOEXPAND_ENABLE
-    if(!tmc_enable.x)
-        iopins.stepper_enable_x = enable.x;
-    if(!tmc_enable.y)
-        iopins.stepper_enable_y = enable.y;
-    if(!tmc_enable.z)
-        iopins.stepper_enable_z = enable.z;
-  #endif
- #endif
-#elif IOEXPAND_ENABLE // TODO: read from expander?
+#if !TRINAMIC_MOTOR_ENABLE
+#if IOEXPAND_ENABLE // TODO: read from expander?
     iopins.stepper_enable_x = enable.x;
     iopins.stepper_enable_y = enable.y;
     iopins.stepper_enable_z = enable.z;
@@ -484,7 +473,7 @@ static void stepperEnable (axes_signals_t enable)
     DIGITAL_OUT(STEPPERS_DISABLE_PIN, enable.x);
 #else
     DIGITAL_OUT(X_DISABLE_PIN, enable.x);
-    DIGITAL_OUT(Y_DISABLE_PIN, enable.y);
+    DIGITAL_OUT(Y_DISABLE_PIN, enable.y); 
     DIGITAL_OUT(Z_DISABLE_PIN, enable.z);
 #ifdef A_AXIS
     DIGITAL_OUT(A_DISABLE_PIN, enable.a);
@@ -494,6 +483,7 @@ static void stepperEnable (axes_signals_t enable)
 #endif
 #ifdef C_AXIS
     DIGITAL_OUT(C_DISABLE_PIN, enable.c);
+#endif
 #endif
 #endif
 }
@@ -680,10 +670,6 @@ static void limitsEnable (bool on, bool homing)
                 gpio_intr_disable(inputpin[i].pin);
         }
     } while(i);
-
-#if TRINAMIC_ENABLE
-    trinamic_homing(homing);
-#endif
 }
 
 // Returns limit state as an axes_signals_t variable.
@@ -1488,7 +1474,7 @@ bool driver_init (void)
     serial_stream = serialInit();
 
     hal.info = "ESP32";
-    hal.driver_version = "210806";
+    hal.driver_version = "210808";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
