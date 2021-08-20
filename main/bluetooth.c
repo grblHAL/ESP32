@@ -617,6 +617,15 @@ static const setting_detail_t bluetooth_settings[] = {
     { Setting_BlueToothServiceName, Group_Bluetooth, "Bluetooth service name", NULL, Format_String, "x(32)", NULL, "32", Setting_NonCore, bluetooth.service_name, NULL, NULL }
 };
 
+#ifndef NO_SETTINGS_DESCRIPTIONS
+
+static const setting_descr_t bluetooth_settings_descr[] = {
+    { Setting_BlueToothDeviceName, "Bluetooth device name." },
+    { Setting_BlueToothServiceName, "Bluetooth service name." },
+};
+
+#endif
+
 static void bluetooth_settings_restore (void)
 {
     strcpy(bluetooth.device_name, BLUETOOTH_DEVICE);
@@ -641,6 +650,10 @@ static setting_details_t details = {
     .n_groups = sizeof(bluetooth_groups) / sizeof(setting_group_detail_t),
     .settings = bluetooth_settings,
     .n_settings = sizeof(bluetooth_settings) / sizeof(setting_detail_t),
+#ifndef NO_SETTINGS_DESCRIPTIONS
+    .descriptions = bluetooth_settings_descr,
+    .n_descriptions = sizeof(bluetooth_settings_descr) / sizeof(setting_descr_t),
+#endif
     .save = bluetooth_settings_save,
     .load = bluetooth_settings_load,
     .restore = bluetooth_settings_restore

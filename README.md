@@ -1,6 +1,6 @@
 ## ESP32GrblDriver
 
-A GrblHAL driver for the ESP32 processor. *** Preview version ***
+A grblHAL driver for the ESP32 processor. *** Preview version ***
 
 ### How to build using ESP-IDF v4.3:
 

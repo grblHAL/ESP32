@@ -589,6 +589,72 @@ static const setting_detail_t ethernet_settings[] = {
 #endif
 };
 
+#ifndef NO_SETTINGS_DESCRIPTIONS
+
+static const setting_descr_t ethernet_settings_descr[] = {
+    { Setting_NetworkServices, "Network services to enable. Consult driver documentation for availability.\\n\\n"
+                               "NOTE: A hard reset of the controller is required after changing network settings."
+    },
+#if AUTH_ENABLE
+    { Setting_AdminPassword, "Administrator password." },
+    { Setting_UserPassword, "User password." },
+#endif
+    { Setting_WiFi_STA_SSID, "WiFi Station (STA) SSID." },
+    { Setting_WiFi_STA_Password, "WiFi Station (STA) Password." },
+    { Setting_Hostname, "Network hostname.\\n\\n"
+                        "NOTE: A hard reset of the controller is required after changing network settings."
+    },
+//    { Setting_IpMode, "IP Mode.\\n\\n"
+//                      "NOTE: A hard reset of the controller is required after changing network settings."
+//    },
+    { Setting_IpAddress, "Static IP address.\\n\\n"
+                         "NOTE: A hard reset of the controller is required after changing network settings."
+    },
+    { Setting_Gateway, "Static gateway address.\\n\\n"
+                       "NOTE: A hard reset of the controller is required after changing network settings."
+    },
+    { Setting_NetMask, "Static netmask.\\n\\n"
+                       "NOTE: A hard reset of the controller is required after changing network settings."
+    },
+#if WIFI_SOFTAP
+    { Setting_WifiMode, "WiFi Mode." },
+    { Setting_WiFi_AP_SSID, "WiFi Access Point (AP) SSID." },
+    { Setting_WiFi_AP_Password, "WiFi Access Point (AP) Password." },
+    { Setting_Hostname2, "Network hostname.\\n\\n"
+                         "NOTE: A hard reset of the controller is required after changing network settings."
+    },
+    { Setting_IpAddress2, "Static IP address.\\n\\n"
+                          "NOTE: A hard reset of the controller is required after changing network settings."
+    },
+    { Setting_Gateway2, "Static gateway address.\\n\\n"
+                        "NOTE: A hard reset of the controller is required after changing network settings."
+    },
+    { Setting_NetMask2, "Static netmask.\\n\\n"
+                        "NOTE: A hard reset of the controller is required after changing network settings."
+    },
+#else
+    { Setting_WifiMode, "WiFi Mode." },
+#endif
+#if TELNET_ENABLE
+    { Setting_TelnetPort, "(Raw) Telnet port number listening for incoming connections.\\n\\n"
+                          "NOTE: A hard reset of the controller is required after changing network settings."
+    },
+#endif
+#if HTTP_ENABLE
+    { Setting_HttpPort, "HTTP port number listening for incoming connections.\\n\\n"
+                        "NOTE: A hard reset of the controller is required after changing network settings."
+    },
+#endif
+#if WEBSOCKET_ENABLE
+    { Setting_WebSocketPort, "Websocket port number listening for incoming connections.\\n\\n"
+                             "NOTE: A hard reset of the controller is required after changing network settings.\\n"
+                             "NOTE: WebUI requires this to be HTTP port number + 1."
+    }
+#endif
+};
+
+#endif
+
 static void wifi_settings_save (void)
 {
     hal.nvs.memcpy_to_nvs(nvs_address, (uint8_t *)&wifi, sizeof(wifi_settings_t), true);
@@ -599,6 +665,10 @@ static setting_details_t details = {
     .n_groups = sizeof(ethernet_groups) / sizeof(setting_group_detail_t),
     .settings = ethernet_settings,
     .n_settings = sizeof(ethernet_settings) / sizeof(setting_detail_t),
+#ifndef NO_SETTINGS_DESCRIPTIONS
+    .descriptions = ethernet_settings_descr,
+    .n_descriptions = sizeof(ethernet_settings_descr) / sizeof(setting_descr_t),
+#endif
     .save = wifi_settings_save,
     .load = wifi_settings_load,
     .restore = wifi_settings_restore

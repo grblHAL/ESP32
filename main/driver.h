@@ -284,6 +284,10 @@ typedef struct {
   #include "espduino-32_wemos_d1_r32_uno_map.h"
 #elif defined(BOARD_SOURCERABBIT_4AXIS)
   #include "sourcerabbit_4axis.h"
+#elif defined(BOARD_PROTONEER_3XX)
+  #include "protoneer_3.xx_map.h"
+#elif defined(BOARD_FYSETC_E4)
+  #include "fysetc_e4_map.h"
 #elif defined(BOARD_MY_MACHINE)
   #include "my_machine_map.h"
 #else // default board - NOTE: NOT FINAL VERSION!

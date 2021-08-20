@@ -1457,7 +1457,11 @@ static bool driver_setup (settings_t *settings)
 
   // Set defaults
 
+#if N_AXIS > 3
+    IOInitDone = settings->version == 20;
+#else
     IOInitDone = settings->version == 19;
+#endif
 
     hal.settings_changed(settings);
     hal.stepper.go_idle(true);
@@ -1474,7 +1478,7 @@ bool driver_init (void)
     serial_stream = serialInit();
 
     hal.info = "ESP32";
-    hal.driver_version = "210808";
+    hal.driver_version = "210817";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
