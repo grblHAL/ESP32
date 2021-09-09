@@ -88,6 +88,8 @@ set(SRCS main.c driver.c nvs.c esp32-hal-uart.c
  grbl/stepper.c
  grbl/system.c
  grbl/tool_change.c
+ grbl/alarms.c
+ grbl/errors.c
 )
 
 if(Networking)

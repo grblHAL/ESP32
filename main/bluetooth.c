@@ -626,6 +626,20 @@ static const setting_descr_t bluetooth_settings_descr[] = {
 
 #endif
 
+PROGMEM static const status_detail_t status_detail[] = {
+   { Status_BTInitError, "Bluetooth", "Bluetooth initalisation failed." }
+};
+
+static error_details_t error_details = {
+    .errors = status_detail,
+    .n_errors = sizeof(status_detail) / sizeof(status_detail_t)
+};
+
+static error_details_t *on_get_errors (void)
+{
+    return &error_details;
+}
+
 static void bluetooth_settings_restore (void)
 {
     strcpy(bluetooth.device_name, BLUETOOTH_DEVICE);
@@ -675,6 +689,9 @@ bool bluetooth_init (void)
 
         details.on_get_settings = grbl.on_get_settings;
         grbl.on_get_settings = on_get_settings;
+
+        error_details.on_get_errors = grbl.on_get_errors;
+        grbl.on_get_errors = on_get_errors;
     }
 
     return nvs_address != 0;

@@ -1478,7 +1478,7 @@ bool driver_init (void)
     serial_stream = serialInit();
 
     hal.info = "ESP32";
-    hal.driver_version = "210817";
+    hal.driver_version = "210909";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif

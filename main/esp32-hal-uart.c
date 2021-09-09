@@ -331,6 +331,11 @@ IRAM_ATTR static bool serialDisable (bool disable)
     return true;
 }
 
+static bool serialEnqueueRtCommand (char c)
+{
+    return enqueue_realtime_command(c);
+}
+
 static enqueue_realtime_command_ptr serialSetRtHandler (enqueue_realtime_command_ptr handler)
 {
     enqueue_realtime_command_ptr prev = enqueue_realtime_command;
@@ -351,6 +356,7 @@ const io_stream_t *serialInit (void)
 //        .write_n =  serialWrite,
         .write_char = serialPutC,
         .write_all = serialWriteS,
+        .enqueue_rt_command = serialEnqueueRtCommand,
         .get_rx_buffer_free = serialRXFree,
         .get_rx_buffer_count = serialAvailable,
 //        .get_tx_buffer_count = serialTxCount,
@@ -563,6 +569,11 @@ static bool serial2SetBaudRate (uint32_t baud_rate)
     return true;
 }
 
+static bool serial2EnqueueRtCommand (char c)
+{
+    return enqueue_realtime_command2(c);
+}
+
 static enqueue_realtime_command_ptr serial2SetRtHandler (enqueue_realtime_command_ptr handler)
 {
     enqueue_realtime_command_ptr prev = enqueue_realtime_command2;
@@ -583,6 +594,7 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
         .write_n =  serial2Write,
         .write_char = serial2PutC,
         .write_all = serial2WriteS,
+        .enqueue_rt_command = serial2EnqueueRtCommand,
         .get_rx_buffer_free = serial2RXFree,
         .get_rx_buffer_count = serial2Available,
         .get_tx_buffer_count = serial2txCount,
