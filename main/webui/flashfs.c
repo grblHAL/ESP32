@@ -1,5 +1,5 @@
 /*
-  flashfs.c - SDCard plugin for FatFs
+  flashfs.c - streaming plugin for SPIFFS
 
   Part of grblHAL
 
@@ -54,12 +54,15 @@ static file_t file = {
 static bool frewind = false;
 static io_stream_t active_stream;
 static driver_reset_ptr driver_reset = NULL;
-static void (*on_realtime_report)(stream_write_ptr stream_write, report_tracking_flags_t report) = NULL;
-static void (*on_state_change)(uint_fast16_t state);
+static on_realtime_report_ptr on_realtime_report;
+static on_state_change_ptr on_state_change;
+static enqueue_realtime_command_ptr enqueue_realtime_command;
+static on_program_completed_ptr on_program_completed;
 
 static void flashfs_end_job (void);
 static void flashfs_report (stream_write_ptr stream_write, report_tracking_flags_t report);
 static void trap_state_change_request(uint_fast16_t state);
+static void flashfs_on_program_completed (program_flow_t program_flow, bool check_mode);
 
 //static report_t active_reports;
 
@@ -113,18 +116,33 @@ static void flashfs_end_job (void)
     if(grbl.on_realtime_report == flashfs_report)
         grbl.on_realtime_report = on_realtime_report;
 
+    if(grbl.on_program_completed == flashfs_on_program_completed)
+        grbl.on_program_completed = on_program_completed;
+
     if(grbl.on_state_change == trap_state_change_request)
         grbl.on_state_change = on_state_change;
 
     on_realtime_report = NULL;
     on_state_change = NULL;
 
-    memcpy(&hal.stream, &active_stream, sizeof(io_stream_t));   // Restore stream pointers
-    hal.stream.reset_read_buffer();                             // and flush input buffer
+    memcpy(&hal.stream, &active_stream, sizeof(io_stream_t));       // Restore stream pointers,
+    hal.stream.set_enqueue_rt_handler(enqueue_realtime_command);    // restore real time command handling
+    hal.stream.reset_read_buffer();                                 // and flush input buffer
 
     report_init_fns();
 
     frewind = false;
+
+    if(grbl.on_stream_changed)
+        grbl.on_stream_changed(hal.stream.type);
+}
+
+static void flashfs_on_program_completed (program_flow_t program_flow, bool check_mode)
+{
+    flashfs_end_job();
+
+    if(on_program_completed)
+        on_program_completed(program_flow, check_mode);
 }
 
 ISR_CODE static int16_t flashfs_read (void)
@@ -146,6 +164,9 @@ ISR_CODE static int16_t flashfs_read (void)
                 c = '\n';
         }
 
+    }  else if((state == STATE_IDLE || state == STATE_CHECK_MODE) && grbl.on_program_completed == flashfs_on_program_completed) { // TODO: end on ok count match line count?
+        flashfs_on_program_completed(ProgramFlow_CompletedM30, state == STATE_CHECK_MODE);
+        grbl.report.feedback_message(Message_ProgramEnd);
     } else if(state == STATE_IDLE) // TODO: end on ok count match line count?
         flashfs_end_job();
 
@@ -160,7 +181,7 @@ static int16_t await_cycle_start (void)
 // Drop input from current stream except realtime commands
 static ISR_CODE bool drop_input_stream (char c)
 {
-    active_stream.enqueue_realtime_command(c);
+    enqueue_realtime_command(c);
 
     return true;
 }
@@ -261,7 +282,6 @@ status_code_t flashfs_stream_file (char *filename)
             memcpy(&active_stream, &hal.stream, sizeof(io_stream_t));   // Save current stream pointers
             hal.stream.type = StreamType_FlashFs;                       // then redirect to read from SD card instead
             hal.stream.read = flashfs_read;                             // ...
-            hal.stream.enqueue_realtime_command = drop_input_stream;    // Drop input from current stream except realtime commands
 #if M6_ENABLE
             hal.stream.suspend_read = flashfs_suspend;                  // ...
 #else
@@ -269,8 +289,18 @@ status_code_t flashfs_stream_file (char *filename)
 #endif
             on_realtime_report = grbl.on_realtime_report;
             grbl.on_realtime_report = flashfs_report;                   // Add percent complete to real time report
+
+            on_program_completed = grbl.on_program_completed;
+            grbl.on_program_completed = flashfs_on_program_completed;
+
             grbl.report.status_message = trap_status_report;            // Redirect status message and feedback message
             grbl.report.feedback_message = trap_feedback_message;       // reports here
+
+            enqueue_realtime_command = hal.stream.set_enqueue_rt_handler(drop_input_stream);    // Drop input from current stream except realtime commands
+
+            if(grbl.on_stream_changed)
+                grbl.on_stream_changed(hal.stream.type);
+
             retval = Status_OK;
         } else
             retval = Status_SDReadError;
@@ -295,6 +325,7 @@ void flashfs_reset (void)
 
 void flashfs_init (void)
 {
+    driver_reset = hal.driver_reset;
  //   hal.driver_reset = flashfs_reset;
 }
 
