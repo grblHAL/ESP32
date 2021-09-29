@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020 Terje Io
+  Copyright (c) 2020-2021 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 #include "networking/urldecode.h"
 #include "networking/utils.h"
 #include "networking/strutils.h"
-#include "web/upload.h"
+#include "networking/http_upload.h"
 
 #if SDCARD_ENABLE
 #include "sdcard/sdcard.h"
@@ -414,7 +414,7 @@ esp_err_t webui_sdcard_upload_handler (httpd_req_t *req)
 
         if((ok = (boundary = strstr(rqhdr, "boundary=")))) {
             boundary += strlen("boundary=");
-            ok = upload_start(req, boundary, true);
+            ok = http_upload_start(req, boundary, true);
         }
     }
 
@@ -433,7 +433,7 @@ esp_err_t webui_sdcard_upload_handler (httpd_req_t *req)
             break;
         }
 
-        upload_chunk(req, scratch, (size_t)ret);
+        http_upload_chunk(req, scratch, (size_t)ret);
 
         if(*path == '\0' && *upload->path)
             strcpy(path, upload->path);
@@ -606,10 +606,12 @@ esp_err_t webui_spiffs_handler (httpd_req_t *req)
     if(!is_authorized(req, WebUIAuth_User))
         return ESP_OK;
 
+#if AUTH_ENABLE
     if(get_auth_level(req) == WebUIAuth_User)
         strcpy(path, "/user");
     else
-        *path = '\0';
+#endif
+    *path = '\0';
 
     if(qlen && (query = malloc(qlen + 1))) {
 
@@ -695,6 +697,20 @@ esp_err_t webui_spiffs_handler (httpd_req_t *req)
 
 webui_auth_level_t auth_level;
 
+static void spiffs_on_upload_name_parsed (char *name)
+{
+    static const char *prefix = "/spiffs/";
+
+    size_t len = strlen(name), plen = strlen(prefix);
+    if(*name == '/')
+        plen--;
+
+    if(len + plen <= HTTP_UPLOAD_MAX_PATHLENGTH) {
+        memmove(name + plen, name, len + 1);
+        memcpy(name, prefix, plen);
+    }
+}
+
 esp_err_t webui_spiffs_upload_handler (httpd_req_t *req)
 {
     bool ok = false;
@@ -712,7 +728,8 @@ esp_err_t webui_spiffs_upload_handler (httpd_req_t *req)
 
         if((ok = (boundary = strstr(rqhdr, "boundary=")))) {
             boundary += strlen("boundary=");
-            ok = upload_start(req, boundary, false);
+            ok = http_upload_start(req, boundary, false);
+            http_upload_on_filename_parsed(spiffs_on_upload_name_parsed);
         }
     }
 
@@ -731,7 +748,7 @@ esp_err_t webui_spiffs_upload_handler (httpd_req_t *req)
             break;
         }
 
-        upload_chunk(req, scratch, (size_t)ret);
+        http_upload_chunk(req, scratch, (size_t)ret);
 
         if(*path == '\0' && *upload->path)
             strcat(strcpy(path, "/spiffs"), upload->path);

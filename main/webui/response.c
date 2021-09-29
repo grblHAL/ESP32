@@ -41,6 +41,7 @@ static const char *TAG = "webui";
 
 static bool chunked = false;
 static httpd_req_t *http_request = NULL;
+static on_report_options_ptr on_report_options;
 
 static status_code_t webui_parse_command (char *cmd)
 {
@@ -67,9 +68,20 @@ static status_code_t webui_parse_command (char *cmd)
     return status;
 }
 
+static void webui_options (bool newopt)
+{
+    on_report_options(newopt);
+
+    if(!newopt)
+        hal.stream.write("[PLUGIN:ESP32 WebUI v0.02]" ASCII_EOL);
+}
+
 void webui_init (void)
 {
     grbl.on_user_command = webui_parse_command;
+
+    on_report_options = grbl.on_report_options;
+    grbl.on_report_options = webui_options;
 
     esp_vfs_spiffs_conf_t conf = {
       .base_path = "/spiffs",

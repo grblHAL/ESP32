@@ -51,19 +51,22 @@ set(NETWORKING_SOURCE
  wifi.c
  dns_server.c
  web/backend.c
- web/upload.c
+ networking/http_upload.c
  networking/TCPStream.c
  networking/WsStream.c
  networking/base64.c
  networking/sha1.c
  networking/urldecode.c
- networking/strutils.c
  networking/utils.c
  networking/multipartparser.c
  networking/networking.c
  )
 
-set(SRCS main.c driver.c nvs.c esp32-hal-uart.c
+set(SRCS
+ main.c
+ driver.c
+ nvs.c
+ esp32-hal-uart.c
  i2c.c
  ioexpand.c
  i2s_out.c
@@ -90,6 +93,9 @@ set(SRCS main.c driver.c nvs.c esp32-hal-uart.c
  grbl/tool_change.c
  grbl/alarms.c
  grbl/errors.c
+ grbl/ngc_expr.c
+ grbl/ngc_params.c
+ grbl/regex.c
 )
 
 if(Networking)
@@ -170,8 +176,9 @@ endif()
 
 if(WebUI)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_ENABLE)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC STDIO_FS)
 target_add_binary_data("${COMPONENT_LIB}" "index.html.gz" BINARY)
-if(WebUI)
+if(WebAuth)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC AUTH_ENABLE)
 endif()
 endif()
