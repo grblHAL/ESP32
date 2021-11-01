@@ -252,7 +252,14 @@ static const DRAM_ATTR float FZERO = 0.0f;
 #endif
 
 #ifdef SPINDLE_HUANYANG
+#define MODBUS_ENABLE 1
 #include "spindle/huanyang.h"
+#else
+#define MODBUS_ENABLE 0
+#endif
+
+#if MODBUS_ENABLE
+#include "spindle/modbus.h"
 #endif
 
 typedef struct

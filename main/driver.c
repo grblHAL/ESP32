@@ -310,8 +310,6 @@ static bool selectStream (const io_stream_t *stream)
 
     activateStream(stream);
 
-    hal.stream.set_enqueue_rt_handler(protocol_enqueue_realtime_command);
-
     switch(stream->type) {
 
 #if TELNET_ENABLE
@@ -347,6 +345,14 @@ static bool selectStream (const io_stream_t *stream)
         default:
             break;
     }
+
+    hal.stream.set_enqueue_rt_handler(protocol_enqueue_realtime_command);
+
+    if(hal.stream.disable_rx)
+        hal.stream.disable_rx(false);
+
+    if(grbl.on_stream_changed)
+        grbl.on_stream_changed(hal.stream.type);
 
     active_stream = hal.stream.type;
 
@@ -1478,7 +1484,7 @@ bool driver_init (void)
     serial_stream = serialInit();
 
     hal.info = "ESP32";
-    hal.driver_version = "210920";
+    hal.driver_version = "211029";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -1592,12 +1598,16 @@ bool driver_init (void)
     mpg_stream = serial2Init(115200);
 #endif
 
-#if SPINDLE_HUANYANG > 0
-#if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
-    huanyang_init(modbus_init(serial2Init(115200), serial2Direction));
+#if MODBUS_ENABLE
+#ifdef MODBUS_DIRECTION_PIN
+    modbus_init(serial2Init(115200), serial2Direction);
 #else
-    huanyang_init(modbus_init(serial2Init(115200), NULL));
+    modbus_init(serial2Init(115200), NULL);
 #endif
+#endif
+
+#if SPINDLE_HUANYANG
+    huanyang_init();
 #endif
 
 #if WIFI_ENABLE
