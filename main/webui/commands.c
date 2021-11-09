@@ -168,7 +168,6 @@ static char *get_arg (char *args, char *arg, bool spacedelimited)
     return value;
 }
 
-
 // add file to the JSON response array
 static bool add_setting (cJSON *settings, setting_id_t p, char t, int32_t bit, char *v, char *h, char *s, char *m)
 {
@@ -237,11 +236,13 @@ static bool get_settings (void)
 
     if((ok = (root && (settings = cJSON_AddArrayToObject(root, "EEPROM"))))) {
 
-        wifi_settings_t *wifi = get_wifi_settings();
 
         webui_print_is_json();
 #if WIFI_ENABLE
-        add_setting(settings, Setting_Hostname, WebUIType_String, -1, wifi->ap.network.hostname, "Hostname", "33", "1");
+
+        wifi_settings_t *wifi = get_wifi_settings();
+
+        add_setting(settings, Setting_Hostname, WebUIType_String, -1, wifi->sta.network.hostname, "Hostname", "33", "1");
   #if HTTP_ENABLE
         add_setting(settings, Setting_NetworkServices, WebUIType_Boolean, 2, uitoa(wifi->sta.network.services.http), "HTTP protocol", "Enabled,Disabled", "1,0");
         add_setting(settings, Setting_HttpPort, WebUIType_Integer, -1, uitoa(wifi->sta.network.http_port), "HTTP Port", "65535", "1");
@@ -326,7 +327,7 @@ static void set_setting (char *args)
 
         sprintf(fcmd, "$%s=%s", setting, value);
 
-        // status = report_status_message(system_execute_line(fcmd));
+        status = report_status_message(system_execute_line(fcmd));
     }
 
     webui_print(status == Status_OK ? "ok" : "Invalid or unknown setting");
@@ -362,7 +363,7 @@ static bool get_system_status (void)
 static bool get_firmware_spec (void)
 {
     char buf[200];
-    wifi_settings_t *wifi = get_wifi_settings();
+    network_settings_t *network = get_network_settings();
 
     strcpy(buf, "FW version:");
     strcat(buf, GRBL_VERSION);
@@ -373,7 +374,7 @@ static bool get_firmware_spec (void)
     strcat(buf, "No SD");
     #endif
     strcat(buf, " # primary sd:/sd # secondary sd:none # authentication:");
-    #if AUTH_ENABLE
+    #if WEBUI_AUTH_ENABLE
     strcat(buf, "yes");
     #else
     strcat(buf, "no");
@@ -381,10 +382,10 @@ static bool get_firmware_spec (void)
     #if WIFI_ENABLE
     #if HTTP_ENABLE
     strcat(buf, " # webcommunication: Sync: ");
-    strcat(buf, uitoa(wifi->sta.network.websocket_port));
+    strcat(buf, uitoa(network->websocket_port));
     #endif
     strcat(buf, "# hostname:");
-    strcat(buf, wifi->sta.network.hostname);
+    strcat(buf, network->hostname);
     #if WIFI_SOFTAP
     strcat(buf,"(AP mode)");
     #endif

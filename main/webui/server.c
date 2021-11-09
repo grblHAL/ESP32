@@ -48,14 +48,14 @@
 #include "esp_vfs_fat.h"
 #endif
 
-#if AUTH_ENABLE
+#if WEBUI_AUTH_ENABLE
 static webui_auth_t *sessions = NULL;
 static webui_auth_level_t get_auth_level (httpd_req_t *req);
 #endif
 
 bool is_authorized (httpd_req_t *req, webui_auth_level_t min_level)
 {
-#if AUTH_ENABLE
+#if WEBUI_AUTH_ENABLE
     webui_auth_level_t auth_level;
 
     if((auth_level = get_auth_level(req)) < min_level) {
@@ -96,7 +96,7 @@ esp_err_t webui_http_command_handler (httpd_req_t *req)
 
             if((ok = (args = strchr(cmd, ']')))) {
                 *args++ = '\0';
-#if AUTH_ENABLE
+#if WEBUI_AUTH_ENABLE
 //              if(!is_authorized(req, get_auth_required(atol(cmd), args)))
 //                  return ESP_OK;
 #endif
@@ -606,7 +606,7 @@ esp_err_t webui_spiffs_handler (httpd_req_t *req)
     if(!is_authorized(req, WebUIAuth_User))
         return ESP_OK;
 
-#if AUTH_ENABLE
+#if WEBUI_AUTH_ENABLE
     if(get_auth_level(req) == WebUIAuth_User)
         strcpy(path, "/user");
     else
@@ -774,7 +774,7 @@ esp_err_t webui_spiffs_upload_handler (httpd_req_t *req)
 
 #endif
 
-#if AUTH_ENABLE
+#if WEBUI_AUTH_ENABLE
 
 static struct sockaddr_in6 *get_ipaddress (httpd_req_t *req)
 {
@@ -914,7 +914,7 @@ esp_err_t webui_login_handler (httpd_req_t *req)
     char msg[40] = "Ok";
     webui_auth_level_t auth_level = WebUIAuth_None;
 
-#if AUTH_ENABLE
+#if WEBUI_AUTH_ENABLE
 
     user_id_t user;
     password_t password;

@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2019-2020 Terje Io
+  Copyright (c) 2019-2021 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,8 +34,10 @@
 #include "esp_log.h"
 #include "esp_spiffs.h"
 
+#include "wifi.h"
 #include "webui.h"
 #include "grbl/grbl.h"
+#include "grbl/protocol.h"
 
 static const char *TAG = "webui";
 
@@ -73,7 +75,15 @@ static void webui_options (bool newopt)
     on_report_options(newopt);
 
     if(!newopt)
-        hal.stream.write("[PLUGIN:ESP32 WebUI v0.02]" ASCII_EOL);
+        hal.stream.write("[PLUGIN:ESP32 WebUI v0.03]" ASCII_EOL);
+}
+
+static void webui_check_networking (uint_fast16_t state)
+{
+    network_settings_t *settings = get_network_settings();
+
+    if(!(settings->services.http && settings->services.websocket))
+        report_message("WebUI requires both http and websocket services enabled!", Message_Warning);
 }
 
 void webui_init (void)
@@ -103,6 +113,8 @@ void webui_init (void)
             ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
         }
     }
+
+    protocol_enqueue_rt_command(webui_check_networking);
 }
 
 void webui_set_http_request (httpd_req_t *req)

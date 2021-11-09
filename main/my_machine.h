@@ -48,25 +48,29 @@
 
 #if NETWORKING_ENABLE
 #define NETWORK_PARAMETERS_OK   1
-#define TELNET_ENABLE           1 // Telnet daemon - requires networking enabled.
-#define FTP_ENABLE              1 // FTP daemon - requires networking and SD card enabled.
 #define WEBSOCKET_ENABLE        1 // Websocket daemon - requires networking enabled.
-#define NETWORK_HOSTNAME        "Grbl"
-#define NETWORK_IPMODE          1 // 0 = static, 1 = DHCP, 2 = AutoIP
-#define NETWORK_IP              "192.168.5.1"
-#define NETWORK_GATEWAY         "192.168.5.1"
-#define NETWORK_MASK            "255.255.255.0"
-#define NETWORK_TELNET_PORT     23
-#define NETWORK_WEBSOCKET_PORT  81
-#define NETWORK_HTTP_PORT       80
+#define TELNET_ENABLE           1 // Telnet daemon - requires networking enabled.
+//#define WIFI_SOFTAP        1 // Use Soft AP mode for WiFi.
+//#define WEBUI_ENABLE       0 // Not yet available, do not change.
+#ifdef SDCARD_ENABLE
+//#define FTP_ENABLE              1 // Ftp daemon - requires SD card enabled.
+#endif
+//#define NETWORK_HOSTNAME        "grblHAL"
+//#define NETWORK_IPMODE          1 // 0 = static, 1 = DHCP, 2 = AutoIP
+//#define NETWORK_IP              "192.168.5.1"
+//#define NETWORK_GATEWAY         "192.168.5.1"
+//#define NETWORK_MASK            "255.255.255.0"
+//#define NETWORK_TELNET_PORT     23
+//#define NETWORK_WEBSOCKET_PORT  81
+//#define NETWORK_HTTP_PORT       80
 
 // WiFi Access Point (AP) settings
 #if WIFI_SOFTAP
-#define NETWORK_AP_HOSTNAME "GrblAP"
+#define NETWORK_AP_HOSTNAME "grblHAL_AP"
 #define NETWORK_AP_IP       "192.168.5.1"
 #define NETWORK_AP_GATEWAY  "192.168.5.1"
 #define NETWORK_AP_MASK     "255.255.255.0"
-#define WIFI_AP_SSID        "GRBL"
+#define WIFI_AP_SSID        "grblHAL"
 #define WIFI_AP_PASSWORD    "GrblPassword" // Minimum 8 characters, or blank for open
 #define WIFI_MODE WiFiMode_AP; // OPTION: WiFiMode_APSTA
 #else

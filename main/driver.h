@@ -49,9 +49,9 @@
 #define WEBUI_ENABLE 1
 #endif
 
-#ifdef AUTH_ENABLE
-#undef AUTH_ENABLE
-#define AUTH_ENABLE 1
+#ifdef WEBUI_AUTH_ENABLE
+#undef WEBUI_AUTH_ENABLE
+#define WEBUI_AUTH_ENABLE 1
 #endif
 
 #ifdef SDCARD_ENABLE
@@ -84,7 +84,9 @@
 #define WIFI_ENABLE      1
 #define HTTP_ENABLE      0
 #define TELNET_ENABLE    1
+#ifdef FTP_ENABLE
 #define FTP_ENABLE       1
+#endif
 #define WEBSOCKET_ENABLE 1
 #define NETWORK_TELNET_PORT     23
 #define NETWORK_HTTP_PORT       80
@@ -124,17 +126,16 @@
 #include "freertos/semphr.h"
 
 #include "grbl/hal.h"
+#include "grbl/driver_opts.h"
 
 static const DRAM_ATTR float FZERO = 0.0f;
 
-#define PWM_RAMPED       0 // Ramped spindle PWM.
 #ifdef NOPROBE
 #define PROBE_ENABLE     0 // No probe input.
 #else
 #define PROBE_ENABLE     1 // Probe input.
 #endif
 #define PROBE_ISR        0 // Catch probe state change by interrupt TODO: needs verification!
-#define TRINAMIC_DEV     0 // Development mode, adds a few M-codes to aid debugging. Do not enable in production code
 
 // DO NOT change settings here!
 
@@ -146,45 +147,8 @@ static const DRAM_ATTR float FZERO = 0.0f;
 #define WIFI_SOFTAP      0
 #endif
 
-#ifndef KEYPAD_ENABLE
-#define KEYPAD_ENABLE    0
-#endif
-
-#ifndef FTP_ENABLE
-#define FTP_ENABLE       0
-#endif
-
 #ifndef NETWORKING_ENABLE
 #define WIFI_ENABLE      0
-#define HTTP_ENABLE      0
-#define TELNET_ENABLE    0
-#define WEBSOCKET_ENABLE 0
-#endif
-
-#if FTP_ENABLE && !SDCARD_ENABLE
-#undef FTP_ENABLE
-#define FTP_ENABLE 0
-#endif
-
-#ifndef BLUETOOTH_ENABLE
-#define BLUETOOTH_ENABLE 0
-#endif
-
-#ifndef AUTH_ENABLE
-#define AUTH_ENABLE      0
-#endif
-
-#ifndef SDCARD_ENABLE
-#define SDCARD_ENABLE    0
-#endif
-
-#ifndef WEBUI_ENABLE
-#define WEBUI_ENABLE     0
-#endif
-
-#ifndef TRINAMIC_ENABLE
-#define TRINAMIC_ENABLE  0
-#define TRINAMIC_I2C     0
 #endif
 
 #define IOEXPAND 0xFF   // Dummy pin number for I2C IO expander
@@ -219,10 +183,6 @@ static const DRAM_ATTR float FZERO = 0.0f;
 #define WIFI_MODE WiFiMode_STA; // Do not change!
 #endif
 
-#if NETWORK_IPMODE < 0 || NETWORK_IPMODE > 2
-#error "Invalid IP mode selected!"
-#endif
-
 #if NETWORK_IPMODE == 0 && WIFI_SOFTAP
 #error "Cannot use static IP for station when soft AP is enabled!"
 #endif
@@ -230,14 +190,9 @@ static const DRAM_ATTR float FZERO = 0.0f;
 #endif // !NETWORK_PARAMETERS_OK
 #endif // WIFI_ENABLE
 
-#if BLUETOOTH_ENABLE
-#define BLUETOOTH_DEVICE    "GRBL"
-#define BLUETOOTH_SERVICE   "GRBL Serial Port" // Minimum 8 characters, or blank for open
-#endif
-
 // End configuration
 
-#if IOEXPAND_ENABLE || KEYPAD_ENABLE || EEPROM_ENABLE || (TRINAMIC_ENABLE && TRINAMIC_I2C)
+#if IOEXPAND_ENABLE || KEYPAD_ENABLE == 1 || EEPROM_ENABLE || (TRINAMIC_ENABLE && TRINAMIC_I2C)
 #define I2C_ENABLE 1
 #else
 #define I2C_ENABLE 0
@@ -251,11 +206,8 @@ static const DRAM_ATTR float FZERO = 0.0f;
 #include "trinamic/common.h"
 #endif
 
-#ifdef SPINDLE_HUANYANG
-#define MODBUS_ENABLE 1
+#if SPINDLE_HUANYANG
 #include "spindle/huanyang.h"
-#else
-#define MODBUS_ENABLE 0
 #endif
 
 #if MODBUS_ENABLE
@@ -267,7 +219,6 @@ typedef struct
     grbl_wifi_mode_t mode;
     wifi_sta_settings_t sta;
     wifi_ap_settings_t ap;
-//  network_settings_t network;
     password_t admin_password;
     password_t user_password;
 } wifi_settings_t;

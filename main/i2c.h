@@ -3,7 +3,7 @@
 
   Part of grblHAL driver for ESP32
 
-  Copyright (c) 2018-2020 Terje Io
+  Copyright (c) 2018-2021 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 
 void I2CInit (void);
 
-#if KEYPAD_ENABLE
+#if KEYPAD_ENABLE == 1
 
 #include "keypad/keypad.h"
 

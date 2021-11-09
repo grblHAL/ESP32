@@ -376,6 +376,26 @@ const io_stream_t *serialInit (void)
     serialFlush();
     uartEnableInterrupt(uart1, _uart1_isr, true);
     
+    /*
+        static const periph_pin_t tx = {
+        .function = Output_TX,
+        .group = PinGroup_UART,
+        .pin = 35,
+        .mode = { .mask = PINMODE_OUTPUT },
+        .description = "Primary UART"
+    };
+
+    static const periph_pin_t rx = {
+        .function = Input_RX,
+        .group = PinGroup_UART,
+        .pin = 34,
+        .mode = { .mask = PINMODE_NONE },
+        .description = "Primary UART"
+    };
+
+    hal.periph_port.register_pin(&rx);
+    hal.periph_port.register_pin(&tx);
+*/
     return &stream;
 }
 
@@ -625,9 +645,30 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
     gpio_config(&gpioConfig);
     serial2Direction(false);
   #endif
+
+      static const periph_pin_t tx = {
+        .function = Output_TX,
+        .group = PinGroup_UART2,
+        .pin = UART2_TX_PIN,
+        .mode = { .mask = PINMODE_OUTPUT },
+        .description = "Secondary UART"
+    };
+
+    hal.periph_port.register_pin(&tx);
+
 #else
     uartEnableInterrupt(uart2, _uart2_isr, false);
 #endif
+
+    static const periph_pin_t rx = {
+        .function = Input_RX,
+        .group = PinGroup_UART2,
+        .pin = UART2_RX_PIN,
+        .mode = { .mask = PINMODE_NONE },
+        .description = "Secondary UART"
+    };
+
+    hal.periph_port.register_pin(&rx);
 
     return &stream;
 }

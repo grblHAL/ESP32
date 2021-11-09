@@ -26,6 +26,7 @@
 */
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -133,6 +134,7 @@ typedef struct {
     gpio_int_type_t intr_type;
     volatile bool active;
     volatile bool debounce;
+    const char *description;
 } input_signal_t;
 
 typedef struct {
@@ -140,6 +142,7 @@ typedef struct {
     pin_group_t group;
     uint8_t pin;
     esp_pin_t mode;
+    const char *description;
 } output_signal_t;
 
 const io_stream_t *serial_stream;
@@ -151,7 +154,7 @@ static io_stream_t prev_stream = {0}, *mpg_stream;
 
 static network_services_t services = {0};
 
-void enetStreamWriteS (const char *data)
+static void enetStreamWriteS (const char *data)
 {
 #if TELNET_ENABLE
     if(services.telnet)
@@ -174,7 +177,9 @@ void btStreamWriteS (const char *data)
 }
 #endif
 
-input_signal_t inputpin[] = {
+static periph_signal_t *periph_pins = NULL;
+
+static input_signal_t inputpin[] = {
 #ifdef RESET_PIN
     { .id = Input_Reset,        .pin = RESET_PIN,         .group = PinGroup_Control },
 #endif
@@ -205,12 +210,12 @@ input_signal_t inputpin[] = {
 #if MPG_MODE_ENABLE
   , { .id = Input_ModeSelect,   .pin = MPG_ENABLE_PIN,    .group = PinGroup_MPG }
 #endif
-#if KEYPAD_ENABLE
-  , { .id = Input_KeypadStrobe, .pin = KEYPAD_STROBE_PIN, .group = PinGroup_Keypad }
+#ifdef I2C_STROBE_PIN
+  , { .id = Input_KeypadStrobe, .pin = I2C_STROBE_PIN, .group = PinGroup_Keypad }
 #endif
 };
 
-output_signal_t outputpin[] =
+static output_signal_t outputpin[] =
 {
 #ifndef USE_I2S_OUT
     { .id = Output_StepX,         .pin = X_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
@@ -257,6 +262,22 @@ uint32_t i2s_step_length = I2S_OUT_USEC_PER_PULSE, i2s_step_samples = 1;
 
 #if IOEXPAND_ENABLE
 static ioexpand_t iopins = {0};
+#endif
+
+#if I2C_STROBE_ENABLE
+
+static driver_irq_handler_t i2c_strobe = { .type = IRQ_I2C_Strobe };
+
+static bool irq_claim (irq_type_t irq, uint_fast8_t id, irq_callback_ptr handler)
+{
+    bool ok;
+
+    if((ok = irq == IRQ_I2C_Strobe && i2c_strobe.callback == NULL))
+        i2c_strobe.callback = handler;
+
+    return ok;
+}
+
 #endif
 
 #ifndef VFD_SPINDLE
@@ -1231,7 +1252,7 @@ static void settings_changed (settings_t *settings)
                     config.intr_type = GPIO_INTR_ANYEDGE;
                     break;
 #endif
-#if KEYPAD_ENABLE
+#if I2C_STROBE_ENABLE
                 case Input_KeypadStrobe:
                     pullup = true;
                     signal->invert = false;
@@ -1297,6 +1318,7 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info)
         pin.function = inputpin[i].id;
         pin.group = inputpin[i].group;
         pin.mode.pwm = pin.group == PinGroup_SpindlePWM;
+        pin.description = inputpin[i].description;
 
         pin_info(&pin);
     };
@@ -1308,9 +1330,57 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info)
         pin.pin = outputpin[i].pin;
         pin.function = outputpin[i].id;
         pin.group = outputpin[i].group;
+        pin.description = outputpin[i].description;
 
         pin_info(&pin);
     };
+
+    periph_signal_t *ppin = periph_pins;
+
+    if(ppin) do {
+        pin.pin = ppin->pin.pin;
+        pin.function = ppin->pin.function;
+        pin.group = ppin->pin.group;
+        pin.mode = ppin->pin.mode;
+        pin.description = ppin->pin.description;
+
+        pin_info(&pin);
+
+        ppin = ppin->next;
+    } while(ppin);
+}
+
+void registerPeriphPin (const periph_pin_t *pin)
+{
+    periph_signal_t *add_pin = malloc(sizeof(periph_signal_t));
+
+    if(!add_pin)
+        return;
+
+    memcpy(&add_pin->pin, pin, sizeof(periph_pin_t));
+    add_pin->next = NULL;
+
+    if(periph_pins == NULL) {
+        periph_pins = add_pin;
+    } else {
+        periph_signal_t *last = periph_pins;
+        while(last->next)
+            last = last->next;
+        last->next = add_pin;
+    }
+}
+
+void setPeriphPinDescription (const pin_function_t function, const pin_group_t group, const char *description)
+{
+    periph_signal_t *ppin = periph_pins;
+
+    if(ppin) do {
+        if(ppin->pin.function == function && ppin->pin.group == group) {
+            ppin->pin.description = description;
+            ppin = NULL;
+        } else
+            ppin = ppin->next;
+    } while(ppin);
 }
 
 #if WIFI_ENABLE
@@ -1410,6 +1480,15 @@ static bool driver_setup (settings_t *settings)
     ledc_timer_config(&ledTimerConfig);
     ledc_channel_config(&ledConfig);
 
+    static const periph_pin_t pwm = {
+        .function = Output_SpindlePWM,
+        .group = PinGroup_SpindlePWM,
+        .pin = SPINDLEPWMPIN,
+        .mode = { .mask = PINMODE_OUTPUT }
+    };
+
+    hal.periph_port.register_pin(&pwm);
+
     /**/
 
 #endif
@@ -1451,6 +1530,32 @@ static bool driver_setup (settings_t *settings)
         }
     }
     sdcard_init();
+
+    static const periph_pin_t sck = {
+        .function = Output_SCK,
+        .group = PinGroup_SPI,
+        .pin = PIN_NUM_CLK,
+        .mode = { .mask = PINMODE_OUTPUT }
+    };
+
+    static const periph_pin_t sdo = {
+        .function = Output_MOSI,
+        .group = PinGroup_SPI,
+        .pin = PIN_NUM_MOSI,
+        .mode = { .mask = PINMODE_NONE }
+    };
+
+    static const periph_pin_t sdi = {
+        .function = Input_MISO,
+        .group = PinGroup_SPI,
+        .pin = PIN_NUM_MISO,
+        .mode = { .mask = PINMODE_NONE }
+    };
+
+    hal.periph_port.register_pin(&sck);
+    hal.periph_port.register_pin(&sdo);
+    hal.periph_port.register_pin(&sdi);
+
 #endif
 
 #if IOEXPAND_ENABLE
@@ -1481,10 +1586,8 @@ bool driver_init (void)
 {
     // Enable EEPROM and serial port here for Grbl to be able to configure itself and report any errors
 
-    serial_stream = serialInit();
-
     hal.info = "ESP32";
-    hal.driver_version = "211029";
+    hal.driver_version = "211108";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -1534,6 +1637,22 @@ bool driver_init (void)
 
     hal.control.get_state = systemGetState;
 
+//    hal.reboot = esp_restart; crashes the MCU...
+    hal.irq_enable = enable_irq;
+    hal.irq_disable = disable_irq;
+#if I2C_STROBE_ENABLE
+    hal.irq_claim = irq_claim;
+#endif
+    hal.set_bits_atomic = bitsSetAtomic;
+    hal.clear_bits_atomic = bitsClearAtomic;
+    hal.set_value_atomic = valueSetAtomic;
+    hal.get_elapsed_ticks = xTaskGetTickCountFromISR;
+    hal.enumerate_pins = enumeratePins;
+    hal.periph_port.register_pin = registerPeriphPin;
+    hal.periph_port.set_pin_description = setPeriphPinDescription;
+
+    serial_stream = serialInit();
+
     hal.stream_select = selectStream;
     hal.stream_select(serial_stream);
 
@@ -1551,15 +1670,6 @@ bool driver_init (void)
     } else
         hal.nvs.type = NVS_None;
 #endif
-
-//    hal.reboot = esp_restart; crashes the MCU...
-    hal.irq_enable = enable_irq;
-    hal.irq_disable = disable_irq;
-    hal.set_bits_atomic = bitsSetAtomic;
-    hal.clear_bits_atomic = bitsClearAtomic;
-    hal.set_value_atomic = valueSetAtomic;
-    hal.get_elapsed_ticks = xTaskGetTickCountFromISR;
-    hal.enumerate_pins = enumeratePins;
 
 #ifdef DEBUGOUT
     hal.debug_out = debug_out;
@@ -1690,8 +1800,8 @@ IRAM_ATTR static void gpio_isr (void *arg)
     }
 #endif
 
-#if KEYPAD_ENABLE
-    if(grp & PinGroup_Keypad)
-        keypad_keyclick_handler(gpio_get_level(KEYPAD_STROBE_PIN));
+#if I2C_STROBE_ENABLE
+    if((grp & PinGroup_Keypad) && i2c_strobe.callback)
+        i2c_strobe.callback(0, gpio_get_level(I2C_STROBE_PIN));
 #endif
 }

@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018 Terje Io
+  Copyright (c) 2018-2021 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -47,7 +47,8 @@ char *wifi_get_ipaddr (void);
 char *wifi_get_mac (void);
 bool wifi_dns_running (void);
 wifi_settings_t *get_wifi_settings (void);
-
+network_settings_t *get_network_settings (void);
+ 
 char *iptoa(void *ip);
 
 #endif

@@ -27,7 +27,7 @@
 #include "ioexpand.h"
 #endif
 
-#if KEYPAD_ENABLE
+#if KEYPAD_ENABLE == 1
 #include "keypad/keypad.h"
 #endif
 
@@ -44,7 +44,7 @@ void I2CTask (void *queue)
 
     while(xQueueReceive((QueueHandle_t)queue, &task, portMAX_DELAY) == pdPASS) {
 
-#if KEYPAD_ENABLE
+#if KEYPAD_ENABLE == 1
         if(task.action == 1) { // Read keypad character and add to input buffer
             if(i2cBusy != NULL && xSemaphoreTake(i2cBusy, 20 / portTICK_PERIOD_MS) == pdTRUE) {
                 char keycode;
@@ -128,7 +128,7 @@ nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
 #endif
 
 
-#if KEYPAD_ENABLE
+#if KEYPAD_ENABLE == 1
 
 void I2C_GetKeycode (uint32_t i2cAddr, keycode_callback_ptr callback)
 {
@@ -280,6 +280,23 @@ void I2CInit (void)
         xTaskCreatePinnedToCore(I2CTask, "I2C", 2048, (void *)i2cQueue, configMAX_PRIORITIES, &I2CTaskHandle, 1);
 
         xSemaphoreGive(i2cBusy);
+
+        static const periph_pin_t scl = {
+            .function = Output_SCK,
+            .group = PinGroup_I2C,
+            .pin = I2C_SCL,
+            .mode = { .mask = PINMODE_OD }
+        };
+
+        static const periph_pin_t sda = {
+            .function = Bidirectional_SDA,
+            .group = PinGroup_I2C,
+            .pin = I2C_SDA,
+            .mode = { .mask = PINMODE_OD }
+        };
+
+        hal.periph_port.register_pin(&scl);
+        hal.periph_port.register_pin(&sda);
     }
 }
 

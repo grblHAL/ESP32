@@ -542,6 +542,11 @@ wifi_settings_t *get_wifi_settings (void)
     return &wifi;
 }
 
+network_settings_t *get_network_settings (void)
+{
+    return &network;   
+}
+
 static status_code_t wifi_set_int (setting_id_t setting, uint_fast16_t value);
 static uint_fast16_t wifi_get_int (setting_id_t setting);
 static status_code_t wifi_set_ip (setting_id_t setting, char *value);

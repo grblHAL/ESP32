@@ -100,8 +100,8 @@
 // Define probe switch input pin.
 #define PROBE_PIN   GPIO_NUM_13
 
-#if KEYPAD_ENABLE
-#define KEYPAD_STROBE_PIN   GPIO_NUM_33
+#if I2C_STROBE_ENABLE
+#define I2C_STROBE_PIN   GPIO_NUM_33
 #endif
 
 #if MPG_MODE_ENABLE || MODBUS_ENABLE

@@ -27,6 +27,7 @@ OPTION(I2SStepping "Use I2S Stepping" OFF)
 
 # Networking options (WiFi)
 OPTION(SoftAP "Enable soft AP mode" OFF)
+OPTION(FtpDaemon "Enable ftp daemon" OFF) # Requires SDcard On
 
 # For Huanyan spindle support copy the spindle plugin code to the project.
 OPTION(HUANYANG "Compile with Huanyang RS485 Spindle support" OFF)
@@ -100,7 +101,7 @@ set(SRCS
 
 if(Networking)
 list (APPEND SRCS ${NETWORKING_SOURCE})
-if(SDcard)
+if(SDcard AND FtpDaemon)
 list (APPEND SRCS ${NETWORKING_FTP_SOURCE})
 endif()
 endif()
@@ -160,6 +161,9 @@ endif()
 
 if(Networking)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC NETWORKING_ENABLE)
+if(SDcard AND FtpDaemon)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC FTP_ENABLE)
+endif()
 endif()
 
 if(SoftAP)
@@ -179,7 +183,7 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_ENABLE)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC STDIO_FS)
 target_add_binary_data("${COMPONENT_LIB}" "index.html.gz" BINARY)
 if(WebAuth)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC AUTH_ENABLE)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_AUTH_ENABLE)
 endif()
 endif()
 
@@ -231,6 +235,7 @@ unset(BOARD_FYSETC_E4 CACHE)
 unset(BOARD_MY_MACHINE CACHE)
 
 unset(Networking CACHE)
+unset(FtpDaemon CACHE)
 unset(SoftAP CACHE)
 unset(Bluetooth CACHE)
 unset(Keypad CACHE)
