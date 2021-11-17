@@ -1587,7 +1587,7 @@ bool driver_init (void)
     // Enable EEPROM and serial port here for Grbl to be able to configure itself and report any errors
 
     hal.info = "ESP32";
-    hal.driver_version = "211108";
+    hal.driver_version = "211110";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -1716,29 +1716,11 @@ bool driver_init (void)
 #endif
 #endif
 
-#if SPINDLE_HUANYANG
-    huanyang_init();
-#endif
-
 #if WIFI_ENABLE
     wifi_init();
 #endif
 
-#if BLUETOOTH_ENABLE
-    bluetooth_init();
-#endif
-
-#if TRINAMIC_ENABLE
-    trinamic_init();
-#endif
-
-#if KEYPAD_ENABLE
-    keypad_init();
-#endif
-
-//    grbl_esp32_if_init();
-
-//    my_plugin_init(); causes run time crash for some silly reason
+#include "grbl/plugins_init.h"
 
     // no need to move version check before init - compiler will fail any mismatch for existing entries
     return hal.version == 8;

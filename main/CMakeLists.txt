@@ -97,6 +97,7 @@ set(SRCS
  grbl/ngc_expr.c
  grbl/ngc_params.c
  grbl/regex.c
+ grbl/ioports.c
 )
 
 if(Networking)
@@ -200,7 +201,7 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC MPG_MODE_ENABLE)
 endif()
 
 if(HUANYANG)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC SPINDLE_HUANYANG=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC HUANYANG_ENABLE=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC SPINDLE_RPM_CONTROLLED)
 endif()
 

@@ -100,7 +100,7 @@
 
 #ifdef RS485_DIR_ENABLE
 #undef RS485_DIR_ENABLE
-#if SPINDLE_HUANYANG
+#if HUANYANG_ENABLE
 #define RS485_DIR_ENABLE 1
 #else
 #define RS485_DIR_ENABLE 0
@@ -204,10 +204,6 @@ static const DRAM_ATTR float FZERO = 0.0f;
 #endif
 #include "motors/trinamic.h"
 #include "trinamic/common.h"
-#endif
-
-#if SPINDLE_HUANYANG
-#include "spindle/huanyang.h"
 #endif
 
 #if MODBUS_ENABLE
