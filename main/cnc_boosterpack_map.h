@@ -78,7 +78,7 @@
 #define Y_LIMIT_PIN GPIO_NUM_16
 #define Z_LIMIT_PIN GPIO_NUM_32
 
-#ifndef VFD_SPINDLE
+#if VFD_SPINDLE != 1
 // Define spindle enable and spindle direction output pins.
 #define SPINDLE_ENABLE_PIN      IOEXPAND
 #define SPINDLE_DIRECTION_PIN   IOEXPAND

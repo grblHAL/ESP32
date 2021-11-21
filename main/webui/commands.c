@@ -340,7 +340,7 @@ static bool get_system_status (void)
 
     webui_print_chunk(strappend(buf, 3, "Processor: ", hal.info, "\n"));
     webui_print_chunk(strappend(buf, 3, "CPU Frequency: ", uitoa(hal.f_step_timer / (1024 * 1024)), "Mhz\n"));
-    webui_print_chunk(strappend(buf, 7, "FW version: ", GRBL_VERSION, "(", GRBL_VERSION_BUILD, ")(", hal.info, ")\n"));
+    webui_print_chunk(strappend(buf, 7, "FW version: ", GRBL_VERSION, "(",  uitoa(GRBL_BUILD), ")(", hal.info, ")\n"));
     webui_print_chunk(strappend(buf, 3, "Free memory: ", uitoa(esp_get_free_heap_size()), "\n"));
     webui_print_chunk("Baud rate: 115200\n");
 #if WIFI_ENABLE

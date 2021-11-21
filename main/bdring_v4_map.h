@@ -59,7 +59,7 @@
 
 // Define spindle enable and spindle direction output pins.
 
-#ifndef VFD_SPINDLE
+#if VFD_SPINDLE != 1
 #define SPINDLE_ENABLE_PIN  GPIO_NUM_22
 #define SPINDLEPWMPIN       GPIO_NUM_2
 #endif
@@ -67,7 +67,7 @@
 // Define flood and mist coolant enable output pins.
 
 #define COOLANT_FLOOD_PIN   GPIO_NUM_25
-#ifndef VFD_SPINDLE
+#if VFD_SPINDLE != 1
 #define COOLANT_MIST_PIN    GPIO_NUM_21
 #endif
 

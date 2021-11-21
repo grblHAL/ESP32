@@ -85,7 +85,7 @@
 #include "i2c.h"
 #endif
 
-#ifndef VFD_SPINDLE
+#if VFD_SPINDLE != 1
 static uint32_t pwm_max_value;
 static bool pwmEnabled = false;
 static spindle_pwm_t spindle_pwm;
@@ -280,7 +280,7 @@ static bool irq_claim (irq_type_t irq, uint_fast8_t id, irq_callback_ptr handler
 
 #endif
 
-#ifndef VFD_SPINDLE
+#if VFD_SPINDLE != 1
 
 static void spindle_set_speed (uint_fast16_t pwm_value);
 
@@ -792,7 +792,7 @@ probe_state_t probeGetState (void)
 
 #endif
 
-#ifndef VFD_SPINDLE
+#if VFD_SPINDLE != 1
 
 // Static spindle (off, on cw & on ccw)
 IRAM_ATTR inline static void spindle_off (void)
@@ -1084,7 +1084,7 @@ void debounceTimerCallback (TimerHandle_t xTimer)
 static void settings_changed (settings_t *settings)
 {
 
-#ifndef VFD_SPINDLE
+#if VFD_SPINDLE != 1
 
     if((hal.driver_cap.variable_spindle = settings->spindle.rpm_max > settings->spindle.rpm_min)) {
 
@@ -1123,7 +1123,7 @@ static void settings_changed (settings_t *settings)
 
     if(IOInitDone) {
 
-      #ifndef VFD_SPINDLE
+      #if VFD_SPINDLE != 1
         hal.spindle.set_state = hal.driver_cap.variable_spindle ? spindleSetStateVariable : spindleSetState;
       #endif
 
@@ -1467,7 +1467,7 @@ static bool driver_setup (settings_t *settings)
 
     gpio_isr_register(gpio_isr, NULL, (int)ESP_INTR_FLAG_IRAM, NULL);
 
-#ifndef VFD_SPINDLE
+#if VFD_SPINDLE != 1
 
     /******************
     *  Spindle init  *
@@ -1568,11 +1568,7 @@ static bool driver_setup (settings_t *settings)
 
   // Set defaults
 
-#if N_AXIS > 3
-    IOInitDone = settings->version == 20;
-#else
-    IOInitDone = settings->version == 19;
-#endif
+    IOInitDone = settings->version == 21;
 
     hal.settings_changed(settings);
     hal.stepper.go_idle(true);
@@ -1624,7 +1620,7 @@ bool driver_init (void)
     hal.probe.configure = probeConfigure;
 #endif
 
-#ifndef VFD_SPINDLE
+#if VFD_SPINDLE != 1
     hal.spindle.set_state = spindleSetState;
     hal.spindle.get_state = spindleGetState;
   #ifdef SPINDLE_PWM_DIRECT
@@ -1681,7 +1677,7 @@ bool driver_init (void)
 
   // driver capabilities, used for announcing and negotiating (with Grbl) driver functionality
 
-#ifndef VFD_SPINDLE
+#if VFD_SPINDLE != 1
   #if IOEXPAND_ENABLE || defined(SPINDLE_DIRECTION_PIN)
     hal.driver_cap.spindle_dir = On;
   #endif
@@ -1723,7 +1719,7 @@ bool driver_init (void)
 #include "grbl/plugins_init.h"
 
     // no need to move version check before init - compiler will fail any mismatch for existing entries
-    return hal.version == 8;
+    return hal.version == 9;
 }
 
 /* interrupt handlers */
