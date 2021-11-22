@@ -38,6 +38,7 @@
 
 #include <esp_log.h>
 #include <esp_spiffs.h>
+#include <esp32/clk.h>
 
 #include "grbl/report.h"
 #include "wifi.h"
@@ -339,8 +340,11 @@ static bool get_system_status (void)
     wifi_settings_t *wifi = get_wifi_settings();
 
     webui_print_chunk(strappend(buf, 3, "Processor: ", hal.info, "\n"));
-    webui_print_chunk(strappend(buf, 3, "CPU Frequency: ", uitoa(hal.f_step_timer / (1024 * 1024)), "Mhz\n"));
+    webui_print_chunk(strappend(buf, 3, "CPU Frequency: ", uitoa(esp_clk_cpu_freq() / 1000000), " Mhz\n"));
     webui_print_chunk(strappend(buf, 7, "FW version: ", GRBL_VERSION, "(",  uitoa(GRBL_BUILD), ")(", hal.info, ")\n"));
+    webui_print_chunk(strappend(buf, 3, "Driver version: ", hal.driver_version, "\n"));
+    if(*hal.board != '\0')
+        webui_print_chunk(strappend(buf, 3, "Board: ", hal.board, "\n"));
     webui_print_chunk(strappend(buf, 3, "Free memory: ", uitoa(esp_get_free_heap_size()), "\n"));
     webui_print_chunk("Baud rate: 115200\n");
 #if WIFI_ENABLE
@@ -348,7 +352,10 @@ static bool get_system_status (void)
  #if TELNET_ENABLE
     webui_print_chunk(strappend(buf, 3, "Data port: ", uitoa(wifi->sta.network.telnet_port), "\n"));
  #endif
- #if TELNET_ENABLE
+ #if FTP_ENABLE
+    webui_print_chunk(strappend(buf, 3, "FTP port: ", uitoa(wifi->sta.network.ftp_port), "\n"));
+ #endif
+ #if HTTP_ENABLE
     webui_print_chunk(strappend(buf, 3, "Web port: ", uitoa(wifi->sta.network.http_port), "\n"));
  #endif
  #if WEBSOCKET_ENABLE

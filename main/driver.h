@@ -85,10 +85,14 @@
 #define HTTP_ENABLE      0
 #define TELNET_ENABLE    1
 #ifdef FTP_ENABLE
+#undef FTP_ENABLE
 #define FTP_ENABLE       1
+#else
+#define FTP_ENABLE       0
 #endif
 #define WEBSOCKET_ENABLE 1
 #define NETWORK_TELNET_PORT     23
+#define NETWORK_FTP_PORT        21
 #define NETWORK_HTTP_PORT       80
 #define NETWORK_WEBSOCKET_PORT  81
 #endif

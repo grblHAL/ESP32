@@ -161,7 +161,7 @@ static void start_services (void)
 #if TELNET_ENABLE
     if(network.services.telnet && !services.telnet) {
         TCPStreamInit();
-        TCPStreamListen(network.telnet_port == 0 ? 23 : network.telnet_port);
+        TCPStreamListen(network.telnet_port == 0 ? NETWORK_TELNET_PORT : network.telnet_port);
         services.telnet = On;
         sys_timeout(STREAM_POLL_INTERVAL, lwIPHostTimerHandler, NULL);
     }
@@ -169,14 +169,14 @@ static void start_services (void)
 #if WEBSOCKET_ENABLE
     if(network.services.websocket && !services.websocket) {
         WsStreamInit();
-        WsStreamListen(network.websocket_port == 0 ? 80 : network.websocket_port);
+        WsStreamListen(network.websocket_port == 0 ? NETWORK_WEBSOCKET_PORT : network.websocket_port);
         services.websocket = On;
         sys_timeout(STREAM_POLL_INTERVAL, lwIPHostTimerHandler, NULL);
     }
 #endif
 #if FTP_ENABLE
     if(network.services.ftp && !services.ftp) {
-        ftpd_init();
+        ftpd_init(network.ftp_port == 0 ? NETWORK_FTP_PORT : network.ftp_port);
         services.ftp = On;
     }
 #endif
@@ -589,6 +589,9 @@ static const setting_detail_t ethernet_settings[] = {
 #if HTTP_ENABLE
     { Setting_HttpPort, Group_Networking, "HTTP port", NULL, Format_Integer, "####0", "1", "65535", Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL },
 #endif
+#if FTP_ENABLE
+    { Setting_FtpPort, Group_Networking, "FTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL },
+#endif
 #if WEBSOCKET_ENABLE
     { Setting_WebSocketPort, Group_Networking, "Websocket port", NULL, Format_Integer, "####0", "1", "65535", Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL }
 #endif
@@ -597,62 +600,40 @@ static const setting_detail_t ethernet_settings[] = {
 #ifndef NO_SETTINGS_DESCRIPTIONS
 
 static const setting_descr_t ethernet_settings_descr[] = {
-    { Setting_NetworkServices, "Network services to enable. Consult driver documentation for availability.\\n\\n"
-                               "NOTE: A hard reset of the controller is required after changing network settings."
-    },
+    { Setting_NetworkServices, "Network services to enable. Consult driver documentation for availability." SETTINGS_HARD_RESET_REQUIRED },
 #if AUTH_ENABLE
     { Setting_AdminPassword, "Administrator password." },
     { Setting_UserPassword, "User password." },
 #endif
     { Setting_WiFi_STA_SSID, "WiFi Station (STA) SSID." },
     { Setting_WiFi_STA_Password, "WiFi Station (STA) Password." },
-    { Setting_Hostname, "Network hostname.\\n\\n"
-                        "NOTE: A hard reset of the controller is required after changing network settings."
-    },
-//    { Setting_IpMode, "IP Mode.\\n\\n"
-//                      "NOTE: A hard reset of the controller is required after changing network settings."
-//    },
-    { Setting_IpAddress, "Static IP address.\\n\\n"
-                         "NOTE: A hard reset of the controller is required after changing network settings."
-    },
-    { Setting_Gateway, "Static gateway address.\\n\\n"
-                       "NOTE: A hard reset of the controller is required after changing network settings."
-    },
-    { Setting_NetMask, "Static netmask.\\n\\n"
-                       "NOTE: A hard reset of the controller is required after changing network settings."
-    },
+    { Setting_Hostname, "Network hostname." SETTINGS_HARD_RESET_REQUIRED },
+//    { Setting_IpMode, "IP Mode." SETTINGS_HARD_RESET_REQUIRED },
+    { Setting_IpAddress, "Static IP address." SETTINGS_HARD_RESET_REQUIRED },
+    { Setting_Gateway, "Static gateway address."SETTINGS_HARD_RESET_REQUIRED },
+    { Setting_NetMask, "Static netmask." SETTINGS_HARD_RESET_REQUIRED },
 #if WIFI_SOFTAP
     { Setting_WifiMode, "WiFi Mode." },
     { Setting_WiFi_AP_SSID, "WiFi Access Point (AP) SSID." },
     { Setting_WiFi_AP_Password, "WiFi Access Point (AP) Password." },
-    { Setting_Hostname2, "Network hostname.\\n\\n"
-                         "NOTE: A hard reset of the controller is required after changing network settings."
-    },
-    { Setting_IpAddress2, "Static IP address.\\n\\n"
-                          "NOTE: A hard reset of the controller is required after changing network settings."
-    },
-    { Setting_Gateway2, "Static gateway address.\\n\\n"
-                        "NOTE: A hard reset of the controller is required after changing network settings."
-    },
-    { Setting_NetMask2, "Static netmask.\\n\\n"
-                        "NOTE: A hard reset of the controller is required after changing network settings."
-    },
+    { Setting_Hostname2, "Network hostname." SETTINGS_HARD_RESET_REQUIRED },
+    { Setting_IpAddress2, "Static IP address."SETTINGS_HARD_RESET_REQUIRED },
+    { Setting_Gateway2, "Static gateway address." SETTINGS_HARD_RESET_REQUIRED },
+    { Setting_NetMask2, "Static netmask." SETTINGS_HARD_RESET_REQUIRED },
 #else
     { Setting_WifiMode, "WiFi Mode." },
 #endif
 #if TELNET_ENABLE
-    { Setting_TelnetPort, "(Raw) Telnet port number listening for incoming connections.\\n\\n"
-                          "NOTE: A hard reset of the controller is required after changing network settings."
-    },
+    { Setting_TelnetPort, "(Raw) Telnet port number listening for incoming connections." SETTINGS_HARD_RESET_REQUIRED },
+#endif
+#if FTP_ENABLE
+    { Setting_FtpPort, "FTP port number listening for incoming connections." SETTINGS_HARD_RESET_REQUIRED },
 #endif
 #if HTTP_ENABLE
-    { Setting_HttpPort, "HTTP port number listening for incoming connections.\\n\\n"
-                        "NOTE: A hard reset of the controller is required after changing network settings."
-    },
+    { Setting_HttpPort, "HTTP port number listening for incoming connections." SETTINGS_HARD_RESET_REQUIRED },
 #endif
 #if WEBSOCKET_ENABLE
-    { Setting_WebSocketPort, "Websocket port number listening for incoming connections.\\n\\n"
-                             "NOTE: A hard reset of the controller is required after changing network settings.\\n"
+    { Setting_WebSocketPort, "Websocket port number listening for incoming connections." SETTINGS_HARD_RESET_REQUIRED
                              "NOTE: WebUI requires this to be HTTP port number + 1."
     }
 #endif
@@ -698,6 +679,12 @@ static status_code_t wifi_set_int (setting_id_t setting, uint_fast16_t value)
             break;
 #endif
 
+#if FTP_ENABLE
+        case Setting_FtpPort:
+            wifi.sta.network.ftp_port = wifi.ap.network.ftp_port = (uint16_t)value;
+            break;
+#endif
+
 #if HTTP_ENABLE
         case Setting_HttpPort:
             wifi.sta.network.http_port = wifi.ap.network.http_port = (uint16_t)value;
@@ -729,6 +716,12 @@ static uint_fast16_t wifi_get_int (setting_id_t setting)
 #if TELNET_ENABLE
         case Setting_TelnetPort:
             value = wifi.sta.network.telnet_port;
+            break;
+#endif
+
+#if FTP_ENABLE
+        case Setting_FtpPort:
+            value = wifi.sta.network.ftp_port;
             break;
 #endif
 
@@ -890,6 +883,7 @@ static void wifi_settings_restore (void)
 // Common
 
     wifi.sta.network.telnet_port = wifi.ap.network.telnet_port = NETWORK_TELNET_PORT;
+    wifi.sta.network.ftp_port = wifi.ap.network.ftp_port = NETWORK_FTP_PORT;
     wifi.sta.network.http_port = wifi.ap.network.http_port = NETWORK_HTTP_PORT;
     wifi.sta.network.websocket_port = wifi.ap.network.websocket_port = NETWORK_WEBSOCKET_PORT;
     wifi.sta.network.services = wifi.ap.network.services = allowed_services;
