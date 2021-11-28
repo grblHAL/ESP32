@@ -39,6 +39,7 @@
 #include <esp_log.h>
 #include <esp_spiffs.h>
 #include <esp32/clk.h>
+#include <esp_ota_ops.h>
 
 #include "grbl/report.h"
 #include "wifi.h"
@@ -343,6 +344,7 @@ static bool get_system_status (void)
     webui_print_chunk(strappend(buf, 3, "CPU Frequency: ", uitoa(esp_clk_cpu_freq() / 1000000), " Mhz\n"));
     webui_print_chunk(strappend(buf, 7, "FW version: ", GRBL_VERSION, "(",  uitoa(GRBL_BUILD), ")(", hal.info, ")\n"));
     webui_print_chunk(strappend(buf, 3, "Driver version: ", hal.driver_version, "\n"));
+    webui_print_chunk(strappend(buf, 3, "IDF version: " IDF_VER "\n"));
     if(*hal.board != '\0')
         webui_print_chunk(strappend(buf, 3, "Board: ", hal.board, "\n"));
     webui_print_chunk(strappend(buf, 3, "Free memory: ", uitoa(esp_get_free_heap_size()), "\n"));
@@ -373,7 +375,7 @@ static bool get_firmware_spec (void)
     network_settings_t *network = get_network_settings();
 
     strcpy(buf, "FW version:");
-    strcat(buf, GRBL_VERSION);
+    strcat(buf, GRBL_VERSION );
     strcat(buf, " # FW target:grbl-embedded # FW HW:");
     #if SDCARD_ENABLE
     strcat(buf, "Direct SD");

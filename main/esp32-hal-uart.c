@@ -89,6 +89,44 @@ static stream_rx_buffer_t rxbuffer2 = {0};
 static enqueue_realtime_command_ptr enqueue_realtime_command2 = protocol_enqueue_realtime_command;
 #endif
 
+static io_stream_properties_t serial[] = {
+    {
+      .type = StreamType_Serial,
+      .instance = 0,
+      .flags.claimable = On,
+      .flags.claimed = Off,
+      .flags.connected = On,
+      .flags.can_set_baud = On,
+      .claim = serialInit
+    },
+#ifdef SERIAL2_ENABLE
+    {
+      .type = StreamType_Serial,
+      .instance = 1,
+      .flags.claimable = On,
+      .flags.claimed = Off,
+      .flags.connected = On,
+      .flags.can_set_baud = On,
+      .flags.modbus_ready = On,
+#if !MODBUS_ENABLE
+      .flags.rx_only = On,
+#endif
+      .claim = serial2Init
+    }
+#endif
+};
+
+void serialRegisterStreams (void)
+{
+    static io_stream_details_t streams = {
+        .n_streams = sizeof(serial) / sizeof(io_stream_properties_t),
+        .streams = serial,
+    };
+
+    stream_register_streams(&streams);
+}
+
+
 IRAM_ATTR static void _uart1_isr (void *arg)
 {
     uint8_t c;
@@ -346,7 +384,7 @@ static enqueue_realtime_command_ptr serialSetRtHandler (enqueue_realtime_command
     return prev;
 }
 
-const io_stream_t *serialInit (void)
+const io_stream_t *serialInit (uint32_t baud_rate)
 {
     static const io_stream_t stream = {
         .type = StreamType_Serial,
@@ -368,10 +406,15 @@ const io_stream_t *serialInit (void)
         .disable_rx = serialDisable,
         .set_enqueue_rt_handler = serialSetRtHandler
     };
-    
+
+    if(serial[0].flags.claimed)
+        return NULL;
+
+    serial[0].flags.claimed = On;
+
     uart1 = &_uart_bus_array[0]; // use UART 0
 
-    uartConfig(uart1, BAUD_RATE);
+    uartConfig(uart1, baud_rate);
 
     serialFlush();
     uartEnableInterrupt(uart1, _uart1_isr, true);
@@ -440,15 +483,6 @@ static void IRAM_ATTR _uart2_isr (void *arg)
     }
     */
 }
-
-#if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
-
-IRAM_ATTR void serial2Direction(bool tx)
-{
-    gpio_set_level(MODBUS_DIRECTION_PIN, tx);
-}
-
-#endif
 
 IRAM_ATTR static bool serial2Disable (bool disable)
 {
@@ -627,6 +661,11 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
         .set_enqueue_rt_handler = serial2SetRtHandler
     };
 
+    if(serial[1].flags.claimed)
+        return NULL;
+
+    serial[1].flags.claimed = On;
+
     uart2 = &_uart_bus_array[1]; // use UART 1
 
     uartConfig(uart2, baud_rate);
@@ -634,19 +673,8 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
     serial2Flush();
 #if MODBUS_ENABLE
     uartEnableInterrupt(uart2, _uart2_isr, true);
-  #ifdef MODBUS_DIRECTION_PIN
-    gpio_config_t gpioConfig = {
-        .pin_bit_mask = (1UL << MODBUS_DIRECTION_PIN),
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE
-    };
-    gpio_config(&gpioConfig);
-    serial2Direction(false);
-  #endif
 
-      static const periph_pin_t tx = {
+    static const periph_pin_t tx = {
         .function = Output_TX,
         .group = PinGroup_UART2,
         .pin = UART2_TX_PIN,

@@ -33,9 +33,9 @@
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
 
-#include "esp_log.h"
-#include "esp_wifi.h"
-#include "esp_event_loop.h"
+#include <esp_log.h>
+#include <esp_wifi.h>
+#include <esp_event.h>
 
 #include "nvs_flash.h"
 
@@ -48,6 +48,7 @@
 #include "web/backend.h"
 #include "grbl/report.h"
 #include "grbl/nvs_buffer.h"
+#include "grbl/protocol.h"
 
 static EventGroupHandle_t wifi_event_group;
 
@@ -66,6 +67,7 @@ static SemaphoreHandle_t aplist_mutex = NULL;
 static ap_list_t ap_list = {0};
 static wifi_settings_t wifi;
 static nvs_address_t nvs_address;
+static esp_netif_t *sta_netif = NULL, *ap_netif = NULL;
 static on_report_options_ptr on_report_options;
 static char netservices[40] = ""; // must be large enough to hold all service names
 
@@ -223,71 +225,50 @@ static void wifi_ap_scan (void)
         .show_hidden = false
     };
 
-    if(esp_wifi_scan_start(&scan_config, false) == ESP_OK)
+    if(!(xEventGroupGetBits(wifi_event_group) & SCANNING_BIT) && esp_wifi_scan_start(&scan_config, false) == ESP_OK)
         xEventGroupSetBits(wifi_event_group, SCANNING_BIT);
 }
 
-static esp_err_t wifi_event_handler (void *ctx, system_event_t *event)
+static void msg_ap_ready (sys_state_t state)
 {
-    switch(event->event_id) {
+    hal.stream.write_all("[MSG:WIFI AP READY]" ASCII_EOL);
+}
 
-        case SYSTEM_EVENT_AP_START:
-            hal.stream.write_all("[MSG:WIFI AP READY]" ASCII_EOL);
-            start_services();
-            if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT) {
-                dns_server_start();
-                services.dns = On;
-            }
-            break;
+static void msg_ap_connected (sys_state_t state)
+{
+    hal.stream.write_all("[MSG:WIFI AP CONNECTED]" ASCII_EOL);
+}
 
-        case SYSTEM_EVENT_AP_STACONNECTED:
-            hal.stream.write_all("[MSG:WIFI AP CONNECTED]" ASCII_EOL);
-//          start_services();
-//          ESP_LOGI(TAG, "station:"MACSTR" join, AID=%d", MAC2STR(event->event_info.sta_connected.mac), event->event_info.sta_connected.aid);
-            break;
+static void msg_ap_scan_completed (sys_state_t state)
+{
+    hal.stream.write_all("[MSG:WIFI AP SCAN COMPLETED]" ASCII_EOL);
+}
 
-        case SYSTEM_EVENT_SCAN_DONE:
+static void msg_ap_disconnected (sys_state_t state)
+{
+    hal.stream.write_all("[MSG:WIFI AP DISCONNECTED]" ASCII_EOL);
+}
 
-            xEventGroupClearBits(wifi_event_group, SCANNING_BIT);
+static void msg_sta_active (sys_state_t state)
+{
+    hal.stream.write_all("[MSG:WIFI STA ACTIVE]" ASCII_EOL);
+}
 
-            if(xSemaphoreTake(aplist_mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+static void msg_sta_disconnected (sys_state_t state)
+{
+    hal.stream.write_all("[MSG:WIFI STA DISCONNECTED]" ASCII_EOL);
+}
 
-                if(ap_list.ap_records)
-                    free(ap_list.ap_records);
+static void ip_event_handler (void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+{
+    switch(event_id) {
 
-                ap_list.ap_num = 0;
-
-                esp_wifi_scan_get_ap_num(&ap_list.ap_num);
-
-                if((ap_list.ap_records = (wifi_ap_record_t *)malloc(sizeof(wifi_ap_record_t) * ap_list.ap_num)) != NULL)
-                    esp_wifi_scan_get_ap_records(&ap_list.ap_num, ap_list.ap_records);
-
-                hal.stream.write_all("[MSG:WIFI AP SCAN COMPLETED]" ASCII_EOL);
-
-                xSemaphoreGive(aplist_mutex);
-            }
-            // Start a new scan in 10 secs if no station connected...
-//          if(!(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT))
-//              wifi_ap_scan();
-            break;
-
-        case SYSTEM_EVENT_AP_STADISCONNECTED:
-            hal.stream_select(NULL); // Fall back to previous?
-            hal.stream.write_all("[MSG:WIFI AP DISCONNECTED]"  ASCII_EOL);
-//          ESP_LOGI(TAG, "station:"MACSTR"leave, AID=%d", MAC2STR(event->event_info.sta_disconnected.mac), event->event_info.sta_disconnected.aid);
-            break;
-                
-        case SYSTEM_EVENT_STA_START:
-            if(wifi_sta_config.sta.ssid[0] != '\0')
-                esp_wifi_connect();
-            break;
-
-        case SYSTEM_EVENT_STA_GOT_IP:
+        case IP_EVENT_STA_GOT_IP:
             // handle IP change (ip_change)
-            hal.stream.write_all("[MSG:WIFI STA ACTIVE]"  ASCII_EOL);
+            protocol_enqueue_rt_command(msg_sta_active);
             xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
             ap_list.ap_selected = wifi_sta_config.sta.ssid;
-            memcpy(&ap_list.ip_addr, &event->event_info.got_ip.ip_info.ip, sizeof(ip4_addr_t));
+            memcpy(&ap_list.ip_addr, &((ip_event_got_ip_t *)event_data)->ip_info.ip, sizeof(ip4_addr_t));
             strcpy(ap_list.ap_status, "Connected");
             start_services();
             if(services.dns) {
@@ -301,12 +282,68 @@ static esp_err_t wifi_event_handler (void *ctx, system_event_t *event)
             }
             break;
 
-        case SYSTEM_EVENT_STA_DISCONNECTED:
+        default:
+            break;
+    }
+}
+
+static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+{
+    switch(event_id) {
+
+        case WIFI_EVENT_AP_START:
+            protocol_enqueue_rt_command(msg_ap_ready);
+            start_services();
+            if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT) {
+                dns_server_start(sta_netif);
+                services.dns = On;
+            }
+            break;
+
+        case WIFI_EVENT_AP_STACONNECTED:
+            protocol_enqueue_rt_command(msg_ap_connected);
+            if((xEventGroupGetBits(wifi_event_group) & APSTA_BIT) && !(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT)) {
+                /* // screws up dns?
+                if(!(xEventGroupGetBits(wifi_event_group) & SCANNING_BIT)) {
+                  //  ap_list.ap_selected = NULL;
+                  //  wifi_ap_scan();
+                }
+                */
+                if(!services.dns) {
+                    dns_server_start(sta_netif);
+                    services.dns = On;
+                }
+
+            }
+            break;
+
+        case WIFI_EVENT_AP_STADISCONNECTED:
+            if(!(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT))
+                hal.stream_select(NULL);
+            protocol_enqueue_rt_command(msg_ap_disconnected);
+           break;
+                
+        case WIFI_EVENT_STA_START:
+            if(*wifi_sta_config.sta.ssid != '\0')
+                esp_wifi_connect();
+            break;
+
+        case WIFI_EVENT_STA_DISCONNECTED:
             //stop_services();
             hal.stream_select(NULL); // Fall back to previous?
-            hal.stream.write_all("[MSG:WIFI STA DISCONNECTED]" ASCII_EOL);
-
-            switch(event->event_info.disconnected.reason) {
+            protocol_enqueue_rt_command(msg_sta_disconnected);
+            memset(&wifi_sta_config, 0, sizeof(wifi_config_t));
+            esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_sta_config);
+            if((xEventGroupGetBits(wifi_event_group) & APSTA_BIT) && !(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT)) {
+                if(!services.dns) {
+                    dns_server_start(sta_netif);
+                    services.dns = On;
+                }
+//                ap_list.ap_selected = NULL;
+//                wifi_ap_scan();
+            }
+/*
+            switch(((wifi_event_ap_stadisconnected_t *)event_data)->disconnected.reason) {
 
                 case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
                 // fall through
@@ -326,16 +363,39 @@ static esp_err_t wifi_event_handler (void *ctx, system_event_t *event)
                         esp_wifi_connect(); // This is a workaround as ESP32 WiFi libs don't currently auto-reassociate.
                     break;
             }
-
+*/
             xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
             //TCPStreamNotifyLinkStatus(false);
             break;
 
+        case WIFI_EVENT_SCAN_DONE:
+
+            xEventGroupClearBits(wifi_event_group, SCANNING_BIT);
+
+            if(xSemaphoreTake(aplist_mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+
+                if(ap_list.ap_records)
+                    free(ap_list.ap_records);
+
+                ap_list.ap_num = 0;
+
+                esp_wifi_scan_get_ap_num(&ap_list.ap_num);
+
+                if((ap_list.ap_records = (wifi_ap_record_t *)malloc(sizeof(wifi_ap_record_t) * ap_list.ap_num)) != NULL)
+                    esp_wifi_scan_get_ap_records(&ap_list.ap_num, ap_list.ap_records);
+
+                protocol_enqueue_rt_command(msg_ap_scan_completed);
+
+                xSemaphoreGive(aplist_mutex);
+            }
+            // Start a new scan in 10 secs if no station connected...
+//          if(!(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT))
+//              wifi_ap_scan();
+            break;
+
         default:
             break;
-    }
-
-    return ESP_OK;
+    } 
 }
 
 static inline void set_addr (char *ip, ip4_addr_t *addr)
@@ -343,25 +403,22 @@ static inline void set_addr (char *ip, ip4_addr_t *addr)
     memcpy(ip, addr, sizeof(ip4_addr_t));
 }
 
-static inline void get_addr (ip4_addr_t *addr, char *ip)
+static inline void get_addr (esp_ip4_addr_t *addr, char *ip)
 {
-    memcpy(addr, ip, sizeof(ip4_addr_t));
+    memcpy(addr, ip, sizeof(esp_ip4_addr_t));
 }
 
-static bool init_adapter (tcpip_adapter_if_t tcpip_if, network_settings_t *settings)
+static bool init_adapter (esp_netif_t *netif, network_settings_t *settings)
 {
     memcpy(&network, settings, sizeof(network_settings_t));
 
-    tcpip_adapter_ip_info_t ipInfo;
+    esp_netif_ip_info_t ipInfo;
 
     if(network.ip_mode == IpMode_Static) {
         get_addr(&ipInfo.ip, network.ip);
         get_addr(&ipInfo.gw, network.gateway);
         get_addr(&ipInfo.netmask, network.mask);
-//        ipInfo.ip = *((ip4_addr_t *)network.ip);
-//        ipInfo.gw = *((ip4_addr_t *)network.gateway);
-//        ipInfo.netmask = *((ip4_addr_t *)network.mask);
-        tcpip_adapter_set_ip_info(tcpip_if, &ipInfo);
+        esp_netif_set_ip_info(netif, &ipInfo);
     }
 
     return network.ip_mode == IpMode_DHCP;
@@ -389,14 +446,16 @@ bool wifi_start (void)
 
     if(esp_wifi_get_mode(&currentMode) == ESP_ERR_WIFI_NOT_INIT) {
 
-        tcpip_adapter_init();
+        esp_netif_init();
+        esp_event_loop_create_default();
 
         wifi_event_group = xEventGroupCreate();
         aplist_mutex = xSemaphoreCreateMutex();
 
-        // TODO: add error messages on fail?
+        if(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL, NULL) != ESP_OK)
+            return false;
 
-        if(esp_event_loop_init(wifi_event_handler, NULL) != ESP_OK)
+        if(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, ip_event_handler, NULL, NULL) != ESP_OK)
             return false;
 
         wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -409,29 +468,34 @@ bool wifi_start (void)
 
         if(esp_wifi_set_mode(WIFI_MODE_NULL) != ESP_OK)
             return false;
-    }
 
-    wifi_config_t wifi_config;
+        currentMode = WIFI_MODE_NULL;
+    }
 
     if(currentMode != settingToMode(wifi.mode) && (wifi.mode == WiFiMode_AP || wifi.mode == WiFiMode_APSTA)) {
 
-        tcpip_adapter_dhcps_stop(TCPIP_ADAPTER_IF_AP);
+        wifi_config_t wifi_config;
+
+        if(ap_netif == NULL)
+            ap_netif = esp_netif_create_default_wifi_ap();
+
+        esp_netif_dhcps_stop(ap_netif);
 
         wifi.ap.network.ip_mode = IpMode_Static; // Only mode supported
 
-        init_adapter(TCPIP_ADAPTER_IF_AP, &wifi.ap.network);
+        init_adapter(ap_netif, &wifi.ap.network);
 
-        tcpip_adapter_dhcps_start(TCPIP_ADAPTER_IF_AP);
+        esp_netif_dhcps_start(ap_netif);
 
-        memset(&wifi_config, 0, sizeof(wifi_config));
+        memset(&wifi_config, 0, sizeof(wifi_config_t));
 
-        if(wifi.ap.ssid[0] == '\0')
+        if(*wifi.ap.ssid == '\0')
             return false;
 
         if(strlcpy((char *)wifi_config.ap.ssid, wifi.ap.ssid, sizeof(wifi_config.ap.ssid)) >= sizeof(wifi_config.ap.ssid))
             return false;
 
-        if (strlen(wifi.ap.password) == 0)
+        if (*wifi.ap.password == '\0')
             wifi_config.ap.authmode = WIFI_AUTH_OPEN;
         else if(strlcpy((char *)wifi_config.ap.password, wifi.ap.password, sizeof(wifi_config.ap.password)) < sizeof(wifi_config.ap.password))
             wifi_config.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
@@ -448,22 +512,23 @@ bool wifi_start (void)
 
         if(wifi.mode == WiFiMode_APSTA)
             xEventGroupSetBits(wifi_event_group, APSTA_BIT);
-
-//      ESP_LOGI(TAG, "WIFI AP SSID:[%s] password:[%s]\n", wifi_config.ap.ssid, wifi_config.ap.password);
     }
 
     if(currentMode != settingToMode(wifi.mode) && (wifi.mode == WiFiMode_STA || wifi.mode == WiFiMode_APSTA)) {
+        
+        if(sta_netif == NULL)
+            sta_netif = esp_netif_create_default_wifi_sta();
 
-        tcpip_adapter_dhcpc_stop(TCPIP_ADAPTER_IF_STA);
+        esp_netif_dhcps_stop(sta_netif);
     
         wifi.sta.network.ip_mode = IpMode_DHCP; // For now...
 
-        if(init_adapter(TCPIP_ADAPTER_IF_STA, &wifi.sta.network))
-            tcpip_adapter_dhcpc_start(TCPIP_ADAPTER_IF_STA);
+        if(init_adapter(sta_netif, &wifi.sta.network))
+            esp_netif_dhcps_start(sta_netif);
 
-        memset(&wifi_sta_config, 0, sizeof(wifi_config));
+        memset(&wifi_sta_config, 0, sizeof(wifi_config_t));
 
-        if(wifi.sta.ssid[0] != '\0') {
+        if(*wifi.sta.ssid != '\0') {
 
             if(strlcpy((char *)wifi_sta_config.sta.ssid, wifi.sta.ssid, sizeof(wifi_sta_config.sta.ssid)) >= sizeof(wifi_sta_config.sta.ssid))
                 return false;
@@ -477,18 +542,16 @@ bool wifi_start (void)
 
         if(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_sta_config) != ESP_OK)
             return false;
-
-//      ESP_LOGI(TAG, "WIFI STA SSID:[%s] password:[%s]\n", wifi_sta_config.sta.ssid, wifi_sta_config.sta.password);
     }
 
     if(esp_wifi_start() != ESP_OK)
         return false;
 
     if(wifi.mode == WiFiMode_AP || wifi.mode == WiFiMode_APSTA)
-        tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_AP, wifi.ap.network.hostname);
+        esp_netif_set_hostname(ap_netif, wifi.ap.network.hostname);
 
     if(wifi.mode == WiFiMode_STA || wifi.mode == WiFiMode_APSTA)
-        tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, wifi.sta.network.hostname);
+        esp_netif_set_hostname(sta_netif, wifi.sta.network.hostname);
 
     if(wifi.mode == WiFiMode_APSTA)
         wifi_ap_scan();
@@ -561,7 +624,7 @@ static const setting_group_detail_t ethernet_groups [] = {
 
 static const setting_detail_t ethernet_settings[] = {
     { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, netservices, NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL },
-#if AUTH_ENABLE
+#if WEBUI_AUTH_ENABLE
     { Setting_AdminPassword, Group_General, "Admin Password", NULL, Format_Password, "x(32)", NULL, "32", Setting_NonCore, &wifi.admin_password, NULL, NULL },
     { Setting_UserPassword, Group_General, "User Password", NULL, Format_Password, "x(32)", NULL, "32", Setting_NonCore, &wifi.user_password, NULL, NULL },
 #endif
@@ -601,7 +664,7 @@ static const setting_detail_t ethernet_settings[] = {
 
 static const setting_descr_t ethernet_settings_descr[] = {
     { Setting_NetworkServices, "Network services to enable. Consult driver documentation for availability." SETTINGS_HARD_RESET_REQUIRED },
-#if AUTH_ENABLE
+#if WEBUI_AUTH_ENABLE
     { Setting_AdminPassword, "Administrator password." },
     { Setting_UserPassword, "User password." },
 #endif
@@ -646,7 +709,7 @@ static void wifi_settings_save (void)
     hal.nvs.memcpy_to_nvs(nvs_address, (uint8_t *)&wifi, sizeof(wifi_settings_t), true);
 }
 
-static setting_details_t details = {
+static setting_details_t setting_details = {
     .groups = ethernet_groups,
     .n_groups = sizeof(ethernet_groups) / sizeof(setting_group_detail_t),
     .settings = ethernet_settings,
@@ -659,11 +722,6 @@ static setting_details_t details = {
     .load = wifi_settings_load,
     .restore = wifi_settings_restore
 };
-
-static setting_details_t *on_get_settings (void)
-{
-    return &details;
-}
 
 static status_code_t wifi_set_int (setting_id_t setting, uint_fast16_t value)
 {
@@ -907,8 +965,7 @@ bool wifi_init (void)
         on_report_options = grbl.on_report_options;
         grbl.on_report_options = reportIP;
 
-        details.on_get_settings = grbl.on_get_settings;
-        grbl.on_get_settings = on_get_settings;
+        settings_register(&setting_details);
 
         allowed_services.mask = networking_get_services_list((char *)netservices).mask;
     }

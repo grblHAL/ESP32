@@ -34,6 +34,8 @@
 #include "esp32-hal-uart.h"
 #include "nvs.h"
 #include "esp_log.h"
+#include "sdkconfig.h"
+#include "esp_ota_ops.h"
 //#include "grbl_esp32_if/grbl_esp32_if.h"
 
 #include "grbl/limits.h"
@@ -115,35 +117,6 @@ typedef struct {
 
 static pwm_ramp_t pwm_ramp;
 #endif
-
-typedef enum
-{
-    Pin_GPIO = 0,
-    Pin_RMT,
-    Pin_IoExpand,
-    Pin_I2S
-} esp_pin_t;
-
-typedef struct {
-    pin_function_t id;
-    pin_group_t group;
-    uint8_t pin;
-    uint32_t mask;
-    uint8_t offset;
-    bool invert;
-    gpio_int_type_t intr_type;
-    volatile bool active;
-    volatile bool debounce;
-    const char *description;
-} input_signal_t;
-
-typedef struct {
-    pin_function_t id;
-    pin_group_t group;
-    uint8_t pin;
-    esp_pin_t mode;
-    const char *description;
-} output_signal_t;
 
 const io_stream_t *serial_stream;
 #if MPG_MODE_ENABLE
@@ -239,7 +212,10 @@ static output_signal_t outputpin[] =
 #endif
     { .id = Output_DirX,          .pin = X_DIRECTION_PIN,       .group = PinGroup_StepperDir },
     { .id = Output_DirY,          .pin = Y_DIRECTION_PIN,       .group = PinGroup_StepperDir },
-    { .id = Output_DirZ,          .pin = Z_DIRECTION_PIN,       .group = PinGroup_StepperDir }
+    { .id = Output_DirZ,          .pin = Z_DIRECTION_PIN,       .group = PinGroup_StepperDir },
+#ifdef MODBUS_DIRECTION_PIN
+    { .id = Output_Aux0,          .pin = MODBUS_DIRECTION_PIN,  .group = PinGroup_AuxOutput },
+#endif
 };
 
 static volatile uint32_t ms_count = 1; // NOTE: initial value 1 is for "resetting" systick timer
@@ -1582,11 +1558,16 @@ bool driver_init (void)
 {
     // Enable EEPROM and serial port here for Grbl to be able to configure itself and report any errors
 
+    static char idf[48];
+
+    strcpy(idf, esp_get_idf_version());
+
     hal.info = "ESP32";
-    hal.driver_version = "211110";
+    hal.driver_version = "211127";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
+    hal.driver_options = IDF_VER;
     hal.driver_setup = driver_setup;
     hal.f_step_timer = rtc_clk_apb_freq_get() / STEPPER_DRIVER_PRESCALER; // 20 MHz
     hal.rx_buffer_size = RX_BUFFER_SIZE;
@@ -1647,7 +1628,7 @@ bool driver_init (void)
     hal.periph_port.register_pin = registerPeriphPin;
     hal.periph_port.set_pin_description = setPeriphPinDescription;
 
-    serial_stream = serialInit();
+    serial_stream = serialInit(115200);
 
     hal.stream_select = selectStream;
     hal.stream_select(serial_stream);
@@ -1704,17 +1685,27 @@ bool driver_init (void)
     mpg_stream = serial2Init(115200);
 #endif
 
-#if MODBUS_ENABLE
-#ifdef MODBUS_DIRECTION_PIN
-    modbus_init(serial2Init(115200), serial2Direction);
-#else
-    modbus_init(serial2Init(115200), NULL);
-#endif
-#endif
+    uint32_t i;
+    static pin_group_pins_t aux_outputs = {0};
+    output_signal_t *output;
+
+    for(i = 0 ; i < sizeof(outputpin) / sizeof(output_signal_t); i++) {
+        output = &outputpin[i];
+        if(output->group == PinGroup_AuxOutput) {
+            if(aux_outputs.pins.outputs == NULL)
+                aux_outputs.pins.outputs = output;
+            aux_outputs.n_pins++;
+        }
+    }
+
+    if(aux_outputs.n_pins)
+        ioports_init(NULL, &aux_outputs);
 
 #if WIFI_ENABLE
     wifi_init();
 #endif
+
+serialRegisterStreams();
 
 #include "grbl/plugins_init.h"
 

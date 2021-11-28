@@ -38,7 +38,7 @@ Contains the freeRTOS task for the DNS server that processes the requests.
 #include <freertos/event_groups.h>
 #include <esp_system.h>
 #include <esp_wifi.h>
-#include <esp_event_loop.h>
+//#include <esp_event_loop.h>
 #include <esp_log.h>
 #include <esp_err.h>
 #include <nvs_flash.h>
@@ -55,27 +55,28 @@ Contains the freeRTOS task for the DNS server that processes the requests.
 
 static const char TAG[] = "dns_server";
 static TaskHandle_t task_dns_server = NULL;
-int socket_fd;
+static esp_netif_ip_info_t ip;
+static int socket_fd;
+static void dns_server(void *pvParameters);
 
-void dns_server_start() {
-    xTaskCreate(&dns_server, "dns_server", 3072, NULL, WIFI_MANAGER_TASK_PRIORITY-1, &task_dns_server);
+//void dns_server_start ()
+void dns_server_start (esp_netif_t *netif)
+{
+    esp_netif_get_ip_info(netif, &ip);
+    xTaskCreate(dns_server, "dns_server", 3072, NULL, WIFI_MANAGER_TASK_PRIORITY-1, &task_dns_server);
 }
 
-void dns_server_stop(){
+void dns_server_stop ()
+{
     if(task_dns_server){
         vTaskDelete(task_dns_server);
         close(socket_fd);
         task_dns_server = NULL;
     }
-
 }
 
-
-
-void dns_server(void *pvParameters) {
-
-
-
+static void dns_server (void *pvParameters)
+{
     struct sockaddr_in sa, ra;
 
     /* Set redirection DNS hijack to the access point IP */
@@ -94,8 +95,8 @@ void dns_server(void *pvParameters) {
     memset(&sa, 0, sizeof(struct sockaddr_in));
 
     /* Bind to port 53 (typical DNS Server port) */
-    tcpip_adapter_ip_info_t ip;
-    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip);
+ //   tcpip_adapter_ip_info_t ip;
+ //   tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip);
     ra.sin_family = AF_INET;
     ra.sin_addr.s_addr = ip.ip.addr;
     ra.sin_port = htons(53);
@@ -180,4 +181,3 @@ void dns_server(void *pvParameters) {
 }
 
 #endif
-

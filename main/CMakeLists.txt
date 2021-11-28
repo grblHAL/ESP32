@@ -68,6 +68,7 @@ set(SRCS
  driver.c
  nvs.c
  esp32-hal-uart.c
+ ioports.c
  i2c.c
  ioexpand.c
  i2s_out.c

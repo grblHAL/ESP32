@@ -55,13 +55,11 @@ extern "C" {
 
 #define DEBUG_PRINT(string) uartWriteS(string)
 
-const io_stream_t *serialInit (void);
+void serialRegisterStreams (void);
+const io_stream_t *serialInit (uint32_t baud_rate);
 
 #if SERIAL2_ENABLE
 const io_stream_t *serial2Init (uint32_t baud_rate);
-#if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
-void serial2Direction(bool tx);
-#endif
 #endif
 
 #ifdef __cplusplus

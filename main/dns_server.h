@@ -40,7 +40,6 @@ extern "C" {
 /** Query + 2 byte ptr, 2 byte type, 2 byte class, 4 byte TTL, 2 byte len, 4 byte data */
 #define DNS_ANSWER_MAX_SIZE (DNS_QUERY_MAX_SIZE+16)
 
-
 /**
  * @brief RCODE values used in a DNS header message
  */
@@ -56,8 +55,6 @@ typedef enum dns_reply_code_t {
     DNS_REPLY_CODE_NXRRSET = 8
 }dns_reply_code_t;
 
-
-
 /**
  * @brief OPCODE values used in a DNS header message
  */
@@ -66,8 +63,6 @@ typedef enum dns_opcode_code_t {
     DNS_OPCODE_IQUERY = 1,
     DNS_OPCODE_STATUS = 2
 }dns_opcode_code_t;
-
-
 
 /**
  * @brief Represents a 12 byte DNS header.
@@ -89,8 +84,6 @@ typedef struct __attribute__((__packed__)) dns_header_t{
   uint16_t ARCount;    // number of resource entries
 }dns_header_t;
 
-
-
 typedef enum dns_answer_type_t {
     DNS_ANSWER_TYPE_A = 1,
     DNS_ANSWER_TYPE_NS = 2,
@@ -107,8 +100,6 @@ typedef enum dns_answer_class_t {
     DNS_ANSWER_CLASS_IN = 1
 }dns_answer_class_t;
 
-
-
 typedef struct __attribute__((__packed__)) dns_answer_t{
     uint16_t NAME;  /* for the sake of simplicity only 16 bit pointers are supported */
     uint16_t TYPE; /* Unsigned 16 bit value. The resource record types - determines the content of the RDATA field. */
@@ -118,15 +109,12 @@ typedef struct __attribute__((__packed__)) dns_answer_t{
     uint32_t RDATA; /* For the sake of simplicity only ipv4 is supported, and as such it's a unsigned 32 bit */
 }dns_answer_t;
 
-void dns_server(void *pvParameters);
-void dns_server_start();
+//void dns_server(void *pvParameters);
+void dns_server_start(esp_netif_t *netif);
 void dns_server_stop();
-
-
 
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif /* MAIN_DNS_SERVER_H_ */

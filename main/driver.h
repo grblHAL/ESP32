@@ -281,4 +281,44 @@ extern SemaphoreHandle_t i2cBusy;
   #endif
 #endif
 
+typedef enum
+{
+    Pin_GPIO = 0,
+    Pin_RMT,
+    Pin_IoExpand,
+    Pin_I2S
+} esp_pin_t;
+
+typedef struct {
+    pin_function_t id;
+    pin_group_t group;
+    uint8_t pin;
+    uint32_t mask;
+    uint8_t offset;
+    bool invert;
+    gpio_int_type_t intr_type;
+    volatile bool active;
+    volatile bool debounce;
+    const char *description;
+} input_signal_t;
+
+typedef struct {
+    pin_function_t id;
+    pin_group_t group;
+    uint8_t pin;
+    esp_pin_t mode;
+    bool claimed;
+    const char *description;
+} output_signal_t;
+
+typedef struct {
+    uint8_t n_pins;
+    union {
+        input_signal_t *inputs;
+        output_signal_t *outputs;
+    } pins;
+} pin_group_pins_t;
+
+void ioports_init(pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_outputs);
+
 #endif // __DRIVER_H__

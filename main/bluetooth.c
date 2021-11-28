@@ -627,18 +627,13 @@ static const setting_descr_t bluetooth_settings_descr[] = {
 #endif
 
 PROGMEM static const status_detail_t status_detail[] = {
-   { Status_BTInitError, "Bluetooth", "Bluetooth initalisation failed." }
+   { Status_BTInitError, "Bluetooth initalisation failed." }
 };
 
 static error_details_t error_details = {
     .errors = status_detail,
     .n_errors = sizeof(status_detail) / sizeof(status_detail_t)
 };
-
-static error_details_t *on_get_errors (void)
-{
-    return &error_details;
-}
 
 static void bluetooth_settings_restore (void)
 {
@@ -659,7 +654,7 @@ static void bluetooth_settings_save (void)
     hal.nvs.memcpy_to_nvs(nvs_address, (uint8_t *)&bluetooth, sizeof(bluetooth_settings_t), true);
 }
 
-static setting_details_t details = {
+static setting_details_t setting_details = {
     .groups = bluetooth_groups,
     .n_groups = sizeof(bluetooth_groups) / sizeof(setting_group_detail_t),
     .settings = bluetooth_settings,
@@ -673,11 +668,6 @@ static setting_details_t details = {
     .restore = bluetooth_settings_restore
 };
 
-static setting_details_t *on_get_settings (void)
-{
-    return &details;
-}
-
 bool bluetooth_init (void)
 {
     if((nvs_address = nvs_alloc(sizeof(bluetooth_settings_t)))) {
@@ -687,11 +677,8 @@ bool bluetooth_init (void)
         on_report_options = grbl.on_report_options;
         grbl.on_report_options = report_bt_MAC;
 
-        details.on_get_settings = grbl.on_get_settings;
-        grbl.on_get_settings = on_get_settings;
-
-        error_details.on_get_errors = grbl.on_get_errors;
-        grbl.on_get_errors = on_get_errors;
+        errors_register(&error_details);
+        settings_register(&setting_details);
     }
 
     return nvs_address != 0;
