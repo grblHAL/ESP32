@@ -1103,6 +1103,13 @@ static void settings_changed (settings_t *settings)
         hal.spindle.set_state = hal.driver_cap.variable_spindle ? spindleSetStateVariable : spindleSetState;
       #endif
 
+#if BLUETOOTH_ENABLE
+        static bool bluetooth_ok = false;
+        if(!bluetooth_ok)
+            bluetooth_ok = bluetooth_start();
+        // else report error?
+#endif
+
 #if WIFI_ENABLE
 
         static bool wifi_ok = false;
@@ -1111,13 +1118,6 @@ static void settings_changed (settings_t *settings)
             wifi_ok = wifi_start();
 
         // TODO: start/stop services...
-#endif
-
-#if BLUETOOTH_ENABLE
-        static bool bluetooth_ok = false;
-        if(!bluetooth_ok)
-            bluetooth_ok = bluetooth_start();
-        // else report error?
 #endif
 
         stepperEnable(settings->steppers.deenergize);
@@ -1703,6 +1703,10 @@ bool driver_init (void)
 
 #if WIFI_ENABLE
     wifi_init();
+#endif
+
+#if BLUETOOTH_ENABLE
+    bluetooth_init();
 #endif
 
 serialRegisterStreams();

@@ -136,7 +136,7 @@ if(EEPROM OR FRAM OR BOARD_CNC_BOOSTERPACK)
 list (APPEND SRCS ${EEPROM_SOURCE})
 endif()
 
-idf_component_register(SRCS "esp32-hal-uart.c" "wifi.c" "driver.c" "${SRCS}" INCLUDE_DIRS ".")
+idf_component_register(SRCS "main.c" "esp32-hal-uart.c" "wifi.c" "driver.c" "${SRCS}" INCLUDE_DIRS ".")
 
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC GRBL_ESP32)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC OVERRIDE_MY_MACHINE)
@@ -253,5 +253,6 @@ unset(FRAM CACHE)
 unset(NOPROBE CACHE)
 
 #target_compile_options("${COMPONENT_LIB}" PRIVATE -Werror -Wall -Wextra -Wmissing-field-initializers)
+target_compile_options("${COMPONENT_LIB}" PRIVATE -Wimplicit-fallthrough=1 -Wno-missing-field-initializers)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
