@@ -88,6 +88,8 @@ esp_err_t webui_http_command_handler (httpd_req_t *req)
 
     if((ok = (*data != '\0'))) {
 
+        hal.stream.state.webui_connected = On;
+
         if((cmd = strstr(data, "[ESP"))) {
 
             cmd += 4;

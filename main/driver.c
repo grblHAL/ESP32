@@ -305,6 +305,8 @@ static bool selectStream (const io_stream_t *stream)
     if(!stream)
         stream = serial_stream;
 
+    bool webui_connected = hal.stream.state.webui_connected;
+
     activateStream(stream);
 
     switch(stream->type) {
@@ -323,6 +325,7 @@ static bool selectStream (const io_stream_t *stream)
 				hal.stream.write_all = enetStreamWriteS;
             hal.stream.write_all("[MSG:WEBSOCKET STREAM ACTIVE]" ASCII_EOL);
             services.websocket = On;
+            hal.stream.state.webui_connected = webui_connected;
             break;
 #endif
 #if BLUETOOTH_ENABLE
@@ -1563,7 +1566,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "211127";
+    hal.driver_version = "211203";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
