@@ -1363,6 +1363,7 @@ void setPeriphPinDescription (const pin_function_t function, const pin_group_t g
 }
 
 #if WIFI_ENABLE
+
 static void reportConnection (bool newopt)
 {
     if(!newopt && (services.telnet || services.websocket)) {
@@ -1371,6 +1372,82 @@ static void reportConnection (bool newopt)
         hal.stream.write("]" ASCII_EOL);
     }
 }
+
+#endif
+
+#if SDCARD_ENABLE
+
+static bool bus_ok = false;
+static sdmmc_card_t *card = NULL;
+
+static bool sdcard_unmount (FATFS **fs)
+{
+    if(card && esp_vfs_fat_sdcard_unmount("/sdcard", card) == ESP_OK) {
+        card = NULL;
+        bus_ok = false;
+        spi_bus_free(SDSPI_DEFAULT_HOST);
+    }
+
+    return card == NULL;
+}
+
+static char *sdcard_mount (FATFS **fs)
+{
+    if(!bus_ok) {
+
+        spi_bus_config_t bus_config = {
+            .mosi_io_num     = PIN_NUM_MOSI,
+            .miso_io_num     = PIN_NUM_MISO,
+            .sclk_io_num     = PIN_NUM_CLK,
+            .quadwp_io_num   = -1,
+            .quadhd_io_num   = -1,
+            .max_transfer_sz = 4000,
+            .flags           = SPICOMMON_BUSFLAG_MASTER,
+            .intr_flags      = ESP_INTR_FLAG_IRAM
+        };
+
+        if(spi_bus_initialize(SDSPI_DEFAULT_HOST, &bus_config, 1) != ESP_OK)
+            return NULL;
+
+        bus_ok = true;
+    }
+
+    if(!bus_ok)
+        return NULL;
+
+    if(card == NULL) {
+
+        esp_err_t ret = ESP_FAIL;
+        esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+            .format_if_mount_failed = false,
+            .max_files = 5,
+            .allocation_unit_size = 16 * 1024
+        };
+        sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+        sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+
+        slot_config.gpio_cs = PIN_NUM_CS;
+        slot_config.host_id = host.slot;
+
+        gpio_set_drive_capability(PIN_NUM_CS, GPIO_DRIVE_CAP_3); 
+
+        if ((ret = esp_vfs_fat_sdspi_mount("/sdcard", &host, &slot_config, &mount_config, &card)) != ESP_OK)
+            report_message(ret == ESP_FAIL ? "Failed to mount filesystem" : "Failed to initialize SD card", Message_Warning);
+    }
+
+    if(fs) {
+        if(*fs == NULL)   
+            *fs = malloc(sizeof(FATFS));
+    
+        if(*fs && f_mount(*fs, "", 1) != FR_OK) {
+           free(*fs );
+           *fs  = NULL;
+        }
+    }
+
+    return "";
+}
+
 #endif
 
 // Initializes MCU peripherals for Grbl use
@@ -1474,41 +1551,11 @@ static bool driver_setup (settings_t *settings)
 
 #if SDCARD_ENABLE
 
-    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-    host.max_freq_khz = 20000; //SDMMC_FREQ_DEFAULT; //SDMMC_FREQ_PROBING; 19000;
+    sdcard_events_t *card = sdcard_init();
+    card->on_mount = sdcard_mount;
+    card->on_unmount = sdcard_unmount;
 
-    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
-    slot_config.gpio_cs   = PIN_NUM_CS;
-
-    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
-        .format_if_mount_failed = false,
-        .max_files = 5
-    };
-
-    spi_bus_config_t bus_config = {
-        .mosi_io_num     = PIN_NUM_MOSI,
-        .miso_io_num     = PIN_NUM_MISO,
-        .sclk_io_num     = PIN_NUM_CLK,
-        .quadwp_io_num   = -1,
-        .quadhd_io_num   = -1,
-        .max_transfer_sz = 0,
-        .flags           = SPICOMMON_BUSFLAG_MASTER,
-        .intr_flags      = ESP_INTR_FLAG_IRAM
-    };
-    spi_bus_initialize(host.slot, &bus_config, 1);
-
-    sdmmc_card_t *card;
-    esp_err_t ret = esp_vfs_fat_sdspi_mount("/sdcard", &host, &slot_config, &mount_config, &card);
-    if (ret != ESP_OK) {
-        if (ret == ESP_FAIL) {
-            ESP_LOGE("xx", "Failed to mount filesystem. "
-                "If you want the card to be formatted, set format_if_mount_failed = true.");
-        } else {
-            ESP_LOGE("cx", "Failed to initialize the card (%d). "
-                "Make sure SD card lines have pull-up resistors in place.", ret);
-        }
-    }
-    sdcard_init();
+    sdcard_mount(NULL);
 
     static const periph_pin_t sck = {
         .function = Output_SCK,
@@ -1566,7 +1613,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "211203";
+    hal.driver_version = "211206";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
