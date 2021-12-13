@@ -1,11 +1,9 @@
 /*
-  bluetooth.h - An embedded CNC Controller with rs274/ngc (g-code) support
+  spi.c - SPI support for SD card & Trinamic plugins
 
-  Bluetooth comms
+  Part of grblHAL driver for ESP32
 
-  Part of grblHAL
-
-  Copyright (c) 2018-2021 Terje Io
+  Copyright (c) 2020 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,14 +19,13 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef _grbl_bluetooth_h_
-#define _grbl_bluetooth_h_
+#ifndef _GRBL_SPI_H_
+#define _GRBL_SPI_H_
 
-#include "grbl/grbl.h"
-
-bool bluetooth_init (void);
-bool bluetooth_start (void);
-char *bluetooth_get_device_mac (void);
-char *bluetooth_get_client_mac (void);
+void spi_init (void);
+void spi_set_max_speed (void);
+uint32_t spi_set_speed (uint32_t prescaler);
+uint8_t spi_get_byte (void);
+uint8_t spi_put_byte (uint8_t byte);
 
 #endif

@@ -21,6 +21,10 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#if N_ABC_MOTORS > 0
+#error "Axis configuration is not supported!"
+#endif
+
 #ifdef VFD_SPINDLE
 #error "Board BOARD_BDRING_V3P5 does not have support for VFD spindle."
 #endif

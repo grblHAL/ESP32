@@ -20,6 +20,9 @@
   You should have received a copy of the GNU General Public License
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
+#if N_ABC_MOTORS > 0
+#error "Axis configuration is not supported!"
+#endif
 
 #define BOARD_NAME "CNC BoosterPack"
 
@@ -35,8 +38,8 @@
 #endif
 
 #if !EEPROM_ENABLE
-#undef EEPROM_ENABLE
-#define EEPROM_ENABLE 1 // I2C EEPROM (24LC16) support.
+//#undef EEPROM_ENABLE
+//#define EEPROM_ENABLE 1 // I2C EEPROM (24LC16) support.
 #endif
 
 #if !IOEXPAND_ENABLE

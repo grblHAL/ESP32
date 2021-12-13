@@ -21,6 +21,10 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#if N_ABC_MOTORS > 0
+#error "Axis configuration is not supported!"
+#endif
+
 #define BOARD_NAME "SourceRabbit 4-axis CNC"
 
 // timer definitions

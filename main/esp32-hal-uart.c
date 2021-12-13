@@ -126,7 +126,6 @@ void serialRegisterStreams (void)
     stream_register_streams(&streams);
 }
 
-
 IRAM_ATTR static void _uart1_isr (void *arg)
 {
     uint8_t c;
@@ -160,7 +159,7 @@ static void uartEnableInterrupt (uart_t *uart, uart_isr_ptr isr, bool enable_rx)
     esp_intr_alloc(UART_INTR_SOURCE(uart->num), (int)ESP_INTR_FLAG_IRAM, isr, NULL, &uart->intr_handle);
 
     uart->dev->conf1.rxfifo_full_thrhd = 112;
-    uart->dev->conf1.rx_tout_thrhd = 2;
+    uart->dev->conf1.rx_tout_thrhd = 50;
     uart->dev->conf1.rx_tout_en = 1;
     uart->dev->int_ena.rxfifo_full = enable_rx;
     uart->dev->int_ena.frm_err = enable_rx;
@@ -284,32 +283,26 @@ static uint32_t serialAvailableForWrite (void)
 */
 static int16_t serialRead (void)
 {
-    UART_MUTEX_LOCK(uart1);
     int16_t data;
     uint16_t bptr = rxbuffer.tail;
 
-    if(bptr == rxbuffer.head) {
-        UART_MUTEX_UNLOCK(uart1);
+    if(bptr == rxbuffer.head) {;
         return -1; // no data available else EOF
     }
     data = rxbuffer.data[bptr++];                 // Get next character, increment tmp pointer
     rxbuffer.tail = bptr & (RX_BUFFER_SIZE - 1);  // and update pointer
-    UART_MUTEX_UNLOCK(uart1);
 
     return data;
 }
 
 static bool serialPutC (const char c)
 {
-    UART_MUTEX_LOCK(uart1);
-
     while(uart1->dev->status.txfifo_cnt == 0x7F) {
         if(!hal.stream_blocking_callback())
             return false;
     }
 
     uart1->dev->fifo.rw_byte = c;
-    UART_MUTEX_UNLOCK(uart1);
 
     return true;
 }
@@ -393,7 +386,6 @@ const io_stream_t *serialInit (uint32_t baud_rate)
         .write = serialWriteS,
 //        .write_n =  serialWrite,
         .write_char = serialPutC,
-        .write_all = serialWriteS,
         .enqueue_rt_command = serialEnqueueRtCommand,
         .get_rx_buffer_free = serialRXFree,
         .get_rx_buffer_count = serialAvailable,
@@ -419,8 +411,7 @@ const io_stream_t *serialInit (uint32_t baud_rate)
     serialFlush();
     uartEnableInterrupt(uart1, _uart1_isr, true);
     
-    /*
-        static const periph_pin_t tx = {
+    static const periph_pin_t tx = {
         .function = Output_TX,
         .group = PinGroup_UART,
         .pin = 35,
@@ -438,7 +429,7 @@ const io_stream_t *serialInit (uint32_t baud_rate)
 
     hal.periph_port.register_pin(&rx);
     hal.periph_port.register_pin(&tx);
-*/
+
     return &stream;
 }
 
@@ -647,7 +638,6 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
         .write = serial2WriteS,
         .write_n =  serial2Write,
         .write_char = serial2PutC,
-        .write_all = serial2WriteS,
         .enqueue_rt_command = serial2EnqueueRtCommand,
         .get_rx_buffer_free = serial2RXFree,
         .get_rx_buffer_count = serial2Available,

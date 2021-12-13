@@ -11,7 +11,15 @@ OPTION(BOARD_ESPDUINO32 "Compile for ESPDUINO-32 Wemos D1 R32" OFF)
 OPTION(BOARD_SOURCERABBIT_4AXIS "Compile for SourceRabbit 4-axis board" OFF)
 OPTION(BOARD_PROTONEER_3XX "Compile for Protoneer v3.xx boards" OFF)
 OPTION(BOARD_FYSETC_E4 "Compile for Fysetc E4 v1.0 board" OFF)
+OPTION(BOARD_XPRO_V5 "Compile for xPro v5 board - untested!" OFF)
 OPTION(BOARD_MY_MACHINE "Compile for my_machine_map.h" OFF)
+
+OPTION(X_AXIS_GANGED "Compile with ganged X axis" OFF)
+OPTION(X_AXIS_SQUARED "Compile with auto-squared X axis" OFF)
+OPTION(Y_AXIS_GANGED "Compile with ganged Y axis" OFF)
+OPTION(Y_AXIS_SQUARED "Compile with auto-squared Y axis" OFF)
+OPTION(Z_AXIS_GANGED "Compile with ganged Z axis" OFF)
+OPTION(Z_AXIS_SQUARED "Compile with auto-squared Z axis" OFF)
 
 # The following plugins/options are supported:
 
@@ -19,7 +27,10 @@ OPTION(Networking "Wifi + protocols" OFF)
 OPTION(Bluetooth "Bluetooth" OFF)
 OPTION(Keypad "I2C Keypad" OFF)
 OPTION(SDcard "SD Card Streaming" OFF)
-OPTION(Trinamic "Trinamic driver support over I2C" OFF)
+# NOTE: SPI mode Trinamic drivers cannot currently be used with SD Card enabled!
+OPTION(TMC2130 "Trinamic TMC2130 driver support" OFF)
+OPTION(TMC5160 "Trinamic TMC5160 driver support" OFF)
+OPTION(Trinamic "Trinamic driver support via I2C" OFF)
 OPTION(WebUI "WebUI services" OFF)
 OPTION(WebAuth "WebUI authentication" OFF)
 OPTION(MPGMode "MPG mode" OFF)
@@ -42,7 +53,6 @@ OPTION(NOPROBE "Compile without probe support" OFF)
 
 set(SDCARD_SOURCE sdcard/sdcard.c sdcard/ymodem.c)
 set(KEYPAD_SOURCE keypad/keypad.c)
-set(TRINAMIC_SOURCE motors/trinamic.c trinamic/tmc2130.c trinamic/tmc2130hal.c trinamic/common.c trinamic/tmc_interface.c)
 set(WEBUI_SOURCE webui/server.c webui/response.c webui/commands.c webui/flashfs.c )
 set(BLUETOOTH_SOURCE bluetooth.c )
 set(HUANYANG_SOURCE spindle/huanyang.c spindle/modbus)
@@ -62,6 +72,19 @@ set(NETWORKING_SOURCE
  networking/multipartparser.c
  networking/networking.c
  )
+ set(TRINAMIC_SOURCE
+ spi.c
+ trinamic_if.c
+ motors/trinamic.c
+ trinamic/common.c
+ trinamic/tmc_interface.c
+ trinamic/tmc2130.c
+ trinamic/tmc2130hal.c
+ trinamic/tmc2209.c
+ trinamic/tmc2209hal.c
+ trinamic/tmc5160.c
+ trinamic/tmc5160hal.c
+)
 
 set(SRCS
  main.c
@@ -116,7 +139,7 @@ if(Keypad)
 list (APPEND SRCS ${KEYPAD_SOURCE})
 endif()
 
-if(Trinamic)
+if(Trinamic OR TMC2130 OR TMC5160)
 list (APPEND SRCS ${TRINAMIC_SOURCE})
 endif()
 
@@ -157,8 +180,37 @@ elseif(BOARD_PROTONEER_3XX)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC BOARD_PROTONEER_3XX)
 elseif(BOARD_FYSETC_E4)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC BOARD_FYSETC_E4)
+elseif(BOARD_XPRO_V5)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC BOARD_XPRO_V5)
 elseif(BOARD_MY_MACHINE)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC BOARD_MY_MACHINE)
+endif()
+
+if(X_AXIS_GANGED)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC X_GANGED)
+endif()
+if(X_AXIS_SQUARED)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC X_AUTO_SQUARE)
+endif()
+if(Y_AXIS_GANGED)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC Y_GANGED)
+endif()
+if(Y_AXIS_SQUARED)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC Y_AUTO_SQUARE)
+endif()
+if(Z_AXIS_GANGED)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC Z_GANGED)
+endif()
+if(Z_AXIS_SQUARED)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC Z_AUTO_SQUARE)
+endif()
+
+if(TMC2130)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC TRINAMIC_ENABLE=2130)
+endif()
+
+if(TMC5160)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC TRINAMIC_ENABLE=5160)
 endif()
 
 if(Networking)
@@ -234,7 +286,15 @@ unset(BOARD_ESPDUINO32 CACHE)
 unset(BOARD_SOURCERABBIT_4AXIS CACHE)
 unset(BOARD_PROTONEER_3XX CACHE)
 unset(BOARD_FYSETC_E4 CACHE)
+unset(BOARD_XPRO_V5 CACHE)
 unset(BOARD_MY_MACHINE CACHE)
+
+unset(X_AXIS_GANGED CACHE)
+unset(X_AXIS_SQUARED CACHE)
+unset(Y_AXIS_GANGED CACHE)
+unset(Y_AXIS_SQUARED CACHE)
+unset(Z_AXIS_GANGED CACHE)
+unset(Z_AXIS_SQUARED CACHE)
 
 unset(Networking CACHE)
 unset(FtpDaemon CACHE)
@@ -243,6 +303,8 @@ unset(Bluetooth CACHE)
 unset(Keypad CACHE)
 unset(SDcard CACHE)
 unset(Trinamic CACHE)
+unset(TMC2130 CACHE)
+unset(TMC5160 CACHE)
 unset(WebUI CACHE)
 unset(WebAuth CACHE)
 unset(MPGMode CACHE)

@@ -74,12 +74,6 @@
 #define KEYPAD_ENABLE 1
 #endif
 
-#ifdef TRINAMIC_ENABLE
-#undef TRINAMIC_ENABLE
-#define TRINAMIC_ENABLE 2130
-#define TRINAMIC_I2C    1
-#endif
-
 #ifdef NETWORKING_ENABLE
 #define WIFI_ENABLE      1
 #define HTTP_ENABLE      0
@@ -246,6 +240,8 @@ typedef struct {
   #include "protoneer_3.xx_map.h"
 #elif defined(BOARD_FYSETC_E4)
   #include "fysetc_e4_map.h"
+#elif defined(BOARD_XPRO_V5)
+  #include "xPro_v5_map.h"
 #elif defined(BOARD_MY_MACHINE)
   #include "my_machine_map.h"
 #else // default board - NOTE: NOT FINAL VERSION!
@@ -259,6 +255,14 @@ typedef struct {
 
 #if IOEXPAND_ENABLE == 0 && ((DIRECTION_MASK|STEPPERS_DISABLE_MASK|SPINDLE_MASK|COOLANT_MASK) & 0xC00000000ULL)
 #error "Pins 34 - 39 are input only!"
+#endif
+
+#ifdef USE_I2S_OUT
+#define DIGITAL_IN(pin) i2s_out_state(pin)
+#define DIGITAL_OUT(pin, state) i2s_out_write(pin, state)
+#else
+#define DIGITAL_IN(pin) gpio_get_level(pin)
+#define DIGITAL_OUT(pin, state) gpio_set_level(pin, state)
 #endif
 
 #ifdef I2C_PORT
@@ -320,5 +324,9 @@ typedef struct {
 } pin_group_pins_t;
 
 void ioports_init(pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_outputs);
+
+#ifdef HAS_BOARD_INIT
+void board_init (void);
+#endif
 
 #endif // __DRIVER_H__

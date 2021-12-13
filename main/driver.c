@@ -41,6 +41,7 @@
 #include "grbl/limits.h"
 #include "grbl/protocol.h"
 #include "grbl/state_machine.h"
+#include "grbl/motor_pins.h"
 
 #ifdef USE_I2S_OUT
 #include "i2s_out.h"
@@ -123,33 +124,6 @@ const io_stream_t *serial_stream;
 static io_stream_t prev_stream = {0}, *mpg_stream;
 #endif
 
-#if WIFI_ENABLE
-
-static network_services_t services = {0};
-
-static void enetStreamWriteS (const char *data)
-{
-#if TELNET_ENABLE
-    if(services.telnet)
-        TCPStreamWriteS(data);
-#endif
-#if WEBSOCKET_ENABLE
-    if(services.websocket)
-        WsStreamWriteS(data);
-#endif
-    serial_stream->write(data);
-}
-
-#endif // WIFI_ENABLE
-
-#if BLUETOOTH_ENABLE
-void btStreamWriteS (const char *data)
-{
-    BTStreamWriteS(data);
-    serial_stream->write(data);
-}
-#endif
-
 static periph_signal_t *periph_pins = NULL;
 
 static input_signal_t inputpin[] = {
@@ -169,22 +143,31 @@ static input_signal_t inputpin[] = {
     { .id = Input_Probe,        .pin = PROBE_PIN,         .group = PinGroup_Probe },
 #endif
     { .id = Input_LimitX,       .pin = X_LIMIT_PIN,       .group = PinGroup_Limit },
+#ifdef X2_LIMIT_PIN
+    { .id = Input_LimitX_2,     .pin = X2_LIMIT_PIN,      .group = PinGroup_Limit },
+#endif
     { .id = Input_LimitY,       .pin = Y_LIMIT_PIN,       .group = PinGroup_Limit },
-    { .id = Input_LimitZ,       .pin = Z_LIMIT_PIN,       .group = PinGroup_Limit }
+#ifdef Y2_LIMIT_PIN
+    { .id = Input_LimitY_2,     .pin = Y2_LIMIT_PIN,      .group = PinGroup_Limit },
+#endif
+	{ .id = Input_LimitZ,       .pin = Z_LIMIT_PIN,       .group = PinGroup_Limit },
+#ifdef Z2_LIMIT_PIN
+    { .id = Input_LimitZ_2,     .pin = Z2_LIMIT_PIN,      .group = PinGroup_Limit },
+#endif
 #ifdef A_LIMIT_PIN
-  , { .id = Input_LimitA,       .pin = A_LIMIT_PIN,       .group = PinGroup_Limit }
+    { .id = Input_LimitA,       .pin = A_LIMIT_PIN,       .group = PinGroup_Limit },
 #endif
 #ifdef B_LIMIT_PIN
-  , { .id = Input_LimitB,       .pin = B_LIMIT_PIN,       .group = PinGroup_Limit }
+    { .id = Input_LimitB,       .pin = B_LIMIT_PIN,       .group = PinGroup_Limit },
 #endif
 #ifdef C_LIMIT_PIN
-  , { .id = Input_LimitC,       .pin = C_LIMIT_PIN,       .group = PinGroup_Limit }
+    { .id = Input_LimitC,       .pin = C_LIMIT_PIN,       .group = PinGroup_Limit },
 #endif
 #if MPG_MODE_ENABLE
-  , { .id = Input_ModeSelect,   .pin = MPG_ENABLE_PIN,    .group = PinGroup_MPG }
+    { .id = Input_ModeSelect,   .pin = MPG_ENABLE_PIN,    .group = PinGroup_MPG },
 #endif
 #ifdef I2C_STROBE_PIN
-  , { .id = Input_KeypadStrobe, .pin = I2C_STROBE_PIN, .group = PinGroup_Keypad }
+    { .id = Input_KeypadStrobe, .pin = I2C_STROBE_PIN,    .group = PinGroup_Keypad }
 #endif
 };
 
@@ -213,6 +196,46 @@ static output_signal_t outputpin[] =
     { .id = Output_DirX,          .pin = X_DIRECTION_PIN,       .group = PinGroup_StepperDir },
     { .id = Output_DirY,          .pin = Y_DIRECTION_PIN,       .group = PinGroup_StepperDir },
     { .id = Output_DirZ,          .pin = Z_DIRECTION_PIN,       .group = PinGroup_StepperDir },
+#ifdef A_AXIS
+    { .id = Output_DirA,          .pin = A_DIRECTION_PIN,       .group = PinGroup_StepperDir },
+#endif
+#ifdef B_AXIS
+    { .id = Output_DirB,          .pin = B_DIRECTION_PIN,       .group = PinGroup_StepperDir },
+#endif
+#ifdef C_AXIS
+    { .id = Output_DirC,          .pin = C_DIRECTION_PIN,       .group = PinGroup_StepperDir },
+#endif
+#ifdef X2_DIRECTION_PIN
+    { .id = Output_DirX_2,        .pin = X2_DIRECTION_PIN,      .group = PinGroup_StepperDir },
+#endif
+#ifdef Y2_DIRECTION_PIN
+    { .id = Output_DirY_2,        .pin = Y2_DIRECTION_PIN,      .group = PinGroup_StepperDir },
+#endif
+#ifdef Z2_DIRECTION_PIN
+    { .id = Output_DirZ_2,        .pin = Z2_DIRECTION_PIN,      .group = PinGroup_StepperDir },
+#endif
+#ifdef MOTOR_CS_PIN
+    { .id = Output_MotorChipSelect,   .pin = MOTOR_CS_PIN,      .group = PinGroup_MotorChipSelect },
+#endif
+#ifdef MOTOR_CSX_PIN
+    { .id = Output_MotorChipSelectX,  .pin = MOTOR_CSX_PIN,     .group = PinGroup_MotorChipSelect },
+#endif
+#ifdef MOTOR_CSY_PIN
+    { .id = Output_MotorChipSelectY,  .pin = MOTOR_CSY_PIN,     .group = PinGroup_MotorChipSelect },
+#endif
+#ifdef MOTOR_CSZ_PIN
+    { .id = Output_MotorChipSelectZ,  .pin = MOTOR_CSZ_PIN,     .group = PinGroup_MotorChipSelect },
+#endif
+#ifdef MOTOR_CSM3_PIN
+    { .id = Output_MotorChipSelectM3, .pin = MOTOR_CSM3_PIN,    .group = PinGroup_MotorChipSelect },
+#endif
+#ifdef MOTOR_CSM4_PIN
+    { .id = Output_MotorChipSelectM4, .pin = MOTOR_CSM4_PIN,    .group = PinGroup_MotorChipSelect },
+#endif
+#ifdef MOTOR_CSM5_PIN
+    { .id = Output_MotorChipSelectM5, .pin = MOTOR_CSM5_PIN,    .group = PinGroup_MotorChipSelect },
+#endif
+
 #ifdef MODBUS_DIRECTION_PIN
     { .id = Output_Aux0,          .pin = MODBUS_DIRECTION_PIN,  .group = PinGroup_AuxOutput },
 #endif
@@ -227,13 +250,12 @@ static probe_state_t probe = {
 };
 #endif
 
+#ifdef SQUARING_ENABLED
+static axes_signals_t motors_1 = {AXES_BITMASK}, motors_2 = {AXES_BITMASK};
+#endif
+
 #ifdef USE_I2S_OUT
-#define DIGITAL_IN(pin) i2s_out_state(pin)
-#define DIGITAL_OUT(pin, state) i2s_out_write(pin, state)
 uint32_t i2s_step_length = I2S_OUT_USEC_PER_PULSE, i2s_step_samples = 1;
-#else
-#define DIGITAL_IN(pin) gpio_get_level(pin)
-#define DIGITAL_OUT(pin, state) gpio_set_level(pin, state)
 #endif
 
 #if IOEXPAND_ENABLE
@@ -285,80 +307,6 @@ static void stepper_driver_isr (void *arg);
 
 static TimerHandle_t xDelayTimer = NULL, debounceTimer = NULL;
 
-static void activateStream (const io_stream_t *stream)
-{
-#if MPG_MODE_ENABLE
-    if(hal.stream.type == StreamType_MPG) {
-        hal.stream.write_all = stream->write_all;
-        if(prev_stream.reset_read_buffer != NULL)
-            prev_stream.reset_read_buffer();
-        memcpy(&prev_stream, stream, sizeof(io_stream_t));
-    } else
-#endif
-        memcpy(&hal.stream, stream, sizeof(io_stream_t));
-}
-
-static bool selectStream (const io_stream_t *stream)
-{
-	static stream_type_t active_stream = StreamType_Serial;
-
-    if(!stream)
-        stream = serial_stream;
-
-    bool webui_connected = hal.stream.state.webui_connected;
-
-    activateStream(stream);
-
-    switch(stream->type) {
-
-#if TELNET_ENABLE
-        case StreamType_Telnet:
-		    if(!hal.stream.write_all)
-				hal.stream.write_all = enetStreamWriteS;
-            hal.stream.write_all("[MSG:TELNET STREAM ACTIVE]" ASCII_EOL);
-            services.telnet = On;
-            break;
-#endif
-#if WEBSOCKET_ENABLE
-        case StreamType_WebSocket:
-			if(!hal.stream.write_all)
-				hal.stream.write_all = enetStreamWriteS;
-            hal.stream.write_all("[MSG:WEBSOCKET STREAM ACTIVE]" ASCII_EOL);
-            services.websocket = On;
-            hal.stream.state.webui_connected = webui_connected;
-            break;
-#endif
-#if BLUETOOTH_ENABLE
-        case StreamType_Bluetooth:
-		    if(!hal.stream.write_all)
-				hal.stream.write_all = btStreamWriteS;
-			// no break
-#endif
-        case StreamType_Serial:
-#if WIFI_ENABLE
-            services.mask = 0;
-#endif
-            if(active_stream != StreamType_Serial)
-                hal.stream.write_all("[MSG:SERIAL STREAM ACTIVE]" ASCII_EOL);
-            break;
-
-        default:
-            break;
-    }
-
-    hal.stream.set_enqueue_rt_handler(protocol_enqueue_realtime_command);
-
-    if(hal.stream.disable_rx)
-        hal.stream.disable_rx(false);
-
-    if(grbl.on_stream_changed)
-        grbl.on_stream_changed(hal.stream.type);
-
-    active_stream = hal.stream.type;
-
-    return stream->type == hal.stream.type;
-}
-
 void initRMT (settings_t *settings)
 {
     rmt_item32_t rmtItem[2];
@@ -381,23 +329,59 @@ void initRMT (settings_t *settings)
     rmtItem[1].duration1 = 0;
 
     uint32_t channel;
-    for(channel = 0; channel < N_AXIS; channel++) {
+    for(channel = 0; channel < (N_AXIS + N_ABC_MOTORS); channel++) {
 
         rmtConfig.channel = channel;
 
         switch(channel) {
-            case 0:
+            case X_AXIS:
                 rmtConfig.tx_config.idle_level = settings->steppers.step_invert.x;
                 rmtConfig.gpio_num = X_STEP_PIN;
                 break;
-            case 1:
+            case Y_AXIS:
                 rmtConfig.tx_config.idle_level = settings->steppers.step_invert.y;
                 rmtConfig.gpio_num = Y_STEP_PIN;
                 break;
-            case 2:
+            case Z_AXIS:
                 rmtConfig.tx_config.idle_level = settings->steppers.step_invert.z;
                 rmtConfig.gpio_num = Z_STEP_PIN;
                 break;
+#ifdef A_STEP_PIN
+            case A_AXIS:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.a;
+                rmtConfig.gpio_num = A_STEP_PIN;
+                break;
+#endif
+#ifdef B_STEP_PIN
+            case B_AXIS:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.b;
+                rmtConfig.gpio_num = B_STEP_PIN;
+                break;
+#endif
+#ifdef C_STEP_PIN
+            case C_AXIS:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.c;
+                rmtConfig.gpio_num = C_STEP_PIN;
+                break;
+#endif
+#ifdef X2_STEP_PIN
+            case X2_MOTOR:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.x;
+                rmtConfig.gpio_num = X2_STEP_PIN;
+                break;
+#endif
+#ifdef Y2_STEP_PIN
+            case Y2_MOTOR:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.y;
+                rmtConfig.gpio_num = Y2_STEP_PIN;
+                break;
+#endif
+#ifdef Z2_STEP_PIN
+            case Z2_MOTOR:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.y;
+                rmtConfig.gpio_num = Z2_STEP_PIN;
+                break;
+#endif
         }
         rmtItem[0].level0 = rmtConfig.tx_config.idle_level;
         rmtItem[0].level1 = !rmtConfig.tx_config.idle_level;
@@ -445,25 +429,6 @@ static void debug_out (bool enable)
 }
 #endif
 
-// Set stepper direction output pins
-// NOTE: see note for set_step_outputs()
-inline IRAM_ATTR static void set_dir_outputs (axes_signals_t dir_outbits)
-{
-    dir_outbits.value ^= settings.steppers.dir_invert.mask;
-    DIGITAL_OUT(X_DIRECTION_PIN, dir_outbits.x);
-    DIGITAL_OUT(Y_DIRECTION_PIN, dir_outbits.y);
-    DIGITAL_OUT(Z_DIRECTION_PIN, dir_outbits.z);
-#ifdef A_AXIS
-    DIGITAL_OUT(A_DIRECTION_PIN, dir_outbits.a);
-#endif
-#ifdef B_AXIS
-    DIGITAL_OUT(B_DIRECTION_PIN, dir_outbits.b);
-#endif
-#ifdef C_AXIS
-    DIGITAL_OUT(C_DIRECTION_PIN, dir_outbits.c);
-#endif
-}
-
 // Enable/disable steppers
 static void stepperEnable (axes_signals_t enable)
 {
@@ -478,52 +443,29 @@ static void stepperEnable (axes_signals_t enable)
 #elif defined(STEPPERS_DISABLE_PIN)
     DIGITAL_OUT(STEPPERS_DISABLE_PIN, enable.x);
 #else
+  #ifdef X_DISABLE_PIN
     DIGITAL_OUT(X_DISABLE_PIN, enable.x);
+  #endif
+  #ifdef X_DISABLE_PIN
     DIGITAL_OUT(Y_DISABLE_PIN, enable.y); 
+  #endif
+  #ifdef Z_DISABLE_PIN
     DIGITAL_OUT(Z_DISABLE_PIN, enable.z);
-#ifdef A_AXIS
+  #endif
+  #ifdef A_DISABLE_PIN
     DIGITAL_OUT(A_DISABLE_PIN, enable.a);
-#endif
-#ifdef B_AXIS
+  #endif
+  #ifdef B_DISABLE_PIN
     DIGITAL_OUT(B_DISABLE_PIN, enable.b);
-#endif
-#ifdef C_AXIS
+  #endif
+  #ifdef C_DISABLE_PIN
     DIGITAL_OUT(C_DISABLE_PIN, enable.c);
-#endif
+  #endif
 #endif
 #endif
 }
 
 #ifdef USE_I2S_OUT
-
-// Set stepper pulse output pins
-inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits)
-{
-    step_outbits.value ^= settings.steppers.step_invert.mask;
-    DIGITAL_OUT(X_STEP_PIN, step_outbits.x);
-    DIGITAL_OUT(Y_STEP_PIN, step_outbits.y);
-    DIGITAL_OUT(Z_STEP_PIN, step_outbits.z);
-#ifdef A_AXIS
-    DIGITAL_OUT(A_STEP_PIN, step_outbits.a);
-#endif
-#ifdef B_AXIS
-    DIGITAL_OUT(B_STEP_PIN, step_outbits.b);
-#endif
-#ifdef C_AXIS
-    DIGITAL_OUT(C_STEP_PIN, step_outbits.c);
-#endif
-}
-
-IRAM_ATTR static void I2S_stepperGoIdle (bool clear_signals)
-{
-    if(clear_signals) {
-        i2s_set_step_outputs((axes_signals_t){0});
-        set_dir_outputs((axes_signals_t){0});
-        i2s_out_reset();
-    }
-
-    i2s_out_set_passthrough();
-}
 
 IRAM_ATTR static void I2S_stepperCyclesPerTick (uint32_t cycles_per_tick)
 {
@@ -553,27 +495,6 @@ static void I2S_stepperWakeUp (void)
 
 #else
 
-// Set stepper pulse output pins
-inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_outbits)
-{
-    if(step_outbits.x) {
-        RMT.conf_ch[0].conf1.mem_rd_rst = 1;
-        RMT.conf_ch[0].conf1.tx_start = 1;
-    }
-
-    if(step_outbits.y) {
-        RMT.conf_ch[1].conf1.mem_rd_rst = 1;
-        RMT.conf_ch[1].conf1.tx_start = 1;
-    }
-
-    if(step_outbits.z) {
-        RMT.conf_ch[2].conf1.mem_rd_rst = 1;
-        RMT.conf_ch[2].conf1.tx_start = 1;
-    }
-}
-
-#endif
-
 // Starts stepper driver ISR timer and forces a stepper driver interrupt callback
 static void stepperWakeUp (void)
 {
@@ -589,21 +510,6 @@ static void stepperWakeUp (void)
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.alarm_en = TIMER_ALARM_EN;
 }
 
-// Disables stepper driver interrupts
-IRAM_ATTR static void stepperGoIdle (bool clear_signals)
-{
-    timer_pause(STEP_TIMER_GROUP, STEP_TIMER_INDEX);
-
-    if(clear_signals) {
-#ifdef USE_I2S_OUT
-        i2s_set_step_outputs((axes_signals_t){0});
-#else
-        set_step_outputs((axes_signals_t){0});
-#endif
-        set_dir_outputs((axes_signals_t){0});
-    }
-}
-
 // Sets up stepper driver interrupt timeout
 IRAM_ATTR static void stepperCyclesPerTick (uint32_t cycles_per_tick)
 {
@@ -612,6 +518,272 @@ IRAM_ATTR static void stepperCyclesPerTick (uint32_t cycles_per_tick)
     TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = cycles_per_tick < (1UL << 18) ? cycles_per_tick : (1UL << 18) - 1UL;
 #else
     TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = cycles_per_tick < (1UL << 23) ? cycles_per_tick : (1UL << 23) - 1UL;
+#endif
+}
+
+#endif // USE_I2S_OUT
+
+#ifdef SQUARING_ENABLED
+
+#ifdef USE_I2S_OUT
+
+// Set stepper pulse output pins
+inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits_1)
+{
+    axes_signals_t step_outbits_2;
+    step_outbits_2.mask = (step_outbits_1.mask & motors_2.mask) ^ settings.steppers.step_invert.mask;
+    step_outbits_1.mask = (step_outbits_1.mask & motors_1.mask) ^ settings.steppers.step_invert.mask;
+
+    DIGITAL_OUT(X_STEP_PIN, step_outbits_1.x);
+    DIGITAL_OUT(Y_STEP_PIN, step_outbits_1.y);
+    DIGITAL_OUT(Z_STEP_PIN, step_outbits_1.z);
+#ifdef X2_STEP_PIN
+    DIGITAL_OUT(X_STEP_PIN, step_outbits_2.x);
+#endif
+#ifdef Y2_STEP_PIN
+    DIGITAL_OUT(X_STEP_PIN, step_outbits_2.y);
+#endif
+#ifdef Z2_STEP_PIN
+    DIGITAL_OUT(X_STEP_PIN, step_outbits_2.z);
+#endif
+#ifdef A_AXIS
+    DIGITAL_OUT(A_STEP_PIN, step_outbits_1.a);
+#endif
+#ifdef B_AXIS
+    DIGITAL_OUT(B_STEP_PIN, step_outbits_1.b);
+#endif
+#ifdef C_AXIS
+    DIGITAL_OUT(C_STEP_PIN, step_outbits_1.c);
+#endif
+}
+
+#else
+
+// Set stepper pulse output pins
+inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_outbits_1)
+{
+    axes_signals_t step_outbits_2;
+    step_outbits_2.mask = (step_outbits_1.mask & motors_2.mask) ^ settings.steppers.step_invert.mask;
+//    step_outbits_1.mask = (step_outbits_1.mask & motors_1.mask) ^ settings.steppers.step_invert.mask;
+
+    if(step_outbits_1.x) {
+        RMT.conf_ch[X_AXIS].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[X_AXIS].conf1.tx_start = 1;
+    }
+
+    if(step_outbits_1.y) {
+        RMT.conf_ch[Y_AXIS].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[Y_AXIS].conf1.tx_start = 1;
+    }
+
+    if(step_outbits_1.z) {
+        RMT.conf_ch[Z_AXIS].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[Z_AXIS].conf1.tx_start = 1;
+    }
+#ifdef X2_STEP_PIN
+    if(step_outbits_2.x) {
+        RMT.conf_ch[X2_MOTOR].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[X2_MOTOR].conf1.tx_start = 1;
+    }
+#endif
+#ifdef Y2_STEP_PIN
+    if(step_outbits_2.y) {
+        RMT.conf_ch[Y2_MOTOR].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[Y2_MOTOR].conf1.tx_start = 1;
+    }
+#endif
+#ifdef Z2_STEP_PIN
+    if(step_outbits_2.z) {
+        RMT.conf_ch[Z2_MOTOR].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[Z2_MOTOR].conf1.tx_start = 1;
+    }
+#endif
+#ifdef A_STEP_PIN
+    if(step_outbits_1.a) {
+        RMT.conf_ch[A_AXIS].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[A_AXIS].conf1.tx_start = 1;
+    }
+#endif
+#ifdef B_STEP_PIN
+    if(step_outbits_1.b) {
+        RMT.conf_ch[B_AXIS].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[B_AXIS].conf1.tx_start = 1;
+    }
+#endif
+#ifdef C_STEP_PIN
+    if(step_outbits_1.c) {
+        RMT.conf_ch[C_AXIS].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[C_AXIS].conf1.tx_start = 1;
+    }
+#endif
+}
+
+#endif
+
+// Enable/disable motors for auto squaring of ganged axes
+static void StepperDisableMotors (axes_signals_t axes, squaring_mode_t mode)
+{
+    motors_1.mask = (mode == SquaringMode_A || mode == SquaringMode_Both ? axes.mask : 0) ^ AXES_BITMASK;
+    motors_2.mask = (mode == SquaringMode_B || mode == SquaringMode_Both ? axes.mask : 0) ^ AXES_BITMASK;
+}
+
+#else // SQUARING DISABLED
+
+#ifdef USE_I2S_OUT
+
+// Set stepper pulse output pins
+inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits)
+{
+    step_outbits.value ^= settings.steppers.step_invert.mask;
+    DIGITAL_OUT(X_STEP_PIN, step_outbits.x);
+    DIGITAL_OUT(Y_STEP_PIN, step_outbits.y);
+    DIGITAL_OUT(Z_STEP_PIN, step_outbits.z);
+#ifdef X2_STEP_PIN
+    DIGITAL_OUT(X_STEP_PIN, step_outbits.x);
+#endif
+#ifdef Y2_STEP_PIN
+    DIGITAL_OUT(X_STEP_PIN, step_outbits.y);
+#endif
+#ifdef Z2_STEP_PIN
+    DIGITAL_OUT(X_STEP_PIN, step_outbits.z);
+#endif
+#ifdef A_AXIS
+    DIGITAL_OUT(A_STEP_PIN, step_outbits.a);
+#endif
+#ifdef B_AXIS
+    DIGITAL_OUT(B_STEP_PIN, step_outbits.b);
+#endif
+#ifdef C_AXIS
+    DIGITAL_OUT(C_STEP_PIN, step_outbits.c);
+#endif
+}
+
+#else
+
+// Set stepper pulse output pins
+inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_outbits)
+{
+    if(step_outbits.x) {
+        RMT.conf_ch[X_AXIS].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[X_AXIS].conf1.tx_start = 1;
+    }
+
+    if(step_outbits.y) {
+        RMT.conf_ch[Y_AXIS].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[Y_AXIS].conf1.tx_start = 1;
+    }
+
+    if(step_outbits.z) {
+        RMT.conf_ch[Z_AXIS].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[Z_AXIS].conf1.tx_start = 1;
+    }
+#ifdef X2_STEP_PIN
+    if(step_outbits.x) {
+        RMT.conf_ch[X2_MOTOR].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[X2_MOTOR].conf1.tx_start = 1;
+    }
+#endif
+#ifdef Y2_STEP_PIN
+    if(step_outbits.y) {
+        RMT.conf_ch[Y2_MOTOR].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[Y2_MOTOR].conf1.tx_start = 1;
+    }
+#endif
+#ifdef Z2_STEP_PIN
+    if(step_outbits.z) {
+        RMT.conf_ch[Z2_MOTOR].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[Z2_MOTOR].conf1.tx_start = 1;
+    }
+#endif
+#ifdef A_STEP_PIN
+    if(step_outbits.a) {
+        RMT.conf_ch[A_AXIS].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[A_AXIS].conf1.tx_start = 1;
+    }
+#endif
+#ifdef B_STEP_PIN
+    if(step_outbits.b) {
+        RMT.conf_ch[B_AXIS].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[B_AXIS].conf1.tx_start = 1;
+    }
+#endif
+#ifdef C_STEP_PIN
+    if(step_outbits.c) {
+        RMT.conf_ch[C_AXIS].conf1.mem_rd_rst = 1;
+        RMT.conf_ch[C_AXIS].conf1.tx_start = 1;
+    }
+#endif
+}
+
+#endif // RMT Stepping
+
+#endif // SQUARING DISABLED
+
+#ifdef GANGING_ENABLED
+
+static axes_signals_t getGangedAxes (bool auto_squared)
+{
+    axes_signals_t ganged = {0};
+
+    if(auto_squared) {
+        #if X_AUTO_SQUARE
+            ganged.x = On;
+        #endif
+
+        #if Y_AUTO_SQUARE
+            ganged.y = On;
+        #endif
+
+        #if Z_AUTO_SQUARE
+            ganged.z = On;
+        #endif
+    } else {
+        #if X_GANGED
+            ganged.x = On;
+        #endif
+
+        #if Y_GANGED
+            ganged.y = On;
+        #endif
+
+        #if Z_GANGED
+            ganged.z = On;
+        #endif
+    }
+
+    return ganged;
+}
+
+#endif // GANGING_ENABLED
+
+// Set stepper direction output pins
+// NOTE: see note for set_step_outputs()
+inline IRAM_ATTR static void set_dir_outputs (axes_signals_t dir_outbits)
+{
+    dir_outbits.value ^= settings.steppers.dir_invert.mask;
+    DIGITAL_OUT(X_DIRECTION_PIN, dir_outbits.x);
+    DIGITAL_OUT(Y_DIRECTION_PIN, dir_outbits.y);
+    DIGITAL_OUT(Z_DIRECTION_PIN, dir_outbits.z);
+#ifdef A_AXIS
+    DIGITAL_OUT(A_DIRECTION_PIN, dir_outbits.a);
+#endif
+#ifdef B_AXIS
+    DIGITAL_OUT(B_DIRECTION_PIN, dir_outbits.b);
+#endif
+#ifdef C_AXIS
+    DIGITAL_OUT(C_DIRECTION_PIN, dir_outbits.c);
+#endif
+#ifdef GANGING_ENABLED
+    dir_outbits.mask ^= settings.steppers.ganged_dir_invert.mask;
+  #ifdef X2_DIRECTION_PIN
+    DIGITAL_OUT(X2_DIRECTION_PIN, dir_outbits.x);
+  #endif
+  #ifdef Y2_DIRECTION_PIN
+    DIGITAL_OUT(Y2_DIRECTION_PIN, dir_outbits.y);
+  #endif
+  #ifdef Z2_DIRECTION_PIN
+    DIGITAL_OUT(Z2_DIRECTION_PIN, dir_outbits.z);
+  #endif
 #endif
 }
 
@@ -635,7 +807,33 @@ IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
     }
 }
 
+// Disables stepper driver interrupt
+IRAM_ATTR static void stepperGoIdle (bool clear_signals)
+{
+    TIMERG0.hw_timer[STEP_TIMER_INDEX].config.enable = 0;
+
+    if(clear_signals) {
 #ifdef USE_I2S_OUT
+        i2s_set_step_outputs((axes_signals_t){0});
+#else
+        set_step_outputs((axes_signals_t){0});
+#endif
+        set_dir_outputs((axes_signals_t){0});
+    }
+}
+
+#ifdef USE_I2S_OUT
+
+IRAM_ATTR static void I2S_stepperGoIdle (bool clear_signals)
+{
+    if(clear_signals) {
+        i2s_set_step_outputs((axes_signals_t){0});
+        set_dir_outputs((axes_signals_t){0});
+        i2s_out_reset();
+    }
+
+    i2s_out_set_passthrough();
+}
 
 static void i2s_set_streaming_mode (bool stream)
 {
@@ -683,6 +881,9 @@ static void limitsEnable (bool on, bool homing)
 inline IRAM_ATTR static limit_signals_t limitsGetState()
 {
     limit_signals_t signals = {0};
+#ifdef DUAL_LIMIT_SWITCHES
+    signals.min2.mask = settings.limits.invert.mask;
+#endif
 
     signals.min.x = gpio_get_level(X_LIMIT_PIN);
     signals.min.y = gpio_get_level(Y_LIMIT_PIN);
@@ -697,8 +898,22 @@ inline IRAM_ATTR static limit_signals_t limitsGetState()
     signals.min.c = gpio_get_level(C_LIMIT_PIN);
 #endif
 
-    if (settings.limits.invert.value)
-        signals.min.value ^= settings.limits.invert.value;
+#ifdef X2_LIMIT_PIN
+    signals.min2.x = gpio_get_level(X2_LIMIT_PIN);
+#endif
+#ifdef Y2_LIMIT_PIN
+    signals.min2.y = gpio_get_level(Y2_LIMIT_PIN);
+#endif
+#ifdef Z2_LIMIT_PIN
+    signals.min2.z = gpio_get_level(Z2_LIMIT_PIN);
+#endif
+
+    if (settings.limits.invert.value) {
+        signals.min.value ^= settings.limits.invert.mask;
+#ifdef DUAL_LIMIT_SWITCHES
+        signals.min2.mask ^= settings.limits.invert.mask;
+#endif
+    }
 
     return signals;
 }
@@ -882,6 +1097,11 @@ IRAM_ATTR static void spindleSetStateVariable (spindle_state_t state, float rpm)
         spindle_off();
     } else
         _setSpeed(state, rpm);
+}
+
+IRAM_ATTR static void spindleOff (void)
+{
+    spindle_off();
 }
 
 // Returns spindle state in a spindle_state_t variable
@@ -1362,19 +1582,6 @@ void setPeriphPinDescription (const pin_function_t function, const pin_group_t g
     } while(ppin);
 }
 
-#if WIFI_ENABLE
-
-static void reportConnection (bool newopt)
-{
-    if(!newopt && (services.telnet || services.websocket)) {
-        hal.stream.write("[NETCON:");
-        hal.stream.write(services.telnet ? "Telnet" : "Websocket");
-        hal.stream.write("]" ASCII_EOL);
-    }
-}
-
-#endif
-
 #if SDCARD_ENABLE
 
 static bool bus_ok = false;
@@ -1429,16 +1636,16 @@ static char *sdcard_mount (FATFS **fs)
         slot_config.gpio_cs = PIN_NUM_CS;
         slot_config.host_id = host.slot;
 
-        gpio_set_drive_capability(PIN_NUM_CS, GPIO_DRIVE_CAP_3); 
+        gpio_set_drive_capability(PIN_NUM_CS, GPIO_DRIVE_CAP_3);
 
         if ((ret = esp_vfs_fat_sdspi_mount("/sdcard", &host, &slot_config, &mount_config, &card)) != ESP_OK)
             report_message(ret == ESP_FAIL ? "Failed to mount filesystem" : "Failed to initialize SD card", Message_Warning);
     }
 
     if(fs) {
-        if(*fs == NULL)   
+        if(*fs == NULL)
             *fs = malloc(sizeof(FATFS));
-    
+
         if(*fs && f_mount(*fs, "", 1) != FR_OK) {
            free(*fs );
            *fs  = NULL;
@@ -1495,6 +1702,13 @@ static bool driver_setup (settings_t *settings)
     };
 
     gpio_config(&gpioConfig);
+
+    idx = sizeof(outputpin) / sizeof(output_signal_t);
+    do {
+        idx--;
+        if(outputpin[idx].group == PinGroup_MotorChipSelect || outputpin[idx].group == PinGroup_MotorUART)
+            DIGITAL_OUT(outputpin[idx].pin, 1);
+    } while(idx);
 
 #if MPG_MODE_ENABLE
 
@@ -1613,7 +1827,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "211206";
+    hal.driver_version = "211212";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -1639,6 +1853,13 @@ bool driver_init (void)
     i2s_out_init();
     i2s_out_set_pulse_callback(hal.stepper.interrupt_callback);
 #endif
+    hal.stepper.motor_iterator = motor_iterator;
+#ifdef GANGING_ENABLED
+    hal.stepper.get_ganged = getGangedAxes;
+#endif
+#ifdef SQUARING_ENABLED
+    hal.stepper.disable_motors = StepperDisableMotors;
+#endif
 
     hal.limits.enable = limitsEnable;
     hal.limits.get_state = limitsGetState;
@@ -1660,6 +1881,7 @@ bool driver_init (void)
   #else
     hal.spindle.update_rpm = spindleUpdateRPM; // NOTE: fails in laser mode as ESP32 does not handle FPU access in ISRs!
   #endif
+    hal.spindle.esp32_off = spindleOff;
 #endif
 
     hal.control.get_state = systemGetState;
@@ -1678,10 +1900,7 @@ bool driver_init (void)
     hal.periph_port.register_pin = registerPeriphPin;
     hal.periph_port.set_pin_description = setPeriphPinDescription;
 
-    serial_stream = serialInit(115200);
-
-    hal.stream_select = selectStream;
-    hal.stream_select(serial_stream);
+    stream_connect(serial_stream = serialInit(115200));
 
 #if I2C_ENABLE
     I2CInit();
@@ -1700,10 +1919,6 @@ bool driver_init (void)
 
 #ifdef DEBUGOUT
     hal.debug_out = debug_out;
-#endif
-
-#if WIFI_ENABLE
-    grbl.on_report_options = reportConnection;
 #endif
 
   // driver capabilities, used for announcing and negotiating (with Grbl) driver functionality
@@ -1751,6 +1966,12 @@ bool driver_init (void)
     if(aux_outputs.n_pins)
         ioports_init(NULL, &aux_outputs);
 
+    serialRegisterStreams();
+
+#ifdef HAS_BOARD_INIT
+    board_init();
+#endif
+
 #if WIFI_ENABLE
     wifi_init();
 #endif
@@ -1758,8 +1979,6 @@ bool driver_init (void)
 #if BLUETOOTH_ENABLE
     bluetooth_init();
 #endif
-
-serialRegisterStreams();
 
 #include "grbl/plugins_init.h"
 
@@ -1774,7 +1993,7 @@ IRAM_ATTR static void stepper_driver_isr (void *arg)
 {
     TIMERG0.int_clr_timers.t0 = 1;
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.alarm_en = TIMER_ALARM_EN;
-
+    
     hal.stepper.interrupt_callback();
 }
 

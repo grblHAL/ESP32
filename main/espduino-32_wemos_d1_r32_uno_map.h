@@ -33,6 +33,10 @@
    + Wemos D1 R32 (Micro USB)
 */
 
+#if N_ABC_MOTORS > 0
+#error "Axis configuration is not supported!"
+#endif
+
 #define BOARD_NAME "ESPDUINO-32 Wemos D1 R32"
 
 // timer definitions

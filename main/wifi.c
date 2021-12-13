@@ -50,17 +50,17 @@
 #include "grbl/nvs_buffer.h"
 #include "grbl/protocol.h"
 
-static EventGroupHandle_t wifi_event_group;
 
 /* The event group allows multiple bits for each event,
    but we only care about one event - are we connected
    to the AP with an IP? */
-
-static network_settings_t network;
 const static int CONNECTED_BIT = BIT0;
 const static int SCANNING_BIT = BIT1;
 const static int APSTA_BIT = BIT2;
 
+static EventGroupHandle_t wifi_event_group;
+static stream_type_t active_stream = StreamType_Null;
+static network_settings_t network;
 static network_services_t services = {0}, allowed_services;
 static wifi_config_t wifi_sta_config;
 static SemaphoreHandle_t aplist_mutex = NULL;
@@ -69,6 +69,7 @@ static wifi_settings_t wifi;
 static nvs_address_t nvs_address;
 static esp_netif_t *sta_netif = NULL, *ap_netif = NULL;
 static on_report_options_ptr on_report_options;
+static on_stream_changed_ptr on_stream_changed;
 static char netservices[40] = ""; // must be large enough to hold all service names
 
 ap_list_t *wifi_get_aplist (void)
@@ -132,6 +133,12 @@ static void reportIP (bool newopt)
         hal.stream.write("[IP:");
         hal.stream.write(wifi_get_ipaddr());
         hal.stream.write("]" ASCII_EOL);
+
+        if(active_stream == StreamType_Telnet || active_stream == StreamType_WebSocket) {
+            hal.stream.write("[NETCON:");
+            hal.stream.write(active_stream == StreamType_Telnet ? "Telnet" : "Websocket");
+            hal.stream.write("]" ASCII_EOL);
+        }
     }
 }
 
@@ -958,12 +965,24 @@ static void wifi_settings_load (void)
     wifi.ap.network.services.mask &= allowed_services.mask;
 }
 
+static void stream_changed (stream_type_t type)
+{
+    if(type != StreamType_SDCard)
+        active_stream = type;
+
+    if(on_stream_changed)
+        on_stream_changed(type);
+}
+
 bool wifi_init (void)
 {
     if((nvs_address = nvs_alloc(sizeof(wifi_settings_t)))) {
 
         on_report_options = grbl.on_report_options;
         grbl.on_report_options = reportIP;
+
+        on_stream_changed = grbl.on_stream_changed;
+        grbl.on_stream_changed = stream_changed;
 
         settings_register(&setting_details);
 

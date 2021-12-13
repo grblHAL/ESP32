@@ -78,18 +78,6 @@ typedef struct {
 
 static enqueue_realtime_command_ptr BTSetRtHandler (enqueue_realtime_command_ptr handler);
 
-static const io_stream_t bluetooth_stream = {
-    .type = StreamType_Bluetooth,
-	.connected = true,
-    .read = BTStreamGetC,
-    .write = BTStreamWriteS,
-    .write_char = BTStreamPutC,
-    .get_rx_buffer_free = BTStreamRXFree,
-    .reset_read_buffer = BTStreamFlush,
-    .cancel_read_buffer = BTStreamCancel,
-    .set_enqueue_rt_handler = BTSetRtHandler
-};
-
 static uint32_t connection = 0;
 static bool is_second_attempt = false;
 static bluetooth_settings_t bluetooth;
@@ -284,6 +272,18 @@ static void flush_tx_queue (void)
 
 static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 {
+    static const io_stream_t bluetooth_stream = {
+        .type = StreamType_Bluetooth,
+        .state.connected = true,
+        .read = BTStreamGetC,
+        .write = BTStreamWriteS,
+        .write_char = BTStreamPutC,
+        .get_rx_buffer_free = BTStreamRXFree,
+        .reset_read_buffer = BTStreamFlush,
+        .cancel_read_buffer = BTStreamCancel,
+        .set_enqueue_rt_handler = BTSetRtHandler
+    };
+
     switch (event) {
 
         case ESP_SPP_INIT_EVT:
@@ -298,7 +298,7 @@ static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
                 txbuffer.head = 0;
                 uint8_t *mac = param->srv_open.rem_bda;
                 sprintf(client_mac, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-                hal.stream_select(&bluetooth_stream);
+                stream_connect(&bluetooth_stream);
 
                 if(eTaskGetState(polltask) == eSuspended)
                     vTaskResume(polltask);
@@ -319,7 +319,7 @@ static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
                 connection = 0;
                 client_mac[0] = '\0';
                 flush_tx_queue();
-                hal.stream_select(NULL);
+                stream_disconnect(&bluetooth_stream);
             }
             break;
 
