@@ -1683,10 +1683,10 @@ static bool driver_setup (settings_t *settings)
      ********************/
 
     uint32_t idx;
-    for(idx = 0; idx < N_AXIS; idx++)
+    for(idx = 0; idx < (N_AXIS + N_ABC_MOTORS); idx++)
         rmt_set_source_clk(idx, RMT_BASECLK_APB);
 
-    uint32_t mask = 0; // this is insane...
+    uint64_t mask = 0;
     idx = sizeof(outputpin) / sizeof(output_signal_t);
     do {
         if(outputpin[--idx].mode == Pin_GPIO)
@@ -1827,7 +1827,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "211212";
+    hal.driver_version = "211218";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
