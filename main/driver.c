@@ -2025,6 +2025,8 @@ bool driver_init (void)
     mpg_stream = serial2Init(115200);
 #endif
 
+#ifdef HAS_IOPORTS
+
     uint32_t i;
     static pin_group_pins_t aux_inputs = {0}, aux_outputs = {0};
     input_signal_t *input;
@@ -2051,6 +2053,8 @@ bool driver_init (void)
     }
 
     ioports_init(&aux_inputs, &aux_outputs);
+
+#endif
 
     serialRegisterStreams();
 
