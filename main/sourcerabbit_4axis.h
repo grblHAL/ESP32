@@ -21,7 +21,7 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#if N_ABC_MOTORS > 0
+#if N_ABC_MOTORS > 1
 #error "Axis configuration is not supported!"
 #endif
 
@@ -44,28 +44,30 @@
 #endif
 
 // Define step pulse output pins.
-#define X_STEP_PIN  GPIO_NUM_0
-#define Y_STEP_PIN  GPIO_NUM_25
-#define Z_STEP_PIN  GPIO_NUM_27
-#if NUM_AXES > 3
-#define A_STEP_PIN  GPIO_NUM_12
-#endif
+#define X_STEP_PIN          GPIO_NUM_0
+#define Y_STEP_PIN          GPIO_NUM_25
+#define Z_STEP_PIN          GPIO_NUM_27
 
 // Define step direction output pins. NOTE: All direction pins must be on the same port.
-#define X_DIRECTION_PIN GPIO_NUM_33
-#define Y_DIRECTION_PIN GPIO_NUM_26
-#define Z_DIRECTION_PIN GPIO_NUM_14
-#if NUM_AXES > 3
-#define A_DIRECTION_PIN GPIO_NUM_13
-#endif
+#define X_DIRECTION_PIN     GPIO_NUM_33
+#define Y_DIRECTION_PIN     GPIO_NUM_26
+#define Z_DIRECTION_PIN     GPIO_NUM_14
 
 // Define stepper driver enable/disable output pin(s).
-#define STEPPERS_DISABLE_PIN    GPIO_NUM_15
+#define STEPPERS_ENABLE_PIN GPIO_NUM_15
 
 // Define homing/hard limit switch input pins and limit interrupt vectors.
-#define X_LIMIT_PIN GPIO_NUM_36
-#define Y_LIMIT_PIN GPIO_NUM_39
-#define Z_LIMIT_PIN GPIO_NUM_34
+#define X_LIMIT_PIN         GPIO_NUM_36
+#define Y_LIMIT_PIN         GPIO_NUM_39
+#define Z_LIMIT_PIN         GPIO_NUM_34
+
+
+// Define ganged axis or A axis step pulse and step direction output pins.
+#if N_ABC_MOTORS > 0
+#define M3_AVAILABLE
+#define M3_STEP_PIN         GPIO_NUM_33
+#define M3_DIRECTION_PIN    GPIO_NUM_12
+#endif
 
 // Define spindle enable and spindle direction output pins.
 
@@ -82,5 +84,5 @@
 
 // Define probe switch input pin.
 #if PROBE_ENABLE
-#define PROBE_PIN    GPIO_NUM_32
+#define PROBE_PIN           GPIO_NUM_32
 #endif

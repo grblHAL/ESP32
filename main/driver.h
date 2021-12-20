@@ -119,6 +119,7 @@
 #include "driver/ledc.h"
 #include "driver/rmt.h"
 #include "driver/i2c.h"
+#include "hal/gpio_types.h"
 
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
@@ -300,7 +301,9 @@ typedef struct {
     uint32_t mask;
     uint8_t offset;
     bool invert;
-    gpio_int_type_t intr_type;
+    pin_irq_mode_t irq_mode;
+    pin_mode_t cap;
+    ioport_interrupt_callback_ptr interrupt_callback;
     volatile bool active;
     volatile bool debounce;
     const char *description;
@@ -323,7 +326,11 @@ typedef struct {
     } pins;
 } pin_group_pins_t;
 
+gpio_int_type_t map_intr_type (pin_irq_mode_t mode);
+#ifdef HAS_IOPORTS
 void ioports_init(pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_outputs);
+void ioports_event (input_signal_t *input);
+#endif
 
 #ifdef HAS_BOARD_INIT
 void board_init (void);

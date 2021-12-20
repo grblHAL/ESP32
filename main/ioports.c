@@ -30,7 +30,7 @@
 
 static char *pnum = NULL;
 static uint8_t n_in, n_out, *in_map = NULL, *out_map = NULL;
-static volatile uint32_t event_bits;
+static volatile input_signal_t *event_port;
 static volatile bool spin_lock = false;
 static input_signal_t *aux_in;
 static output_signal_t *aux_out;
@@ -163,24 +163,6 @@ static void digital_out (uint8_t port, bool on)
         gpio_set_level(aux_out[port].pin, ((settings.ioport.invert_out.mask >> port) & 0x01) ? !on : on);
     }
 }
-/*
-static void enable_irq (const input_signal_t *input, pin_irq_mode_t irq_mode)
-{
-    if(irq_mode == IRQ_Mode_Rising) {
-        EXTI->RTSR |= input->bit;
-        EXTI->FTSR &= ~input->bit;
-    } else if(irq_mode == IRQ_Mode_Falling) {
-        EXTI->RTSR &= ~input->bit;
-        EXTI->FTSR |= input->bit;
-    } else if(irq_mode == IRQ_Mode_Change) {
-        EXTI->RTSR |= input->bit;
-        EXTI->FTSR |= input->bit;
-    } else
-        EXTI->IMR &= ~input->bit;   // Disable pin interrupt
-
-    if(irq_mode != IRQ_Mode_None)
-        EXTI->IMR |= input->bit;    // Enable pin interrupt
-}
 
 inline static __attribute__((always_inline)) int32_t get_input (const input_signal_t *input, bool invert, wait_mode_t wait_mode, float timeout)
 {
@@ -196,11 +178,12 @@ inline static __attribute__((always_inline)) int32_t get_input (const input_sign
 
         if(input->cap.irq_mode & irq_mode) {
 
-            event_bits &= ~input->bit;
-            enable_irq(input, irq_mode);
+            event_port = NULL;
+            gpio_set_intr_type(input->pin, map_intr_type(irq_mode));
+            gpio_intr_enable(input->pin);
 
             do {
-                if(event_bits & input->bit) {
+                if(event_port == input) {
                     value = gpio_get_level(input->pin) ^ invert;
                     break;
                 }
@@ -211,7 +194,11 @@ inline static __attribute__((always_inline)) int32_t get_input (const input_sign
                     break;
             } while(--delay && !sys.abort);
 
-            enable_irq(input, input->irq_mode);    // Restore pin interrupt status
+            // Restore pin interrupt status
+            if(input->irq_mode == IRQ_Mode_None) {
+                gpio_intr_disable(input->pin);
+            } else
+                gpio_set_intr_type(input->pin, map_intr_type(input->irq_mode));
         }
 
     } else {
@@ -247,7 +234,7 @@ static int32_t wait_on_input (io_port_type_t type, uint8_t port, wait_mode_t wai
 
     return value;
 }
-*/
+
 inline static __attribute__((always_inline)) uint8_t out_map_rev (uint8_t port)
 {
     if(out_map) {
@@ -277,18 +264,20 @@ inline static __attribute__((always_inline)) uint8_t in_map_rev (uint8_t port)
 
     return port;
 }
-/*
-void ioports_event (uint32_t bit)
+
+void ioports_event (input_signal_t *input)
 {
     spin_lock = true;
-    event_bits |= bit;
+    event_port = input;
 
-    uint_fast8_t idx = n_in;
-    do {
-        idx--;
-        if((aux_in[idx].bit & bit) && aux_in[idx].interrupt_callback)
-            aux_in[idx].interrupt_callback(in_map_rev(idx), DIGITAL_IN(aux_in[idx].port, aux_in[idx].pin));
-    } while(idx);
+    if(input->interrupt_callback) {
+        uint_fast8_t idx = n_in;
+        do {
+            idx--;
+            if(input == &aux_in[idx])
+                input->interrupt_callback(in_map_rev(idx), DIGITAL_IN(input->pin));
+        } while(idx);
+    }
 
     spin_lock = false;
 }
@@ -307,12 +296,13 @@ static bool register_interrupt_handler (uint8_t port, pin_irq_mode_t irq_mode, i
         if((ok = (irq_mode & input->cap.irq_mode) == irq_mode && interrupt_callback != NULL)) {
             input->irq_mode = irq_mode;
             input->interrupt_callback = interrupt_callback;
-            enable_irq(input, irq_mode);
+            gpio_set_intr_type(input->pin, map_intr_type(input->irq_mode));
+            gpio_intr_enable(input->pin);
         }
 
         if(irq_mode == IRQ_Mode_None || !ok) {
             while(spin_lock);
-            EXTI->IMR &= ~input->bit;     // Disable pin interrupt
+            gpio_intr_disable(input->pin);     // Disable pin interrupt
             input->irq_mode = IRQ_Mode_None;
             input->interrupt_callback = NULL;
         }
@@ -320,7 +310,6 @@ static bool register_interrupt_handler (uint8_t port, pin_irq_mode_t irq_mode, i
 
     return ok;
 }
-*/
 
 static xbar_t *get_pin_info (io_port_type_t type, io_port_direction_t dir, uint8_t port)
 {
@@ -330,7 +319,7 @@ static xbar_t *get_pin_info (io_port_type_t type, io_port_direction_t dir, uint8
     if(type == Port_Digital) {
 
         memset(&pin, 0, sizeof(xbar_t));
-/*
+
         if(dir == Port_Input && port < n_in) {
             if(in_map)
                 port = in_map[port];
@@ -341,12 +330,10 @@ static xbar_t *get_pin_info (io_port_type_t type, io_port_direction_t dir, uint8
             pin.function = aux_in[port].id;
             pin.group = aux_in[port].group;
             pin.pin = aux_in[port].pin;
-            pin.bit = aux_in[port].bit;
-            pin.port = (void *)aux_in[port].port;
             pin.description = aux_in[port].description;
             info = &pin;
         }
-*/
+
         if(dir == Port_Output && port < n_out) {
             if(out_map)
                 port = out_map[port];
@@ -355,8 +342,6 @@ static xbar_t *get_pin_info (io_port_type_t type, io_port_direction_t dir, uint8
             pin.function = aux_out[port].id;
             pin.group = aux_out[port].group;
             pin.pin = aux_out[port].pin;
-            pin.bit = 1 << aux_out[port].pin;
-//            pin.port = (void *)aux_out[port].port;
             pin.description = aux_out[port].description;
             info = &pin;
         }
@@ -386,7 +371,7 @@ static bool claim (io_port_type_t type, io_port_direction_t dir, uint8_t *port, 
     bool ok = false;
 
     if(type == Port_Digital) {
-/*
+
         if(dir == Port_Input) {
 
             if((ok = in_map && *port < n_in && !aux_in[*port].cap.claimed)) {
@@ -407,7 +392,7 @@ static bool claim (io_port_type_t type, io_port_direction_t dir, uint8_t *port, 
                 *port = hal.port.num_digital_in;
             }
 
-        } else */ if((ok = out_map && *port < n_out && !aux_out[*port].claimed)) {
+        } else if((ok = out_map && *port < n_out && !aux_out[*port].claimed)) {
 
             uint8_t i;
 
@@ -434,7 +419,7 @@ bool swap_pins (io_port_type_t type, io_port_direction_t dir, uint8_t port_a, ui
     bool ok = port_a == port_b;
 
     if(!ok && type == Port_Digital) {
-/*
+
         if((ok = dir == Port_Input && port_a < n_in && port_b < n_in &&
                    aux_in[port_a].interrupt_callback == NULL &&
                     aux_in[port_b].interrupt_callback == NULL)) {
@@ -447,7 +432,7 @@ bool swap_pins (io_port_type_t type, io_port_direction_t dir, uint8_t port_a, ui
             tmp.description = aux_in[port_b].description;
             memcpy(&aux_in[port_b], &tmp, sizeof(input_signal_t));
         }
-*/
+
         if((ok = dir == Port_Output && port_a < n_out && port_b < n_out)) {
 
             output_signal_t tmp;
@@ -467,16 +452,15 @@ void ioports_init (pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_outputs)
 {
     uint_fast8_t i, ports;
 
+    aux_in = aux_inputs->pins.inputs;
     aux_out = aux_outputs->pins.outputs;
-/*
-    aux_in = aux_inputs ? aux_inputs->pins.inputs : NULL;
 
     if((hal.port.num_digital_in = n_in = aux_inputs->n_pins)) {
         hal.port.wait_on_input = wait_on_input;
         hal.port.register_interrupt_handler = register_interrupt_handler;
         in_map = malloc(n_in * sizeof(uint8_t));
     }
-*/
+
     if((hal.port.num_digital_out = n_out = aux_outputs->n_pins)) {
         hal.port.digital_out = digital_out;
         out_map = malloc(n_out * sizeof(uint8_t));

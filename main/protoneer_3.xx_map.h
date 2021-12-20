@@ -31,7 +31,7 @@
 #define STEP_TIMER_GROUP TIMER_GROUP_0
 #define STEP_TIMER_INDEX TIMER_0
 
-#if MODBUS_ENABLE
+#if VFD_SPINDLE
 #error VFD Spindle not supported!
 #endif
 
@@ -44,22 +44,22 @@
 #endif
 
 // Define step pulse output pins.
-#define X_STEP_PIN  GPIO_NUM_26 // D2
-#define Y_STEP_PIN  GPIO_NUM_25 // D3
-#define Z_STEP_PIN  GPIO_NUM_17 // D4
+#define X_STEP_PIN          GPIO_NUM_26 // D2
+#define Y_STEP_PIN          GPIO_NUM_25 // D3
+#define Z_STEP_PIN          GPIO_NUM_17 // D4
 
 // Define step direction output pins. NOTE: All direction pins must be on the same port.
-#define X_DIRECTION_PIN GPIO_NUM_16 // D5
-#define Y_DIRECTION_PIN GPIO_NUM_27 // D6
-#define Z_DIRECTION_PIN GPIO_NUM_14 // D7
+#define X_DIRECTION_PIN     GPIO_NUM_16 // D5
+#define Y_DIRECTION_PIN     GPIO_NUM_27 // D6
+#define Z_DIRECTION_PIN     GPIO_NUM_14 // D7
 
 // Define stepper driver enable/disable output pin(s).
-#define STEPPERS_DISABLE_PIN    GPIO_NUM_12 // D8
+#define STEPPERS_ENABLE_PIN GPIO_NUM_12 // D8
 
 // Define homing/hard limit switch input pins and limit interrupt vectors.
-#define X_LIMIT_PIN GPIO_NUM_13 // D9
-#define Y_LIMIT_PIN GPIO_NUM_5  // D10
-#define Z_LIMIT_PIN GPIO_NUM_23 // D11
+#define X_LIMIT_PIN         GPIO_NUM_13 // D9
+#define Y_LIMIT_PIN         GPIO_NUM_5  // D10
+#define Z_LIMIT_PIN         GPIO_NUM_23 // D11
 
 // Define spindle enable and spindle direction output pins.
 
@@ -72,11 +72,11 @@
 #define COOLANT_MIST_PIN    GPIO_NUM_36 // A4
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-#define RESET_PIN       GPIO_NUM_2 // A0
-#define FEED_HOLD_PIN   GPIO_NUM_4 // A1
-#define CYCLE_START_PIN GPIO_NUM_35 // A2
+#define RESET_PIN           GPIO_NUM_2 // A0
+#define FEED_HOLD_PIN       GPIO_NUM_4 // A1
+#define CYCLE_START_PIN     GPIO_NUM_35 // A2
 
 // Define probe switch input pin.
 #if PROBE_ENABLE
-#define PROBE_PIN    GPIO_NUM_39 // A5
+#define PROBE_PIN           GPIO_NUM_39 // A5
 #endif

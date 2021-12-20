@@ -25,11 +25,8 @@
 #error "Axis configuration is not supported!"
 #endif
 
-#if VFD_SPINDLE
-#error "BOARD_XPRO_V5 does not have support for VFD spindle."
-#endif
-
 #define BOARD_NAME "x-Pro v5"
+#define HAS_IOPORTS
 #define HAS_BOARD_INIT
 #if TRINAMIC_ENABLE != 5160
 #error BOARD_XPRO_V5 has soldered TMC5160 drivers.
@@ -69,13 +66,9 @@
 // Define flood and mist coolant enable output pins.
 // Only one can be enabled!
 
-#define COOLANT_MIST_PIN        GPIO_NUM_21
-//#define COOLANT_FLOOD_PIN		GPIO_NUM_21
-
+#define COOLANT_MIST_PIN    GPIO_NUM_21
+//#define COOLANT_FLOOD_PIN   GPIO_NUM_21
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-//#define RESET_PIN           GPIO_NUM_34
-//#define FEED_HOLD_PIN       GPIO_NUM_36
-//#define CYCLE_START_PIN     GPIO_NUM_39
 #ifdef ENABLE_SAFETY_DOOR_INPUT_PIN
 #define SAFETY_DOOR_PIN     GPIO_NUM_16
 #else
@@ -87,7 +80,10 @@
 #define PROBE_PIN           GPIO_NUM_22
 #endif
 
-#if SDCARD_ENABLE || TRINAMIC_ENABLE
+#ifdef HAS_IOPORTS
+#define AUXINPUT0_PIN       GPIO_NUM_13
+#define AUXINPUT1_PIN       GPIO_NUM_0
+#endif
 
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
@@ -95,10 +91,15 @@
 #define PIN_NUM_MISO        GPIO_NUM_19
 #define PIN_NUM_MOSI        GPIO_NUM_23
 #define PIN_NUM_CLK         GPIO_NUM_18
-#define PIN_NUM_CS          GPIO_NUM_5
 #define MOTOR_CS_PIN        GPIO_NUM_17
+#if SDCARD_ENABLE
+#define PIN_NUM_CS          GPIO_NUM_5
+#endif
 
-#endif // SDCARD_ENABLE
+#if MODBUS_ENABLE
+#define UART2_RX_PIN        GPIO_NUM_25
+#define UART2_TX_PIN        GPIO_NUM_4
+#endif
 
 #if KEYPAD_ENABLE
 #error No free pins for keypad!

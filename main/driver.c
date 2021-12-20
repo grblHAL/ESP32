@@ -30,12 +30,20 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "driver.h"
+#include "./driver.h"
 #include "esp32-hal-uart.h"
 #include "nvs.h"
 #include "esp_log.h"
 #include "sdkconfig.h"
 #include "esp_ota_ops.h"
+#include "soc/rtc.h"
+#include "driver/gpio.h"
+#include "driver/timer.h"
+#include "driver/ledc.h"
+#include "driver/rmt.h"
+#include "driver/i2c.h"
+#include "hal/gpio_types.h"
+
 //#include "grbl_esp32_if/grbl_esp32_if.h"
 
 #include "grbl/limits.h"
@@ -167,7 +175,14 @@ static input_signal_t inputpin[] = {
     { .id = Input_ModeSelect,   .pin = MPG_ENABLE_PIN,    .group = PinGroup_MPG },
 #endif
 #ifdef I2C_STROBE_PIN
-    { .id = Input_KeypadStrobe, .pin = I2C_STROBE_PIN,    .group = PinGroup_Keypad }
+    { .id = Input_KeypadStrobe, .pin = I2C_STROBE_PIN,    .group = PinGroup_Keypad },
+#endif
+// Aux input pins must be consecutive in this array
+#ifdef AUXINPUT0_PIN
+    { .id = Input_Aux0,         .pin = AUXINPUT0_PIN,       .group = PinGroup_AuxInput },
+#endif
+#ifdef AUXINPUT1_PIN
+    { .id = Input_Aux1,         .pin = AUXINPUT1_PIN,       .group = PinGroup_AuxInput }
 #endif
 };
 
@@ -196,8 +211,8 @@ static output_signal_t outputpin[] =
     { .id = Output_StepZ_2,       .pin = Z2_STEP_PIN,           .group = PinGroup_StepperStep,   .mode = Pin_RMT },
   #endif
 #endif
-#if defined(STEPPERS_DISABLE_PIN) && STEPPERS_DISABLE_PIN != IOEXPAND
-    { .id = Output_StepperEnable, .pin = STEPPERS_DISABLE_PIN,  .group = PinGroup_StepperEnable },
+#if defined(STEPPERS_ENABLE_PIN) && STEPPERS_ENABLE_PIN != IOEXPAND
+    { .id = Output_StepperEnable, .pin = STEPPERS_ENABLE_PIN,   .group = PinGroup_StepperEnable },
 #endif
 #if defined(SPINDLE_ENABLE_PIN) && SPINDLE_ENABLE_PIN != IOEXPAND
     { .id = Output_SpindleOn,     .pin = SPINDLE_ENABLE_PIN,    .group = PinGroup_SpindleControl },
@@ -253,9 +268,14 @@ static output_signal_t outputpin[] =
 #ifdef MOTOR_CSM5_PIN
     { .id = Output_MotorChipSelectM5, .pin = MOTOR_CSM5_PIN,    .group = PinGroup_MotorChipSelect },
 #endif
-
 #ifdef MODBUS_DIRECTION_PIN
     { .id = Output_Aux0,          .pin = MODBUS_DIRECTION_PIN,  .group = PinGroup_AuxOutput },
+#endif
+#ifdef AUXOUTPUT0_PIN
+    { .id = Output_Aux0,          .pin = AUXOUTPUT0_PIN,        .group = PinGroup_AuxOutput },
+#endif
+#ifdef AUXOUTPUT1_PIN
+    { .id = Output_Aux1,          .pin = AUXOUTPUT1_PIN,        .group = PinGroup_AuxOutput },
 #endif
 };
 
@@ -324,6 +344,13 @@ static void gpio_isr (void *arg);
 static void stepper_driver_isr (void *arg);
 
 static TimerHandle_t xDelayTimer = NULL, debounceTimer = NULL;
+
+#ifdef USE_I2S_OUT
+
+// Set stepper pulse output pins
+inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits_1);
+
+#else
 
 void initRMT (settings_t *settings)
 {
@@ -408,6 +435,8 @@ void initRMT (settings_t *settings)
     }
 }
 
+#endif
+
 void vTimerCallback (TimerHandle_t xTimer)
 {
     void (*callback)(void) = (void (*)(void))pvTimerGetTimerID(xTimer);
@@ -443,7 +472,7 @@ IRAM_ATTR static void driver_delay_ms (uint32_t ms, void (*callback)(void))
 #ifdef DEBUGOUT
 static void debug_out (bool enable)
 {
-    gpio_set_level(STEPPERS_DISABLE_PIN, enable);
+    gpio_set_level(STEPPERS_ENABLE_PIN, enable);
 }
 #endif
 
@@ -458,28 +487,85 @@ static void stepperEnable (axes_signals_t enable)
     iopins.stepper_enable_y = enable.y;
     iopins.stepper_enable_z = enable.z;
     ioexpand_out(iopins);
-#elif defined(STEPPERS_DISABLE_PIN)
-    DIGITAL_OUT(STEPPERS_DISABLE_PIN, enable.x);
+#elif defined(STEPPERS_ENABLE_PIN)
+    DIGITAL_OUT(STEPPERS_ENABLE_PIN, enable.x);
 #else
-  #ifdef X_DISABLE_PIN
-    DIGITAL_OUT(X_DISABLE_PIN, enable.x);
+  #ifdef X_ENABLE_PIN
+    DIGITAL_OUT(X_ENABLE_PIN, enable.x);
   #endif
-  #ifdef X_DISABLE_PIN
-    DIGITAL_OUT(Y_DISABLE_PIN, enable.y); 
+  #ifdef Y_ENABLE_PIN
+    DIGITAL_OUT(Y_ENABLE_PIN, enable.y); 
   #endif
-  #ifdef Z_DISABLE_PIN
-    DIGITAL_OUT(Z_DISABLE_PIN, enable.z);
+  #ifdef Z_ENABLE_PIN
+    DIGITAL_OUT(Z_ENABLE_PIN, enable.z);
   #endif
-  #ifdef A_DISABLE_PIN
-    DIGITAL_OUT(A_DISABLE_PIN, enable.a);
+  #ifdef A_ENABLE_PIN
+    DIGITAL_OUT(A_ENABLE_PIN, enable.a);
   #endif
-  #ifdef B_DISABLE_PIN
-    DIGITAL_OUT(B_DISABLE_PIN, enable.b);
+  #ifdef B_ENABLE_PIN
+    DIGITAL_OUT(B_ENABLE_PIN, enable.b);
   #endif
-  #ifdef C_DISABLE_PIN
-    DIGITAL_OUT(C_DISABLE_PIN, enable.c);
+  #ifdef C_ENABLE_PIN
+    DIGITAL_OUT(C_ENABLE_PIN, enable.c);
   #endif
 #endif
+#endif
+}
+
+// Starts stepper driver ISR timer and forces a stepper driver interrupt callback
+static void stepperWakeUp (void)
+{
+    // Enable stepper drivers.
+    stepperEnable((axes_signals_t){AXES_BITMASK});
+
+    timer_set_counter_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 0x00000000ULL);
+//  timer_set_alarm_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 5000ULL);
+    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_high = 0;
+    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = 5000UL;
+
+    timer_start(STEP_TIMER_GROUP, STEP_TIMER_INDEX);
+    TIMERG0.hw_timer[STEP_TIMER_INDEX].config.alarm_en = TIMER_ALARM_EN;
+}
+
+// Sets up stepper driver interrupt timeout
+IRAM_ATTR static void stepperCyclesPerTick (uint32_t cycles_per_tick)
+{
+// Limit min steps/s to about 2 (hal.f_step_timer @ 20MHz)
+#ifdef ADAPTIVE_MULTI_AXIS_STEP_SMOOTHING
+    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = cycles_per_tick < (1UL << 18) ? cycles_per_tick : (1UL << 18) - 1UL;
+#else
+    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = cycles_per_tick < (1UL << 23) ? cycles_per_tick : (1UL << 23) - 1UL;
+#endif
+}
+
+// Set stepper direction output pins
+// NOTE: see note for set_step_outputs()
+inline IRAM_ATTR static void set_dir_outputs (axes_signals_t dir_outbits)
+{
+    dir_outbits.value ^= settings.steppers.dir_invert.mask;
+    DIGITAL_OUT(X_DIRECTION_PIN, dir_outbits.x);
+    DIGITAL_OUT(Y_DIRECTION_PIN, dir_outbits.y);
+    DIGITAL_OUT(Z_DIRECTION_PIN, dir_outbits.z);
+#ifdef A_AXIS
+    DIGITAL_OUT(A_DIRECTION_PIN, dir_outbits.a);
+#endif
+#ifdef B_AXIS
+    DIGITAL_OUT(B_DIRECTION_PIN, dir_outbits.b);
+#endif
+#ifdef C_AXIS
+    DIGITAL_OUT(C_DIRECTION_PIN, dir_outbits.c);
+#endif
+#ifdef GANGING_ENABLED
+    dir_outbits.mask ^= settings.steppers.ganged_dir_invert.mask;
+  #ifdef X2_DIRECTION_PIN
+    DIGITAL_OUT(X2_DIRECTION_PIN, dir_outbits.x);
+  #endif
+  #ifdef Y2_DIRECTION_PIN
+    DIGITAL_OUT(Y2_DIRECTION_PIN, dir_outbits.y);
+  #endif
+  #ifdef Z2_DIRECTION_PIN
+    DIGITAL_OUT(Z2_DIRECTION_PIN, dir_outbits.z);
+  #endif
 #endif
 }
 
@@ -509,34 +595,6 @@ static void I2S_stepperWakeUp (void)
     // Enable stepper drivers.
     stepperEnable((axes_signals_t){AXES_BITMASK});
     i2s_out_set_stepping();
-}
-
-#else
-
-// Starts stepper driver ISR timer and forces a stepper driver interrupt callback
-static void stepperWakeUp (void)
-{
-    // Enable stepper drivers.
-    stepperEnable((axes_signals_t){AXES_BITMASK});
-
-    timer_set_counter_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 0x00000000ULL);
-//  timer_set_alarm_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 5000ULL);
-    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_high = 0;
-    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = 5000UL;
-
-    timer_start(STEP_TIMER_GROUP, STEP_TIMER_INDEX);
-    TIMERG0.hw_timer[STEP_TIMER_INDEX].config.alarm_en = TIMER_ALARM_EN;
-}
-
-// Sets up stepper driver interrupt timeout
-IRAM_ATTR static void stepperCyclesPerTick (uint32_t cycles_per_tick)
-{
-// Limit min steps/s to about 2 (hal.f_step_timer @ 20MHz)
-#ifdef ADAPTIVE_MULTI_AXIS_STEP_SMOOTHING
-    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = cycles_per_tick < (1UL << 18) ? cycles_per_tick : (1UL << 18) - 1UL;
-#else
-    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = cycles_per_tick < (1UL << 23) ? cycles_per_tick : (1UL << 23) - 1UL;
-#endif
 }
 
 #endif // USE_I2S_OUT
@@ -774,37 +832,6 @@ static axes_signals_t getGangedAxes (bool auto_squared)
 
 #endif // GANGING_ENABLED
 
-// Set stepper direction output pins
-// NOTE: see note for set_step_outputs()
-inline IRAM_ATTR static void set_dir_outputs (axes_signals_t dir_outbits)
-{
-    dir_outbits.value ^= settings.steppers.dir_invert.mask;
-    DIGITAL_OUT(X_DIRECTION_PIN, dir_outbits.x);
-    DIGITAL_OUT(Y_DIRECTION_PIN, dir_outbits.y);
-    DIGITAL_OUT(Z_DIRECTION_PIN, dir_outbits.z);
-#ifdef A_AXIS
-    DIGITAL_OUT(A_DIRECTION_PIN, dir_outbits.a);
-#endif
-#ifdef B_AXIS
-    DIGITAL_OUT(B_DIRECTION_PIN, dir_outbits.b);
-#endif
-#ifdef C_AXIS
-    DIGITAL_OUT(C_DIRECTION_PIN, dir_outbits.c);
-#endif
-#ifdef GANGING_ENABLED
-    dir_outbits.mask ^= settings.steppers.ganged_dir_invert.mask;
-  #ifdef X2_DIRECTION_PIN
-    DIGITAL_OUT(X2_DIRECTION_PIN, dir_outbits.x);
-  #endif
-  #ifdef Y2_DIRECTION_PIN
-    DIGITAL_OUT(Y2_DIRECTION_PIN, dir_outbits.y);
-  #endif
-  #ifdef Z2_DIRECTION_PIN
-    DIGITAL_OUT(Z2_DIRECTION_PIN, dir_outbits.z);
-  #endif
-#endif
-}
-
 // Sets stepper direction and pulse pins and starts a step pulse
 IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
 {
@@ -885,7 +912,7 @@ static void limitsEnable (bool on, bool homing)
     uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
     do {
         if(inputpin[--i].group == PinGroup_Limit) {
-            gpio_set_intr_type(inputpin[i].pin, on ? inputpin[i].intr_type : GPIO_INTR_DISABLE);
+            gpio_set_intr_type(inputpin[i].pin, on ? map_intr_type(inputpin[i].irq_mode) : GPIO_INTR_DISABLE);
             if(on)
                 gpio_intr_enable(inputpin[i].pin);
             else
@@ -1296,6 +1323,33 @@ void debounceTimerCallback (TimerHandle_t xTimer)
           hal.control.interrupt_callback(systemGetState());
 }
 
+gpio_int_type_t map_intr_type (pin_irq_mode_t mode)
+{
+    switch(mode) {
+    case IRQ_Mode_Rising:
+        return GPIO_INTR_POSEDGE;
+        break;
+    case IRQ_Mode_Falling:
+        return GPIO_INTR_NEGEDGE;
+        break;
+    case IRQ_Mode_Change:
+        return GPIO_INTR_ANYEDGE;
+        break;
+    case IRQ_Mode_Edges:
+        return GPIO_INTR_DISABLE;
+        break;
+    case IRQ_Mode_High:
+        return GPIO_INTR_HIGH_LEVEL;
+        break;
+    case IRQ_Mode_Low:
+        return GPIO_INTR_LOW_LEVEL;
+        break;
+    default:
+        break;
+    }
+
+    return GPIO_INTR_DISABLE;
+}
 
 // Configures perhipherals when settings are initialized or changed
 static void settings_changed (settings_t *settings)
@@ -1394,8 +1448,8 @@ static void settings_changed (settings_t *settings)
 
         do {
 
-            signal = &inputpin[--i];   
-            config.intr_type = GPIO_INTR_DISABLE;
+            signal = &inputpin[--i];
+            signal->irq_mode = IRQ_Mode_None;
 
             switch(signal->id) {
 
@@ -1483,11 +1537,13 @@ static void settings_changed (settings_t *settings)
             switch(signal->group) {
 
                 case PinGroup_Control:
-                    config.intr_type = signal->invert ? GPIO_INTR_NEGEDGE : GPIO_INTR_POSEDGE;
+                case PinGroup_Limit:
+                    signal->irq_mode = signal->invert ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                     break;
 
-                case PinGroup_Limit:
-                    signal->intr_type = signal->invert ? GPIO_INTR_NEGEDGE : GPIO_INTR_POSEDGE;
+                case PinGroup_AuxInput:
+                    pullup = true;
+                    signal->invert = false;
                     break;
 
                 default:
@@ -1502,6 +1558,7 @@ static void settings_changed (settings_t *settings)
                 config.mode = GPIO_MODE_INPUT;
                 config.pull_up_en = pullup && signal->pin < 34 ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
                 config.pull_down_en = pullup || signal->pin >= 34 ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE;
+                config.intr_type = signal->group == PinGroup_Limit ? GPIO_INTR_DISABLE : map_intr_type(signal->irq_mode);
 
                 signal->offset = config.pin_bit_mask > (1ULL << 31) ? 1 : 0;
                 signal->mask = signal->offset == 0 ? (uint32_t)config.pin_bit_mask : (uint32_t)(config.pin_bit_mask >> 32);
@@ -1511,7 +1568,7 @@ static void settings_changed (settings_t *settings)
                 gpio_config(&config);
 
                 signal->active   = gpio_get_level(signal->pin) == (signal->invert ? 0 : 1);
-                signal->debounce = hal.driver_cap.software_debounce && !(signal->group == PinGroup_Probe || signal->group == PinGroup_Keypad || signal->group == PinGroup_MPG);
+                signal->debounce = hal.driver_cap.software_debounce && !(signal->group == PinGroup_Probe || signal->group == PinGroup_Keypad || signal->group == PinGroup_MPG || signal->group == PinGroup_AuxInput);
             }
         } while(i);
 
@@ -1845,7 +1902,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "211219";
+    hal.driver_version = "211220";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -1969,8 +2026,20 @@ bool driver_init (void)
 #endif
 
     uint32_t i;
-    static pin_group_pins_t aux_outputs = {0};
+    static pin_group_pins_t aux_inputs = {0}, aux_outputs = {0};
+    input_signal_t *input;
     output_signal_t *output;
+
+    for(i = 0 ; i < sizeof(inputpin) / sizeof(input_signal_t); i++) {
+        input = &inputpin[i];
+        if(input->group == PinGroup_AuxInput) {
+            if(aux_inputs.pins.inputs == NULL)
+                aux_inputs.pins.inputs = input;
+            input->cap.pull_mode = PullMode_UpDown;
+            input->cap.irq_mode = IRQ_Mode_Edges;
+            aux_inputs.n_pins++;
+        }
+    }
 
     for(i = 0 ; i < sizeof(outputpin) / sizeof(output_signal_t); i++) {
         output = &outputpin[i];
@@ -1981,8 +2050,7 @@ bool driver_init (void)
         }
     }
 
-    if(aux_outputs.n_pins)
-        ioports_init(NULL, &aux_outputs);
+    ioports_init(&aux_inputs, &aux_outputs);
 
     serialRegisterStreams();
 
@@ -2029,11 +2097,19 @@ IRAM_ATTR static void gpio_isr (void *arg)
     do {
         i--;
         if(intr_status[inputpin[i].offset] & inputpin[i].mask) {
+#ifdef HAS_IOPORTS
+            if(inputpin[i].group & PinGroup_AuxInput)
+                ioports_event(&inputpin[i]);
+            else {
+#endif
             inputpin[i].active = true;
             if(inputpin[i].debounce)
                 debounce = true;
             else
                 grp |= inputpin[i].group;
+#ifdef HAS_IOPORTS
+            }
+#endif
         }
     } while(i);
 

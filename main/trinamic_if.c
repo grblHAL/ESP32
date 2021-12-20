@@ -158,16 +158,19 @@ static void if_init (uint8_t motors, axes_signals_t axisflags)
 
 #endif
 
-#if TTRINAMIC_UART_ENABLE
+#if TRINAMIC_UART_ENABLE
 
 #include "esp32-hal-uart.h"
 
-static io_stream_t tmc_uart;
+static io_stream_t tmc_uart = {0};
 
 TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read_datagram_t *dgr)
 {
     static TMC_uart_write_datagram_t wdgr = {0};
     volatile uint32_t dly = 50, ms = hal.get_elapsed_ticks();
+
+    if(tmc_uart.write_n == null)
+        return &wdgr;
 
 //    tmc_uart.reset_write_buffer();
     tmc_uart.write_n((char *)dgr->data, sizeof(TMC_uart_read_datagram_t));
@@ -207,6 +210,9 @@ TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read
 
 void tmc_uart_write (trinamic_motor_t driver, TMC_uart_write_datagram_t *dgr)
 {
+    if(tmc_uart.write_n == null)
+        return;
+
     tmc_uart.write_n((char *)dgr->data, sizeof(TMC_uart_write_datagram_t));
     while(tmc_uart.get_tx_buffer_count());
 }
@@ -230,12 +236,15 @@ void board_init (void)
 
     trinamic_if_init(&driver);
 
-#elif TTRINAMIC_UART_ENABLE
+#elif TRINAMIC_UART_ENABLE
 
-    memcpy(&tmc_uart, serial2Init(230400), sizeof(io_stream_t));
+    io_stream_t *uart = serial2Init(230400);
 
-    tmc_uart.disable_rx(true);
-    tmc_uart.set_enqueue_rt_handler(stream_buffer_all);
+    if(uart) {
+        memcpy(&tmc_uart, uart, sizeof(io_stream_t));
+        tmc_uart.disable_rx(true);
+        tmc_uart.set_enqueue_rt_handler(stream_buffer_all);
+    } // else output POS failure?
 
 #endif
 }
