@@ -177,6 +177,24 @@ static output_signal_t outputpin[] =
     { .id = Output_StepX,         .pin = X_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
     { .id = Output_StepY,         .pin = Y_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
     { .id = Output_StepZ,         .pin = Z_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
+  #ifdef A_STEP_PIN
+    { .id = Output_StepA,         .pin = A_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
+  #endif
+  #ifdef B_STEP_PIN
+    { .id = Output_StepB,         .pin = B_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
+  #endif
+  #ifdef C_STEP_PIN
+    { .id = Output_StepC,         .pin = C_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
+  #endif
+  #ifdef X2_STEP_PIN
+    { .id = Output_StepX_2,       .pin = X2_STEP_PIN,           .group = PinGroup_StepperStep,   .mode = Pin_RMT },
+  #endif
+  #ifdef Y2_STEP_PIN
+    { .id = Output_StepY_2,       .pin = Y2_STEP_PIN,           .group = PinGroup_StepperStep,   .mode = Pin_RMT },
+  #endif
+  #ifdef Z2_STEP_PIN
+    { .id = Output_StepZ_2,       .pin = Z2_STEP_PIN,           .group = PinGroup_StepperStep,   .mode = Pin_RMT },
+  #endif
 #endif
 #if defined(STEPPERS_DISABLE_PIN) && STEPPERS_DISABLE_PIN != IOEXPAND
     { .id = Output_StepperEnable, .pin = STEPPERS_DISABLE_PIN,  .group = PinGroup_StepperEnable },
@@ -329,7 +347,7 @@ void initRMT (settings_t *settings)
     rmtItem[1].duration1 = 0;
 
     uint32_t channel;
-    for(channel = 0; channel < (N_AXIS + N_ABC_MOTORS); channel++) {
+    for(channel = 0; channel < (N_AXIS + N_GANGED); channel++) {
 
         rmtConfig.channel = channel;
 
@@ -378,7 +396,7 @@ void initRMT (settings_t *settings)
 #endif
 #ifdef Z2_STEP_PIN
             case Z2_MOTOR:
-                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.y;
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.z;
                 rmtConfig.gpio_num = Z2_STEP_PIN;
                 break;
 #endif
@@ -1683,7 +1701,7 @@ static bool driver_setup (settings_t *settings)
      ********************/
 
     uint32_t idx;
-    for(idx = 0; idx < (N_AXIS + N_ABC_MOTORS); idx++)
+    for(idx = 0; idx < (N_AXIS + N_GANGED); idx++)
         rmt_set_source_clk(idx, RMT_BASECLK_APB);
 
     uint64_t mask = 0;
@@ -1827,7 +1845,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "211218";
+    hal.driver_version = "211219";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
