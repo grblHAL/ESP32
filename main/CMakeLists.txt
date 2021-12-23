@@ -159,7 +159,7 @@ if(EEPROM OR FRAM OR BOARD_CNC_BOOSTERPACK)
 list (APPEND SRCS ${EEPROM_SOURCE})
 endif()
 
-idf_component_register(SRCS "main.c" "esp32-hal-uart.c" "wifi.c" "driver.c" "${SRCS}" INCLUDE_DIRS ".")
+idf_component_register(SRCS "${SRCS}" INCLUDE_DIRS ".")
 
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC GRBL_ESP32)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC OVERRIDE_MY_MACHINE)
@@ -254,7 +254,7 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC MPG_MODE_ENABLE)
 endif()
 
 if(HUANYANG)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC HUANYANG_ENABLE=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC VFD_ENABLE=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC SPINDLE_RPM_CONTROLLED)
 endif()
 

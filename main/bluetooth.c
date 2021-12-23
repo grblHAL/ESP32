@@ -79,7 +79,7 @@ typedef struct {
 static enqueue_realtime_command_ptr BTSetRtHandler (enqueue_realtime_command_ptr handler);
 
 static uint32_t connection = 0;
-static bool is_second_attempt = false;
+static bool is_second_attempt = false, is_up = false;
 static bluetooth_settings_t bluetooth;
 static SemaphoreHandle_t tx_busy = NULL;
 static EventGroupHandle_t event_group = NULL;
@@ -206,9 +206,12 @@ IRAM_ATTR void BTStreamCancel (void)
 char *bluetooth_get_device_mac (void)
 {
     static char device_mac[18];
-    const uint8_t *mac = esp_bt_dev_get_address();
 
-    sprintf(device_mac, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    if(is_up) {
+        const uint8_t *mac = esp_bt_dev_get_address();
+        sprintf(device_mac, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    } else
+        strcpy(device_mac, "-");
 
     return device_mac;
 }
@@ -557,10 +560,10 @@ bool bluetooth_start (void)
         if (esp_bt_gap_set_cod(cod, ESP_BT_INIT_COD) != ESP_OK)
             return false;
 
-        return true;
+        is_up = true;
     }
 
-    return false;
+    return is_up;
 }
 
 bool bluetooth_disable (void)
@@ -603,6 +606,9 @@ bool bluetooth_disable (void)
 #endif
         }
     }
+
+    is_up = false;
+
     return true;
 }
 

@@ -191,12 +191,6 @@ static const DRAM_ATTR float FZERO = 0.0f;
 
 // End configuration
 
-#if IOEXPAND_ENABLE || KEYPAD_ENABLE == 1 || EEPROM_ENABLE || (TRINAMIC_ENABLE && TRINAMIC_I2C)
-#define I2C_ENABLE 1
-#else
-#define I2C_ENABLE 0
-#endif
-
 #if TRINAMIC_ENABLE
 #ifndef TRINAMIC_MIXED_DRIVERS
 #define TRINAMIC_MIXED_DRIVERS 1
@@ -256,6 +250,12 @@ typedef struct {
 
 #if IOEXPAND_ENABLE == 0 && ((DIRECTION_MASK|STEPPERS_DISABLE_MASK|SPINDLE_MASK|COOLANT_MASK) & 0xC00000000ULL)
 #error "Pins 34 - 39 are input only!"
+#endif
+
+#if IOEXPAND_ENABLE || KEYPAD_ENABLE == 1 || EEPROM_ENABLE || (TRINAMIC_ENABLE && TRINAMIC_I2C)
+#define I2C_ENABLE 1
+#else
+#define I2C_ENABLE 0
 #endif
 
 #ifdef USE_I2S_OUT

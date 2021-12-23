@@ -34,6 +34,7 @@
 // Configuration
 // Uncomment to enable, for some a value > 1 may be assigned, if so the default value is shown.
 
+//#define VFD_ENABLE         1 // Set to 1 or 2 for Huanyang VFD spindle. More here https://github.com/grblHAL/Plugins_spindle
 //#define NETWORKING_ENABLE  1 // WiFi streaming. Requires networking plugin.
 #if NETWORKING_ENABLE
 //#define WIFI_SOFTAP        1 // Use Soft AP mode for WiFi.

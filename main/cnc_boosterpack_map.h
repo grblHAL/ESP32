@@ -38,8 +38,8 @@
 #endif
 
 #if !EEPROM_ENABLE
-//#undef EEPROM_ENABLE
-//#define EEPROM_ENABLE 1 // I2C EEPROM (24LC16) support.
+#undef EEPROM_ENABLE
+#define EEPROM_ENABLE 1 // I2C EEPROM (24LC16) support.
 #endif
 
 #if !IOEXPAND_ENABLE
@@ -82,8 +82,8 @@
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 #define RESET_PIN               GPIO_NUM_35
-#define FEED_HOLD_PIN           GPIO_NUM_39
-#define CYCLE_START_PIN         GPIO_NUM_36
+#define FEED_HOLD_PIN           GPIO_NUM_4 //!
+#define CYCLE_START_PIN         GPIO_NUM_4 //!
 #ifdef ENABLE_SAFETY_DOOR_INPUT_PIN
 #define SAFETY_DOOR_PIN         GPIO_NUM_34
 #endif
@@ -101,17 +101,14 @@
 #if RS485_DIR_ENABLE
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_25
 #endif
-#define MPG_ENABLE_PIN      GPIO_NUM_25
+#define MPG_ENABLE_PIN          GPIO_NUM_25
 #endif
 
-#if I2C_ENABLE
 // Define I2C port/pins
-#define I2C_PORT        I2C_NUM_1
-#define I2C_SDA         GPIO_NUM_21
-#define I2C_SCL         GPIO_NUM_22
-#define I2C_CLOCK       100000
-#endif
-
+#define I2C_PORT                I2C_NUM_1
+#define I2C_SDA                 GPIO_NUM_21
+#define I2C_SCL                 GPIO_NUM_22
+#define I2C_CLOCK               100000
 
 #if SDCARD_ENABLE
 // Pin mapping when using SPI mode.

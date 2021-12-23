@@ -279,7 +279,6 @@ static output_signal_t outputpin[] =
 #endif
 };
 
-static volatile uint32_t ms_count = 1; // NOTE: initial value 1 is for "resetting" systick timer
 static bool IOInitDone = false;
 static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 #if PROBE_ENABLE

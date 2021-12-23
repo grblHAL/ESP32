@@ -21,7 +21,7 @@
 
 #include "i2c.h"
 
-#ifdef I2C_PORT
+#if I2C_ENABLE
 
 #if IOEXPAND_ENABLE
 #include "ioexpand.h"
@@ -80,7 +80,53 @@ void I2CTask (void *queue)
     }
 }
 
-#endif
+void I2CInit (void)
+{
+    static bool init_ok = false;
+
+    if(!init_ok) {
+
+        init_ok = true;
+
+        i2c_config_t i2c_config = {
+            .mode = I2C_MODE_MASTER,
+            .sda_io_num = I2C_SDA,
+            .scl_io_num = I2C_SCL,
+            .sda_pullup_en = GPIO_PULLUP_DISABLE,
+            .scl_pullup_en = GPIO_PULLUP_DISABLE,
+            .master.clk_speed = I2C_CLOCK
+        };
+
+        i2c_param_config(I2C_PORT, &i2c_config);
+        i2c_driver_install(I2C_PORT, i2c_config.mode, 0, 0, 0);
+
+        i2cQueue = xQueueCreate(5, sizeof(i2c_task_t));
+        i2cBusy = xSemaphoreCreateBinary();
+
+        TaskHandle_t I2CTaskHandle;
+
+        xTaskCreatePinnedToCore(I2CTask, "I2C", 2048, (void *)i2cQueue, configMAX_PRIORITIES, &I2CTaskHandle, 1);
+
+        xSemaphoreGive(i2cBusy);
+
+        static const periph_pin_t scl = {
+            .function = Output_SCK,
+            .group = PinGroup_I2C,
+            .pin = I2C_SCL,
+            .mode = { .mask = PINMODE_OD }
+        };
+
+        static const periph_pin_t sda = {
+            .function = Bidirectional_SDA,
+            .group = PinGroup_I2C,
+            .pin = I2C_SDA,
+            .mode = { .mask = PINMODE_OD }
+        };
+
+        hal.periph_port.register_pin(&scl);
+        hal.periph_port.register_pin(&sda);
+    }
+}
 
 #if EEPROM_ENABLE
 
@@ -125,8 +171,7 @@ nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
     return NVS_TransferResult_OK;
 }
 
-#endif
-
+#endif // EEPROM_ENABLE
 
 #if KEYPAD_ENABLE == 1
 
@@ -143,7 +188,7 @@ void I2C_GetKeycode (uint32_t i2cAddr, keycode_callback_ptr callback)
     xQueueSendFromISR(i2cQueue, (void *)&i2c_task, &xHigherPriorityTaskWoken);
 }
 
-#endif
+#endif // KEYPAD_ENABLE == 1
 
 #if TRINAMIC_ENABLE && TRINAMIC_I2C
 
@@ -248,56 +293,6 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *reg
     return status;
 }
 
-#endif
+#endif //  TRINAMIC_ENABLE && TRINAMIC_I2C
 
-#ifdef I2C_PORT
-
-void I2CInit (void)
-{
-    static bool init_ok = false;
-
-    if(!init_ok) {
-
-        init_ok = true;
-
-        i2c_config_t i2c_config = {
-            .mode = I2C_MODE_MASTER,
-            .sda_io_num = I2C_SDA,
-            .scl_io_num = I2C_SCL,
-            .sda_pullup_en = GPIO_PULLUP_DISABLE,
-            .scl_pullup_en = GPIO_PULLUP_DISABLE,
-            .master.clk_speed = I2C_CLOCK
-        };
-
-        i2c_param_config(I2C_PORT, &i2c_config);
-        i2c_driver_install(I2C_PORT, i2c_config.mode, 0, 0, 0);
-
-        i2cQueue = xQueueCreate(5, sizeof(i2c_task_t));
-        i2cBusy = xSemaphoreCreateBinary();
-
-        TaskHandle_t I2CTaskHandle;
-
-        xTaskCreatePinnedToCore(I2CTask, "I2C", 2048, (void *)i2cQueue, configMAX_PRIORITIES, &I2CTaskHandle, 1);
-
-        xSemaphoreGive(i2cBusy);
-
-        static const periph_pin_t scl = {
-            .function = Output_SCK,
-            .group = PinGroup_I2C,
-            .pin = I2C_SCL,
-            .mode = { .mask = PINMODE_OD }
-        };
-
-        static const periph_pin_t sda = {
-            .function = Bidirectional_SDA,
-            .group = PinGroup_I2C,
-            .pin = I2C_SDA,
-            .mode = { .mask = PINMODE_OD }
-        };
-
-        hal.periph_port.register_pin(&scl);
-        hal.periph_port.register_pin(&sda);
-    }
-}
-
-#endif
+#endif // I2C_ENABLE
