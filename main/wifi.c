@@ -151,11 +151,11 @@ static void lwIPHostTimerHandler (void *arg)
 {
 #if TELNET_ENABLE
     if(services.telnet)
-        TCPStreamPoll();
+        telnetd_poll();
 #endif
 #if WEBSOCKET_ENABLE
     if(services.websocket)
-        WsStreamPoll();
+        websocketd_poll();
 #endif
 #if FTP_ENABLE
     if(services.ftp)
@@ -168,30 +168,23 @@ static void lwIPHostTimerHandler (void *arg)
 static void start_services (void)
 {
 #if TELNET_ENABLE
-    if(network.services.telnet && !services.telnet) {
-        TCPStreamInit();
-        TCPStreamListen(network.telnet_port == 0 ? NETWORK_TELNET_PORT : network.telnet_port);
-        services.telnet = On;
-        sys_timeout(STREAM_POLL_INTERVAL, lwIPHostTimerHandler, NULL);
-    }
+    if(network.services.telnet && !services.telnet)
+        services.telnet = telnetd_init(network.telnet_port == 0 ? NETWORK_TELNET_PORT : network.telnet_port);
 #endif
 #if WEBSOCKET_ENABLE
-    if(network.services.websocket && !services.websocket) {
-        WsStreamInit();
-        WsStreamListen(network.websocket_port == 0 ? NETWORK_WEBSOCKET_PORT : network.websocket_port);
-        services.websocket = On;
-        sys_timeout(STREAM_POLL_INTERVAL, lwIPHostTimerHandler, NULL);
-    }
+    if(network.services.websocket && !services.websocket)
+        services.websocket = websocketd_init(network.websocket_port == 0 ? NETWORK_WEBSOCKET_PORT : network.websocket_port);
 #endif
 #if FTP_ENABLE
-    if(network.services.ftp && !services.ftp) {
-        ftpd_init(network.ftp_port == 0 ? NETWORK_FTP_PORT : network.ftp_port);
-        services.ftp = On;
-    }
+    if(network.services.ftp && !services.ftp)
+        services.ftp = ftpd_init(network.ftp_port == 0 ? NETWORK_FTP_PORT : network.ftp_port);
 #endif
 #if HTTP_ENABLE
     if(network.services.http && !services.http)
         services.http = httpdaemon_start(&network);
+#endif
+#if TELNET_ENABLE || WEBSOCKET_ENABLE || FTP_ENABLE
+    sys_timeout(STREAM_POLL_INTERVAL, lwIPHostTimerHandler, NULL);
 #endif
 }
 
@@ -203,11 +196,11 @@ static void stop_services (void)
 #endif
 #if TELNET_ENABLE
     if(services.telnet)
-        TCPStreamClose();
+        telnetd_stop();
 #endif
 #if WEBSOCKET_ENABLE
     if(services.websocket)
-        WsStreamClose();
+        websocketd_stop();
 #endif
     if(services.dns)
         dns_server_stop();

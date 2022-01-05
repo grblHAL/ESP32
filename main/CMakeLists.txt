@@ -63,8 +63,8 @@ set(NETWORKING_SOURCE
  dns_server.c
  web/backend.c
  networking/http_upload.c
- networking/TCPStream.c
- networking/WsStream.c
+ networking/telnetd.c
+ networking/websocketd.c
  networking/base64.c
  networking/sha1.c
  networking/urldecode.c

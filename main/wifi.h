@@ -27,7 +27,7 @@
 #include "driver.h"
 #include "esp_wifi.h"
 
-#define STREAM_POLL_INTERVAL 20 // Poll interval in milliseconds
+#define STREAM_POLL_INTERVAL 15 // Poll interval in milliseconds
 
 typedef struct {
     uint16_t ap_num;

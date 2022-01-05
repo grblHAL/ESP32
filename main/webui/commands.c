@@ -44,7 +44,7 @@
 #include "grbl/report.h"
 #include "wifi.h"
 #include "webui.h"
-#include "networking/WsStream.h"
+#include "networking/websocketd.h"
 #include "networking/urldecode.h"
 #include "networking/utils.h"
 #include "networking/strutils.h"

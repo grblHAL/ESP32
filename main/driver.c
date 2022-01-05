@@ -63,14 +63,6 @@
 #include "webui/response.h"
 #endif
 
-#if TELNET_ENABLE
-#include "networking/TCPStream.h"
-#endif
-
-#if WEBSOCKET_ENABLE
-#include "networking/WsStream.h"
-#endif
-
 #if BLUETOOTH_ENABLE
 #include "bluetooth.h"
 #endif
@@ -96,7 +88,7 @@
 #include "i2c.h"
 #endif
 
-#if VFD_SPINDLE != 1
+#if VFD_SPINDLE != 1 && defined(SPINDLEPWMPIN)
 static uint32_t pwm_max_value;
 static bool pwmEnabled = false;
 static spindle_pwm_t spindle_pwm;
@@ -127,11 +119,6 @@ typedef struct {
 static pwm_ramp_t pwm_ramp;
 #endif
 
-const io_stream_t *serial_stream;
-#if MPG_MODE_ENABLE
-static io_stream_t prev_stream = {0}, *mpg_stream;
-#endif
-
 static periph_signal_t *periph_pins = NULL;
 
 static input_signal_t inputpin[] = {
@@ -150,15 +137,21 @@ static input_signal_t inputpin[] = {
 #ifdef PROBE_PIN
     { .id = Input_Probe,        .pin = PROBE_PIN,         .group = PinGroup_Probe },
 #endif
+#ifdef X_LIMIT_PIN
     { .id = Input_LimitX,       .pin = X_LIMIT_PIN,       .group = PinGroup_Limit },
+#endif
 #ifdef X2_LIMIT_PIN
     { .id = Input_LimitX_2,     .pin = X2_LIMIT_PIN,      .group = PinGroup_Limit },
 #endif
+#ifdef Y_LIMIT_PIN
     { .id = Input_LimitY,       .pin = Y_LIMIT_PIN,       .group = PinGroup_Limit },
+#endif
 #ifdef Y2_LIMIT_PIN
     { .id = Input_LimitY_2,     .pin = Y2_LIMIT_PIN,      .group = PinGroup_Limit },
 #endif
+#ifdef Z_LIMIT_PIN
 	{ .id = Input_LimitZ,       .pin = Z_LIMIT_PIN,       .group = PinGroup_Limit },
+#endif
 #ifdef Z2_LIMIT_PIN
     { .id = Input_LimitZ_2,     .pin = Z2_LIMIT_PIN,      .group = PinGroup_Limit },
 #endif
@@ -315,7 +308,7 @@ static bool irq_claim (irq_type_t irq, uint_fast8_t id, irq_callback_ptr handler
 
 #endif
 
-#if VFD_SPINDLE != 1
+#if VFD_SPINDLE != 1 && defined(SPINDLEPWMPIN)
 
 static void spindle_set_speed (uint_fast16_t pwm_value);
 
@@ -928,10 +921,15 @@ inline IRAM_ATTR static limit_signals_t limitsGetState()
 #ifdef DUAL_LIMIT_SWITCHES
     signals.min2.mask = settings.limits.invert.mask;
 #endif
-
+#ifdef X_LIMIT_PIN
     signals.min.x = gpio_get_level(X_LIMIT_PIN);
+#endif
+#ifdef Y_LIMIT_PIN
     signals.min.y = gpio_get_level(Y_LIMIT_PIN);
+#endif
+#ifdef Z_LIMIT_PIN
     signals.min.z = gpio_get_level(Z_LIMIT_PIN);
+#endif
 #ifdef A_LIMIT_PIN
     signals.min.a = gpio_get_level(A_LIMIT_PIN);
 #endif
@@ -1038,7 +1036,7 @@ IRAM_ATTR inline static void spindle_off (void)
 #if IOEXPAND_ENABLE
     iopins.spindle_on = settings.spindle.invert.on ? On : Off;
     ioexpand_out(iopins);
-#else
+#elif defined(SPINDLE_ENABLE_PIN)
     gpio_set_level(SPINDLE_ENABLE_PIN, settings.spindle.invert.on ? 1 : 0);
 #endif
 }
@@ -1048,7 +1046,7 @@ IRAM_ATTR inline static void spindle_on (void)
 #if IOEXPAND_ENABLE
     iopins.spindle_on = settings.spindle.invert.on ? Off : On;
     ioexpand_out(iopins);
-#else
+#elif defined(SPINDLE_ENABLE_PIN)
     gpio_set_level(SPINDLE_ENABLE_PIN, settings.spindle.invert.on ? 0 : 1);
 #endif
 }
@@ -1076,6 +1074,8 @@ IRAM_ATTR static void spindleSetState (spindle_state_t state, float rpm)
     }
 }
 
+#ifdef SPINDLEPWMPIN
+
 // Variable spindle control functions
 
 // Sets spindle speed
@@ -1087,7 +1087,7 @@ IRAM_ATTR static void spindle_set_speed (uint_fast16_t pwm_value)
 #if PWM_RAMPED
         pwm_ramp.pwm_target = pwm_value;
         ledc_set_fade_step_and_start(ledConfig.speed_mode, ledConfig.channel, pwm_ramp.pwm_target, 1, 4, LEDC_FADE_NO_WAIT);
-#else
+#elif defined(SPINDLEPWMPIN)
         if(spindle_pwm.always_on) {
             ledc_set_duty(ledConfig.speed_mode, ledConfig.channel, spindle_pwm.off_value);
             ledc_update_duty(ledConfig.speed_mode, ledConfig.channel);
@@ -1099,7 +1099,7 @@ IRAM_ATTR static void spindle_set_speed (uint_fast16_t pwm_value)
 #if PWM_RAMPED
          pwm_ramp.pwm_target = pwm_value;
          ledc_set_fade_step_and_start(ledConfig.speed_mode, ledConfig.channel, pwm_ramp.pwm_target, 1, 4, LEDC_FADE_NO_WAIT);
-#else
+#elif defined(SPINDLEPWMPIN)
          ledc_set_duty(ledConfig.speed_mode, ledConfig.channel, settings.spindle.invert.pwm ? pwm_max_value - pwm_value : pwm_value);
          ledc_update_duty(ledConfig.speed_mode, ledConfig.channel);
 #endif
@@ -1143,6 +1143,40 @@ IRAM_ATTR static void spindleSetStateVariable (spindle_state_t state, float rpm)
         _setSpeed(state, rpm);
 }
 
+#else
+
+// Sets spindle speed
+IRAM_ATTR static void spindle_set_speed (uint_fast16_t pwm_value)
+{
+}
+
+#ifdef SPINDLE_PWM_DIRECT
+
+static uint_fast16_t spindleGetPWM (float rpm)
+{
+    return 0;
+}
+
+#else // Only enable if (when?) ESP IDF supports FPU access in ISR !!
+
+IRAM_ATTR static void spindleUpdateRPM (float rpm)
+{
+}
+
+#endif
+
+// Start or stop spindle, variable version
+
+IRAM_ATTR void __attribute__ ((noinline)) _setSpeed (spindle_state_t state, float rpm)
+{
+}
+
+IRAM_ATTR static void spindleSetStateVariable (spindle_state_t state, float rpm)
+{
+}
+
+#endif
+
 IRAM_ATTR static void spindleOff (void)
 {
     spindle_off();
@@ -1156,18 +1190,20 @@ static spindle_state_t spindleGetState (void)
 #if IOEXPAND_ENABLE // TODO: read from expander?
     state.on = iopins.spindle_on;
     state.ccw = hal.driver_cap.spindle_dir && iopins.spindle_dir;
-#else
+#elif defined(SPINDLE_ENABLE_PIN)
     state.on = gpio_get_level(SPINDLE_ENABLE_PIN) != 0;
   #if defined(SPINDLE_DIRECTION_PIN)
     state.ccw = hal.driver_cap.spindle_dir && gpio_get_level(SPINDLE_DIRECTION_PIN) != 0;
   #endif
 #endif
     state.value ^= settings.spindle.invert.mask;
+#ifdef SPINDLEPWMPIN
     state.on |= pwmEnabled;
-
-#if PWM_RAMPED
+  #if PWM_RAMPED
     state.at_speed = ledc_get_duty(ledConfig.speed_mode, ledConfig.channel) == pwm_ramp.pwm_target;
+  #endif
 #endif
+
     return state;
 }
 
@@ -1253,51 +1289,15 @@ static void disable_irq (void)
 
 #if MPG_MODE_ENABLE
 
-IRAM_ATTR static void modeSelect (bool mpg_mode)
+static void modeChange(sys_state_t state)
 {
-    // Deny entering MPG mode if busy
-    if(mpg_mode == sys.mpg_mode || (mpg_mode && (gc_state.file_run || !(state_get() == STATE_IDLE || (state_get() & (STATE_ALARM|STATE_ESTOP)))))) {
-        hal.stream.enqueue_realtime_command(CMD_STATUS_REPORT_ALL);
-        return;
-    }
-
-    if(mpg_mode) {
-        if(hal.stream.disable)
-            hal.stream.disable(true);
-        mpg_stream->disable(false);
-        memcpy(&prev_stream, &hal.stream, sizeof(io_stream_t));
-        hal.stream.type = StreamType_MPG;
-        hal.stream.read = mpg_stream->read;
-        hal.stream.write = serial_stream->write;
-        hal.stream.get_rx_buffer_free = serial_stream->get_rx_buffer_free;
-        hal.stream.reset_read_buffer = serial_stream->reset_read_buffer;
-        hal.stream.cancel_read_buffer = serial_stream->cancel_read_buffer;
-        hal.stream.suspend_read = serial_stream->suspend_read;
-    } else if(hal.stream.read != NULL) {
-        mpg_stream->disable(true);
-        memcpy(&hal.stream, &prev_stream, sizeof(io_stream_t));
-        if(hal.stream.disable)
-            hal.stream.disable(false);
-    }
-
-    hal.stream.reset_read_buffer();
-
-    sys.mpg_mode = mpg_mode;
-    sys.report.mpg_mode = On;
-
-    // Force a realtime status report, all reports when MPG mode active
-    hal.stream.enqueue_realtime_command(mpg_mode ? CMD_STATUS_REPORT_ALL : CMD_STATUS_REPORT);
+    stream_mpg_enable(!gpio_get_level(MPG_ENABLE_PIN));
 }
 
-IRAM_ATTR static void modeChange(void)
-{
-    modeSelect(!gpio_get_level(MPG_ENABLE_PIN));
-}
-
-IRAM_ATTR static void modeEnable (void)
+static void modeEnable (sys_state_t state)
 {
     if(sys.mpg_mode == gpio_get_level(MPG_ENABLE_PIN))
-        modeSelect(true);
+        stream_mpg_enable(true);
 }
 
 #endif
@@ -1354,7 +1354,7 @@ gpio_int_type_t map_intr_type (pin_irq_mode_t mode)
 static void settings_changed (settings_t *settings)
 {
 
-#if VFD_SPINDLE != 1
+#if VFD_SPINDLE != 1 && defined(SPINDLEPWMPIN)
 
     if((hal.driver_cap.variable_spindle = settings->spindle.rpm_max > settings->spindle.rpm_min)) {
 
@@ -1574,7 +1574,7 @@ static void settings_changed (settings_t *settings)
 #if MPG_MODE_ENABLE
         if(hal.driver_cap.mpg_mode)
             // Delay mode enable a bit so grbl can finish startup and MPG controller can check ready status
-            hal.delay_ms(50, modeEnable);
+            protocol_enqueue_rt_command(modeEnable);
 #endif
     }
 }
@@ -1811,7 +1811,7 @@ static bool driver_setup (settings_t *settings)
 
     gpio_isr_register(gpio_isr, NULL, (int)ESP_INTR_FLAG_IRAM, NULL);
 
-#if VFD_SPINDLE != 1
+#if VFD_SPINDLE != 1 && defined(SPINDLEPWMPIN)
 
     /******************
     *  Spindle init  *
@@ -1901,7 +1901,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "211220";
+    hal.driver_version = "220103";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -1974,7 +1974,7 @@ bool driver_init (void)
     hal.periph_port.register_pin = registerPeriphPin;
     hal.periph_port.set_pin_description = setPeriphPinDescription;
 
-    stream_connect(serial_stream = serialInit(115200));
+    stream_connect(serialInit(BAUD_RATE));
 
 #if I2C_ENABLE
     I2CInit();
@@ -2001,10 +2001,12 @@ bool driver_init (void)
   #if IOEXPAND_ENABLE || defined(SPINDLE_DIRECTION_PIN)
     hal.driver_cap.spindle_dir = On;
   #endif
+  #ifdef SPINDLEPWMPIN
     hal.driver_cap.variable_spindle = On;
     hal.driver_cap.spindle_pwm_invert = On;
-  #if PWM_RAMPED
+   #if PWM_RAMPED
     hal.driver_cap.spindle_at_speed = On;
+   #endif
   #endif
   #if IOEXPAND_ENABLE || defined(COOLANT_MIST_PIN)
     hal.driver_cap.mist_control = On;
@@ -2020,8 +2022,7 @@ bool driver_init (void)
     hal.signals_cap.safety_door_ajar = On;
 #endif
 #if MPG_MODE_ENABLE
-    hal.driver_cap.mpg_mode = On;
-    mpg_stream = serial2Init(115200);
+    hal.driver_cap.mpg_mode = stream_mpg_register(serial2Init(115200), true, NULL);
 #endif
 
 #ifdef HAS_IOPORTS
@@ -2133,8 +2134,7 @@ IRAM_ATTR static void gpio_isr (void *arg)
 
     if((grp & PinGroup_MPG) && !mpg_mutex) {
         mpg_mutex = true;
-        modeChange();
-        // hal.delay_ms(50, modeChange); // causes intermittent panic... stacked calls due to debounce?
+        protocol_enqueue_rt_command(modeChange);
         mpg_mutex = false;
     }
 #endif

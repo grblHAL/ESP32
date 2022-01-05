@@ -37,7 +37,7 @@
 
 #include "wifi.h"
 #include "webui.h"
-#include "networking/WsStream.h"
+#include "networking/websocketd.h"
 #include "networking/urldecode.h"
 #include "networking/utils.h"
 #include "networking/strutils.h"
@@ -112,7 +112,7 @@ esp_err_t webui_http_command_handler (httpd_req_t *req)
 //              return ESP_OK;
 
             if(strlen(data) == 1)
-                WsStreamRxInsert(*data);
+                websocketd_RxPutC(*data);
 
             else {
 
@@ -127,10 +127,10 @@ esp_err_t webui_http_command_handler (httpd_req_t *req)
                     }
 
                     while((c = *block++))
-                        WsStreamRxInsert(c);
+                        websocketd_RxPutC(c);
 
                     if(len > 1)
-                        WsStreamRxInsert(ASCII_LF);
+                        websocketd_RxPutC(ASCII_LF);
 
                     block = strtok(NULL, "\n");
                 }
