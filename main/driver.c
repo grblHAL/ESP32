@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2021 Terje Io
+  Copyright (c) 2018-2022 Terje Io
 
   Some parts
    Copyright (c) 2011-2015 Sungeun K. Jeon
@@ -977,7 +977,7 @@ inline IRAM_ATTR static control_signals_t systemGetState (void)
 #ifdef CYCLE_START_PIN
     signals.cycle_start = gpio_get_level(CYCLE_START_PIN);
 #endif
-#ifdef ENABLE_SAFETY_DOOR_INPUT_PIN
+#ifdef SAFETY_DOOR_PIN
     signals.safety_door_ajar = gpio_get_level(SAFETY_DOOR_PIN);
 #endif
 
@@ -1901,7 +1901,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "220103";
+    hal.driver_version = "220120";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif

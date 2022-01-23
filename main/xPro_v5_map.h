@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2021 Terje Io
+  Copyright (c) 2021-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -69,7 +69,7 @@
 #define COOLANT_MIST_PIN    GPIO_NUM_21
 //#define COOLANT_FLOOD_PIN   GPIO_NUM_21
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-#ifdef ENABLE_SAFETY_DOOR_INPUT_PIN
+#if SAFETY_DOOR_ENABLE
 #define SAFETY_DOOR_PIN     GPIO_NUM_16
 #else
 #define RESET_PIN           GPIO_NUM_16 //??

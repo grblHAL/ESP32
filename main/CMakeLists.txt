@@ -23,6 +23,7 @@ OPTION(Z_AXIS_SQUARED "Compile with auto-squared Z axis" OFF)
 
 # The following plugins/options are supported:
 
+OPTION(SafetyDoor "Safety door enable" ON)
 OPTION(Networking "Wifi + protocols" OFF)
 OPTION(Bluetooth "Bluetooth" OFF)
 OPTION(Keypad "I2C Keypad" OFF)
@@ -213,6 +214,10 @@ if(TMC5160)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC TRINAMIC_ENABLE=5160)
 endif()
 
+if(SafetyDoor)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC SAFETY_DOOR_ENABLE=1)
+endif()
+
 if(Networking)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC NETWORKING_ENABLE)
 if(SDcard AND FtpDaemon)
@@ -296,6 +301,7 @@ unset(Y_AXIS_SQUARED CACHE)
 unset(Z_AXIS_GANGED CACHE)
 unset(Z_AXIS_SQUARED CACHE)
 
+unset(SafetyDoor CACHE)
 unset(Networking CACHE)
 unset(FtpDaemon CACHE)
 unset(SoftAP CACHE)
