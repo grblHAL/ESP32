@@ -113,7 +113,7 @@ int i2s_out_init();
   Get a bit state from the internal pin state var.
   pin: expanded pin No. (0..31)
 */
-uint8_t i2s_out_read(uint8_t pin);
+uint8_t i2s_out_state(uint8_t pin);
 
 /*
    Set a bit in the internal pin state var. (not written electrically)

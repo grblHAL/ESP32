@@ -28,6 +28,10 @@
 #include "grbl/protocol.h"
 #include "grbl/settings.h"
 
+#ifdef USE_I2S_OUT
+#include "i2s_out.h"
+#endif
+
 static char *pnum = NULL;
 static uint8_t n_in, n_out, *in_map = NULL, *out_map = NULL;
 static volatile input_signal_t *event_port;
