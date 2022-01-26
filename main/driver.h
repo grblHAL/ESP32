@@ -237,6 +237,8 @@ typedef struct {
   #include "fysetc_e4_map.h"
 #elif defined(BOARD_XPRO_V5)
   #include "xPro_v5_map.h"
+#elif defined(BOARD_MKS_DLC32_V2P0)
+  #include "mks_dlc32_2_0_map.h"
 #elif defined(BOARD_MY_MACHINE)
   #include "my_machine_map.h"
 #else // default board - NOTE: NOT FINAL VERSION!

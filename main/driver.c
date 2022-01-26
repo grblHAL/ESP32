@@ -565,7 +565,7 @@ inline IRAM_ATTR static void set_dir_outputs (axes_signals_t dir_outbits)
 
 IRAM_ATTR static void I2S_stepperCyclesPerTick (uint32_t cycles_per_tick)
 {
-    i2s_out_set_pulse_period(cycles_per_tick);
+    i2s_out_set_pulse_period(cycles_per_tick < (1UL << 18) ? cycles_per_tick : (1UL << 18) - 1UL);
 }
 
 // Sets stepper direction and pulse pins and starts a step pulse
@@ -861,6 +861,11 @@ IRAM_ATTR static void stepperGoIdle (bool clear_signals)
 
 #ifdef USE_I2S_OUT
 
+void i2s_step_sink (void)
+{
+    //NOOP
+}
+
 IRAM_ATTR static void I2S_stepperGoIdle (bool clear_signals)
 {
     if(clear_signals) {
@@ -870,10 +875,13 @@ IRAM_ATTR static void I2S_stepperGoIdle (bool clear_signals)
     }
 
     i2s_out_set_passthrough();
+    i2s_out_delay();
 }
 
 static void i2s_set_streaming_mode (bool stream)
 {
+    TIMERG0.hw_timer[STEP_TIMER_INDEX].config.enable = 0;
+
     if(!stream && hal.stepper.wake_up == I2S_stepperWakeUp) {
         i2s_out_set_passthrough();
         i2s_out_delay();
@@ -884,11 +892,13 @@ static void i2s_set_streaming_mode (bool stream)
         hal.stepper.go_idle = I2S_stepperGoIdle;
         hal.stepper.cycles_per_tick = I2S_stepperCyclesPerTick;
         hal.stepper.pulse_start = I2S_stepperPulseStart;
+        i2s_out_set_pulse_callback(hal.stepper.interrupt_callback);
     } else {
         hal.stepper.wake_up = stepperWakeUp;
         hal.stepper.go_idle = stepperGoIdle;
         hal.stepper.cycles_per_tick = stepperCyclesPerTick;
         hal.stepper.pulse_start = stepperPulseStart;
+        i2s_out_set_pulse_callback(i2s_step_sink);
     }
 }
 
@@ -1901,7 +1911,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "220120";
+    hal.driver_version = "220126";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
