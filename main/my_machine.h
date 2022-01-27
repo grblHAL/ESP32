@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2021 Terje Io
+  Copyright (c) 2020-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,10 +26,11 @@
 //#define BOARD_ESPDUINO32
 //#define BOARD_BDRING_V3P5
 //#define BOARD_BDRING_V4
-//#define BOARD_BDRING_I2S6A // NOT production ready!
+//#define BOARD_BDRING_I2S6A    // NOT production ready!
 //#define BOARD_SOURCERABBIT_4AXIS
 //#define BOARD_PROTONEER_3XX
-//#define BOARD_MY_MACHINE // Add my_machine_map.h before enabling this!
+//#define BOARD_MKS_DLC32_V2P0  // MKS DLC32 and MKS TinyBee boards
+//#define BOARD_MY_MACHINE      // Add my_machine_map.h before enabling this!
 
 // Configuration
 // Uncomment to enable, for some a value > 1 may be assigned, if so the default value is shown.
