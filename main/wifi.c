@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2021 Terje Io
+  Copyright (c) 2018-2022 Terje Io
 
   Some parts of the code is based on example code by Espressif, in the public domain
 
@@ -190,22 +190,27 @@ static void start_services (void)
 
 static void stop_services (void)
 {
+    network_services_t running;
+
+    running.mask = services.mask;
+    services.mask = 0;
+
 #if HTTP_ENABLE
-    if(services.http)
+    if(running.http)
         httpdaemon_stop();
 #endif
 #if TELNET_ENABLE
-    if(services.telnet)
+    if(running.telnet)
         telnetd_stop();
 #endif
 #if WEBSOCKET_ENABLE
-    if(services.websocket)
+    if(running.websocket)
         websocketd_stop();
 #endif
-    if(services.dns)
+    if(running.dns)
         dns_server_stop();
 
-    services.mask = 0;
+    xEventGroupClearBits(wifi_event_group, CONNECTED_BIT|SCANNING_BIT|APSTA_BIT);
 }
 
 static void wifi_ap_scan (void)
@@ -299,7 +304,12 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
                 services.dns = On;
             }
             break;
-
+/*??
+        case WIFI_EVENT_AP_STOP:
+            protocol_enqueue_rt_command(msg_ap_disconnected);
+            wifi_stop();
+            break;
+*/
         case WIFI_EVENT_AP_STACONNECTED:
             protocol_enqueue_rt_command(msg_ap_connected);
             if((xEventGroupGetBits(wifi_event_group) & APSTA_BIT) && !(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT)) {
@@ -318,10 +328,10 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
             break;
 
         case WIFI_EVENT_AP_STADISCONNECTED:
-            if(!(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT))
-                hal.stream_select(NULL);
+            telnetd_close_connections();
+            websocketd_close_connections();
             protocol_enqueue_rt_command(msg_ap_disconnected);
-           break;
+            break;
                 
         case WIFI_EVENT_STA_START:
             if(*wifi_sta_config.sta.ssid != '\0')
@@ -330,7 +340,8 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
 
         case WIFI_EVENT_STA_DISCONNECTED:
             //stop_services();
-            hal.stream_select(NULL); // Fall back to previous?
+            telnetd_close_connections();
+            websocketd_close_connections();
             protocol_enqueue_rt_command(msg_sta_disconnected);
             memset(&wifi_sta_config, 0, sizeof(wifi_config_t));
             esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_sta_config);
