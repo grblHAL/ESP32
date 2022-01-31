@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2019-2021 Terje Io
+  Copyright (c) 2019-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -393,12 +393,14 @@ static bool get_firmware_spec (void)
     strcat(buf, " # webcommunication: Sync: ");
     strcat(buf, uitoa(network->websocket_port));
     #endif
-    strcat(buf, "# hostname:");
+    strcat(buf, " # hostname:");
     strcat(buf, network->hostname);
     #if WIFI_SOFTAP
     strcat(buf,"(AP mode)");
     #endif
     #endif
+    strcat(buf, " # axis:");
+    strcat(buf, uitoa(N_AXIS));
 
     webui_print(buf);
 
