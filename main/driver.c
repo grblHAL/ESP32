@@ -1911,7 +1911,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "220126";
+    hal.driver_version = "220203";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif

@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2021 Terje Io
+  Copyright (c) 2018-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,7 +27,9 @@
 #include "driver.h"
 #include "esp_wifi.h"
 
-#define STREAM_POLL_INTERVAL 15 // Poll interval in milliseconds
+#ifndef STREAM_POLL_INTERVAL
+#define STREAM_POLL_INTERVAL 6 // Poll interval in milliseconds
+#endif
 
 typedef struct {
     uint16_t ap_num;

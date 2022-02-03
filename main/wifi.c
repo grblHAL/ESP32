@@ -149,6 +149,9 @@ bool wifi_dns_running (void)
 
 static void lwIPHostTimerHandler (void *arg)
 {
+    if(services.mask)
+        sys_timeout(STREAM_POLL_INTERVAL, lwIPHostTimerHandler, NULL);
+
 #if TELNET_ENABLE
     if(services.telnet)
         telnetd_poll();
@@ -161,8 +164,6 @@ static void lwIPHostTimerHandler (void *arg)
     if(services.ftp)
         ftpd_poll();
 #endif
-    if(services.mask)
-        sys_timeout(STREAM_POLL_INTERVAL, lwIPHostTimerHandler, NULL);
 }
 
 static void start_services (void)
