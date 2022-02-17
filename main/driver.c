@@ -285,7 +285,8 @@ static axes_signals_t motors_1 = {AXES_BITMASK}, motors_2 = {AXES_BITMASK};
 #endif
 
 #ifdef USE_I2S_OUT
-uint32_t i2s_step_length = I2S_OUT_USEC_PER_PULSE, i2s_step_samples = 1;
+static bool goIdlePending = false;
+static uint32_t i2s_step_length = I2S_OUT_USEC_PER_PULSE, i2s_step_samples = 1;
 #endif
 
 #if IOEXPAND_ENABLE
@@ -866,6 +867,16 @@ void i2s_step_sink (void)
     //NOOP
 }
 
+void I2S_reset (void)
+{
+    if(goIdlePending) {
+        i2s_out_set_passthrough();
+        i2s_out_delay();
+//      i2s_out_reset();
+        goIdlePending = false;
+    }
+}
+
 IRAM_ATTR static void I2S_stepperGoIdle (bool clear_signals)
 {
     if(clear_signals) {
@@ -874,26 +885,30 @@ IRAM_ATTR static void I2S_stepperGoIdle (bool clear_signals)
         i2s_out_reset();
     }
 
-    i2s_out_set_passthrough();
-    i2s_out_delay();
+    if(!(goIdlePending = xPortInIsrContext())) {
+        i2s_out_set_passthrough();
+        i2s_out_delay();
+    }
 }
 
 static void i2s_set_streaming_mode (bool stream)
 {
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.enable = 0;
 
-    if(!stream && hal.stepper.wake_up == I2S_stepperWakeUp) {
-        i2s_out_set_passthrough();
-        i2s_out_delay();
+    if(!stream && hal.stepper.wake_up == I2S_stepperWakeUp &&  i2s_out_get_pulser_status() == STEPPING) {
+       i2s_out_set_passthrough();
+       i2s_out_delay();
     }
 
     if(stream) {
-        hal.stepper.wake_up = I2S_stepperWakeUp;
-        hal.stepper.go_idle = I2S_stepperGoIdle;
-        hal.stepper.cycles_per_tick = I2S_stepperCyclesPerTick;
-        hal.stepper.pulse_start = I2S_stepperPulseStart;
-        i2s_out_set_pulse_callback(hal.stepper.interrupt_callback);
-    } else {
+        if(hal.stepper.wake_up != I2S_stepperWakeUp) {
+            hal.stepper.wake_up = I2S_stepperWakeUp;
+            hal.stepper.go_idle = I2S_stepperGoIdle;
+            hal.stepper.cycles_per_tick = I2S_stepperCyclesPerTick;
+            hal.stepper.pulse_start = I2S_stepperPulseStart;
+            i2s_out_set_pulse_callback(hal.stepper.interrupt_callback);
+        }
+    } else if(hal.stepper.wake_up != stepperWakeUp ){
         hal.stepper.wake_up = stepperWakeUp;
         hal.stepper.go_idle = stepperGoIdle;
         hal.stepper.cycles_per_tick = stepperCyclesPerTick;
@@ -1911,7 +1926,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "220203";
+    hal.driver_version = "220215";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -1929,6 +1944,7 @@ bool driver_init (void)
     hal.stepper.cycles_per_tick = stepperCyclesPerTick;
     hal.stepper.pulse_start = stepperPulseStart;
 #else
+    hal.driver_reset = I2S_reset;
     hal.stepper.wake_up = I2S_stepperWakeUp;
     hal.stepper.go_idle = I2S_stepperGoIdle;
     hal.stepper.enable = stepperEnable;

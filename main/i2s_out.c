@@ -42,7 +42,9 @@
  */
 #include "driver.h"
 
-#ifdef USE_I2S_OUT
+#include "grbl/report.h"
+
+//#ifdef USE_I2S_OUT
 
 //#include <FreeRTOS.h>
 #include <driver/periph_ctrl.h>
@@ -55,9 +57,6 @@
 //#include "Pins.h"
 #include "i2s.h"
 #include "i2s_out.h"
-
-// Always enable I2S streaming logic
-#    define USE_I2S_OUT_STREAM_IMPL
 
 //
 // Configrations for DMA connected I2S
@@ -75,11 +74,10 @@
 // Reference information:
 //   FreeRTOS task time slice = portTICK_PERIOD_MS = 1 ms (ESP32 FreeRTOS port)
 //
-#    define I2S_SAMPLE_SIZE 4                                     /* 4 bytes, 32 bits per sample */
-#    define DMA_SAMPLE_COUNT I2S_OUT_DMABUF_LEN / I2S_SAMPLE_SIZE /* number of samples per buffer */
-#    define SAMPLE_SAFE_COUNT (20 / I2S_OUT_USEC_PER_PULSE)       /* prevent buffer overrun (GRBL's $0 should be less than or equal 20) */
+#define I2S_SAMPLE_SIZE 4                                     /* 4 bytes, 32 bits per sample */
+#define DMA_SAMPLE_COUNT I2S_OUT_DMABUF_LEN / I2S_SAMPLE_SIZE /* number of samples per buffer */
+#define SAMPLE_SAFE_COUNT (20 / I2S_OUT_USEC_PER_PULSE)       /* prevent buffer overrun (GRBL's $0 should be less than or equal 20) */
 
-#    ifdef USE_I2S_OUT_STREAM_IMPL
 typedef struct {
     uint32_t**   buffers;
     uint32_t*    current;
@@ -90,72 +88,68 @@ typedef struct {
 
 static i2s_out_dma_t o_dma;
 static intr_handle_t i2s_out_isr_handle;
-#    endif
 
 // output value
 static atomic_uint_least32_t i2s_out_port_data = ATOMIC_VAR_INIT(0);
 
 // inner lock
 static portMUX_TYPE i2s_out_spinlock = portMUX_INITIALIZER_UNLOCKED;
-#    define I2S_OUT_ENTER_CRITICAL()                                                                                                       \
-        do {                                                                                                                               \
-            if (xPortInIsrContext()) {                                                                                                     \
-                portENTER_CRITICAL_ISR(&i2s_out_spinlock);                                                                                 \
-            } else {                                                                                                                       \
-                portENTER_CRITICAL(&i2s_out_spinlock);                                                                                     \
-            }                                                                                                                              \
-        } while (0)
-#    define I2S_OUT_EXIT_CRITICAL()                                                                                                        \
-        do {                                                                                                                               \
-            if (xPortInIsrContext()) {                                                                                                     \
-                portEXIT_CRITICAL_ISR(&i2s_out_spinlock);                                                                                  \
-            } else {                                                                                                                       \
-                portEXIT_CRITICAL(&i2s_out_spinlock);                                                                                      \
-            }                                                                                                                              \
-        } while (0)
-#    define I2S_OUT_ENTER_CRITICAL_ISR() portENTER_CRITICAL_ISR(&i2s_out_spinlock)
-#    define I2S_OUT_EXIT_CRITICAL_ISR() portEXIT_CRITICAL_ISR(&i2s_out_spinlock)
+#define I2S_OUT_ENTER_CRITICAL()                        \
+    do {                                                \
+        if (xPortInIsrContext()) {                      \
+            portENTER_CRITICAL_ISR(&i2s_out_spinlock);  \
+        } else {                                        \
+            portENTER_CRITICAL(&i2s_out_spinlock);      \
+        }                                               \
+    } while (0)
+#define I2S_OUT_EXIT_CRITICAL()                         \
+    do {                                                \
+        if (xPortInIsrContext()) {                      \
+            portEXIT_CRITICAL_ISR(&i2s_out_spinlock);   \
+        } else {                                        \
+            portEXIT_CRITICAL(&i2s_out_spinlock);       \
+        }                                               \
+    } while (0)
+#define I2S_OUT_ENTER_CRITICAL_ISR() portENTER_CRITICAL_ISR(&i2s_out_spinlock)
+#define I2S_OUT_EXIT_CRITICAL_ISR() portEXIT_CRITICAL_ISR(&i2s_out_spinlock)
 
 static int i2s_out_initialized = 0;
 
-#    ifdef USE_I2S_OUT_STREAM_IMPL
 static volatile uint64_t             i2s_out_pulse_period;
 static uint64_t                      i2s_out_remain_time_until_next_pulse;  // Time remaining until the next pulse (usec)
 static volatile i2s_out_pulse_func_t i2s_out_pulse_func;
-#    endif
-
-static uint8_t i2s_out_ws_pin   = 255;
-static uint8_t i2s_out_bck_pin  = 255;
-static uint8_t i2s_out_data_pin = 255;
-
+static gpio_num_t i2s_out_ws_pin   = 255;
+static gpio_num_t i2s_out_bck_pin  = 255;
+static gpio_num_t i2s_out_data_pin = 255;
 
 static volatile i2s_out_pulser_status_t i2s_out_pulser_status = PASSTHROUGH;
 
 // outer lock
 static portMUX_TYPE i2s_out_pulser_spinlock = portMUX_INITIALIZER_UNLOCKED;
-#    define I2S_OUT_PULSER_ENTER_CRITICAL()                                                                                                \
-        do {                                                                                                                               \
-            if (xPortInIsrContext()) {                                                                                                     \
-                portENTER_CRITICAL_ISR(&i2s_out_pulser_spinlock);                                                                          \
-            } else {                                                                                                                       \
-                portENTER_CRITICAL(&i2s_out_pulser_spinlock);                                                                              \
-            }                                                                                                                              \
-        } while (0)
-#    define I2S_OUT_PULSER_EXIT_CRITICAL()                                                                                                 \
-        do {                                                                                                                               \
-            if (xPortInIsrContext()) {                                                                                                     \
-                portEXIT_CRITICAL_ISR(&i2s_out_pulser_spinlock);                                                                           \
-            } else {                                                                                                                       \
-                portEXIT_CRITICAL(&i2s_out_pulser_spinlock);                                                                               \
-            }                                                                                                                              \
-        } while (0)
-#    define I2S_OUT_PULSER_ENTER_CRITICAL_ISR() portENTER_CRITICAL_ISR(&i2s_out_pulser_spinlock)
-#    define I2S_OUT_PULSER_EXIT_CRITICAL_ISR() portEXIT_CRITICAL_ISR(&i2s_out_pulser_spinlock)
+#define I2S_OUT_PULSER_ENTER_CRITICAL()                         \
+    do {                                                        \
+        if (xPortInIsrContext()) {                              \
+            portENTER_CRITICAL_ISR(&i2s_out_pulser_spinlock);   \
+        } else {                                                \
+            portENTER_CRITICAL(&i2s_out_pulser_spinlock);       \
+        }                                                       \
+    } while (0)
+#define I2S_OUT_PULSER_EXIT_CRITICAL()                          \
+    do {                                                        \
+        if (xPortInIsrContext()) {                              \
+            portEXIT_CRITICAL_ISR(&i2s_out_pulser_spinlock);    \
+        } else {                                                \
+            portEXIT_CRITICAL(&i2s_out_pulser_spinlock);        \
+        }                                                       \
+    } while (0)
+#define I2S_OUT_PULSER_ENTER_CRITICAL_ISR() portENTER_CRITICAL_ISR(&i2s_out_pulser_spinlock)
+#define I2S_OUT_PULSER_EXIT_CRITICAL_ISR() portEXIT_CRITICAL_ISR(&i2s_out_pulser_spinlock)
 
 //
 // Internal functions
 //
-static inline void gpio_matrix_out_check(uint8_t gpio, uint32_t signal_idx, bool out_inv, bool oen_inv) {
+static inline void gpio_matrix_out_check (uint8_t gpio, uint32_t signal_idx, bool out_inv, bool oen_inv)
+{
     //if pin == 255, do not need to configure
     if (gpio != 255) {
         PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[gpio], PIN_FUNC_GPIO);
@@ -164,42 +158,45 @@ static inline void gpio_matrix_out_check(uint8_t gpio, uint32_t signal_idx, bool
     }
 }
 
-static inline void i2s_out_single_data() {
-#    if I2S_OUT_NUM_BITS == 16
+static inline void i2s_out_single_data (void)
+{
+#if I2S_OUT_NUM_BITS == 16
     uint32_t port_data = atomic_load(&i2s_out_port_data);
     port_data <<= 16;                   // Shift needed. This specification is not spelled out in the manual.
     I2S0.conf_single_data = port_data;  // Apply port data in real-time (static I2S)
-#    else
+#else
     I2S0.conf_single_data = atomic_load(&i2s_out_port_data);  // Apply port data in real-time (static I2S)
-#    endif
+#endif
 }
 
-static inline void i2s_out_reset_fifo_without_lock() {
+static inline void i2s_out_reset_fifo_without_lock (void)
+{
     I2S0.conf.rx_fifo_reset = 1;
     I2S0.conf.rx_fifo_reset = 0;
     I2S0.conf.tx_fifo_reset = 1;
     I2S0.conf.tx_fifo_reset = 0;
 }
 
-static void IRAM_ATTR i2s_out_reset_fifo() {
+static void IRAM_ATTR i2s_out_reset_fifo (void)
+{
     I2S_OUT_ENTER_CRITICAL();
     i2s_out_reset_fifo_without_lock();
     I2S_OUT_EXIT_CRITICAL();
 }
 
-#    ifdef USE_I2S_OUT_STREAM_IMPL
-static int IRAM_ATTR i2s_clear_dma_buffer(lldesc_t* dma_desc, uint32_t port_data) {
-    uint32_t* buf = (uint32_t*)dma_desc->buf;
+static void IRAM_ATTR i2s_clear_dma_buffer (lldesc_t *dma_desc, uint32_t port_data)
+{
+    uint32_t *buf = (uint32_t *)dma_desc->buf;
     for (int i = 0; i < DMA_SAMPLE_COUNT; i++) {
         buf[i] = port_data;
     }
     // Restore the buffer length.
     // The length may have been changed short when the data was filled in to prevent buffer overrun.
     dma_desc->length = I2S_OUT_DMABUF_LEN;
-    return 0;
 }
 
-static int IRAM_ATTR i2s_clear_o_dma_buffers(uint32_t port_data) {
+static void IRAM_ATTR i2s_clear_o_dma_buffers (uint32_t port_data)
+{
     for (int buf_idx = 0; buf_idx < I2S_OUT_DMABUF_COUNT; buf_idx++) {
         // Initialize DMA descriptor
         o_dma.desc[buf_idx]->owner        = 1;
@@ -212,29 +209,28 @@ static int IRAM_ATTR i2s_clear_o_dma_buffers(uint32_t port_data) {
         o_dma.desc[buf_idx]->qe.stqe_next = (lldesc_t*)((buf_idx < (I2S_OUT_DMABUF_COUNT - 1)) ? (o_dma.desc[buf_idx + 1]) : o_dma.desc[0]);
         i2s_clear_dma_buffer(o_dma.desc[buf_idx], port_data);
     }
-    return 0;
 }
-#    endif
 
-static int IRAM_ATTR i2s_out_gpio_attach(uint8_t ws, uint8_t bck, uint8_t data) {
+static void IRAM_ATTR i2s_out_gpio_attach (uint8_t ws, uint8_t bck, uint8_t data)
+{
     // Route the i2s pins to the appropriate GPIO
     gpio_matrix_out_check(data, I2S0O_DATA_OUT23_IDX, 0, 0);
     gpio_matrix_out_check(bck, I2S0O_BCK_OUT_IDX, 0, 0);
     gpio_matrix_out_check(ws, I2S0O_WS_OUT_IDX, 0, 0);
-    return 0;
 }
 
-#    define I2S_OUT_DETACH_PORT_IDX 0x100
+#define I2S_OUT_DETACH_PORT_IDX 0x100
 
-static int IRAM_ATTR i2s_out_gpio_detach(uint8_t ws, uint8_t bck, uint8_t data) {
+static void IRAM_ATTR i2s_out_gpio_detach (uint8_t ws, uint8_t bck, uint8_t data)
+{
     // Route the i2s pins to the appropriate GPIO
     gpio_matrix_out_check(ws, I2S_OUT_DETACH_PORT_IDX, 0, 0);
     gpio_matrix_out_check(bck, I2S_OUT_DETACH_PORT_IDX, 0, 0);
     gpio_matrix_out_check(data, I2S_OUT_DETACH_PORT_IDX, 0, 0);
-    return 0;
 }
 
-static int IRAM_ATTR i2s_out_gpio_shiftout(uint32_t port_data) {
+static void IRAM_ATTR i2s_out_gpio_shiftout (uint32_t port_data)
+{
     __digitalWrite(i2s_out_ws_pin, LOW);
     for (int i = 0; i < I2S_OUT_NUM_BITS; i++) {
         __digitalWrite(i2s_out_data_pin, !!(port_data & bit(((I2S_OUT_NUM_BITS - 1) - i))));
@@ -242,18 +238,18 @@ static int IRAM_ATTR i2s_out_gpio_shiftout(uint32_t port_data) {
         __digitalWrite(i2s_out_bck_pin, LOW);
     }
     __digitalWrite(i2s_out_ws_pin, HIGH);  // Latch
-    return 0;
 }
 
-static int IRAM_ATTR i2s_out_stop() {
+static void IRAM_ATTR i2s_out_stop (void)
+{
     I2S_OUT_ENTER_CRITICAL();
-#    ifdef USE_I2S_OUT_STREAM_IMPL
+
     // Stop FIFO DMA
     I2S0.out_link.stop = 1;
 
     // Disconnect DMA from FIFO
     I2S0.fifo_conf.dscr_en = 0;  //Unset this bit to disable I2S DMA mode. (R/W)
-#    endif
+
     // stop TX module
     I2S0.conf.tx_start = 0;
 
@@ -273,17 +269,16 @@ static int IRAM_ATTR i2s_out_stop() {
     uint32_t port_data = atomic_load(&i2s_out_port_data);  // current expanded port value
     i2s_out_gpio_shiftout(port_data);
 
-#    ifdef USE_I2S_OUT_STREAM_IMPL
     //clear pending interrupt
     I2S0.int_clr.val = I2S0.int_st.val;
-#    endif
+
     I2S_OUT_EXIT_CRITICAL();
-    return 0;
 }
 
-static int IRAM_ATTR i2s_out_start() {
+static bool IRAM_ATTR i2s_out_start (void)
+{
     if (!i2s_out_initialized) {
-        return -1;
+        return false;
     }
 
     I2S_OUT_ENTER_CRITICAL();
@@ -296,7 +291,6 @@ static int IRAM_ATTR i2s_out_start() {
     //start DMA link
     i2s_out_reset_fifo_without_lock();
 
-#    ifdef USE_I2S_OUT_STREAM_IMPL
     if (i2s_out_pulser_status == PASSTHROUGH) {
         I2S0.conf_chan.tx_chan_mod = 3;  // 3:right+constant 4:left+constant (when tx_msb_right = 1)
         I2S0.conf_single_data      = port_data;
@@ -304,9 +298,7 @@ static int IRAM_ATTR i2s_out_start() {
         I2S0.conf_chan.tx_chan_mod = 4;  // 3:right+constant 4:left+constant (when tx_msb_right = 1)
         I2S0.conf_single_data      = 0;
     }
-#    endif
 
-#    ifdef USE_I2S_OUT_STREAM_IMPL
     //reset DMA
     I2S0.lc_conf.in_rst  = 1;
     I2S0.lc_conf.in_rst  = 0;
@@ -314,7 +306,6 @@ static int IRAM_ATTR i2s_out_start() {
     I2S0.lc_conf.out_rst = 0;
 
     I2S0.out_link.addr = (uint32_t)o_dma.desc[0];
-#    endif
 
     I2S0.conf.tx_reset = 1;
     I2S0.conf.tx_reset = 0;
@@ -323,13 +314,12 @@ static int IRAM_ATTR i2s_out_start() {
 
     I2S0.conf1.tx_stop_en = 1;  // BCK and WCK are suppressed while FIFO is empty
 
-#    ifdef USE_I2S_OUT_STREAM_IMPL
     // Connect DMA to FIFO
     I2S0.fifo_conf.dscr_en = 1;  // Set this bit to enable I2S DMA mode. (R/W)
 
     I2S0.int_clr.val    = 0xFFFFFFFF;
     I2S0.out_link.start = 1;
-#    endif
+
     I2S0.conf.tx_start = 1;
     // Wait for the first FIFO data to prevent the unintentional generation of 0 data
     ets_delay_us(20);
@@ -337,13 +327,12 @@ static int IRAM_ATTR i2s_out_start() {
 
     I2S_OUT_EXIT_CRITICAL();
 
-    return 0;
+    return true;
 }
 
-#    ifdef USE_I2S_OUT_STREAM_IMPL
-
-static int IRAM_ATTR i2s_fillout_dma_buffer(lldesc_t* dma_desc) {
-    uint32_t* buf = (uint32_t*)dma_desc->buf;
+static void IRAM_ATTR i2s_fillout_dma_buffer (lldesc_t *dma_desc)
+{
+    uint32_t *buf = (uint32_t *)dma_desc->buf;
     o_dma.rw_pos  = 0;
     // It reuses the oldest (just transferred) buffer with the name "current"
     // and fills the buffer for later DMA.
@@ -369,10 +358,11 @@ static int IRAM_ATTR i2s_fillout_dma_buffer(lldesc_t* dma_desc) {
                     if (i2s_out_pulse_func != NULL) {
                         uint32_t old_rw_pos = o_dma.rw_pos;
                         I2S_OUT_PULSER_EXIT_CRITICAL();   // Temporarily unlocked status lock as it may be locked in pulse callback.
-                        (*i2s_out_pulse_func)();          // should be pushed into buffer max DMA_SAMPLE_SAFE_COUNT
+                        i2s_out_pulse_func();             // should be pushed into buffer max DMA_SAMPLE_SAFE_COUNT
                         I2S_OUT_PULSER_ENTER_CRITICAL();  // Lock again.
                         // Calculate pulse period.
-                        i2s_out_remain_time_until_next_pulse += i2s_out_pulse_period - I2S_OUT_USEC_PER_PULSE * (o_dma.rw_pos - old_rw_pos);                        if (i2s_out_pulser_status == WAITING) {
+                        i2s_out_remain_time_until_next_pulse += i2s_out_pulse_period - I2S_OUT_USEC_PER_PULSE * (o_dma.rw_pos - old_rw_pos);
+                        if (i2s_out_pulser_status == WAITING) {
                             // i2s_out_set_passthrough() has called from the pulse function.
                             // It needs to go into pass-through mode.
                             // This DMA descriptor must be a tail of the chain.
@@ -412,15 +402,14 @@ static int IRAM_ATTR i2s_fillout_dma_buffer(lldesc_t* dma_desc) {
         i2s_out_remain_time_until_next_pulse = 0;
     }
     I2S_OUT_PULSER_EXIT_CRITICAL();  // Unlock pulser status
-
-    return 0;
 }
 
 //
 // I2S out DMA Interrupts handler
 //
-static void IRAM_ATTR i2s_out_intr_handler(void* arg) {
-    lldesc_t*     finish_desc;
+static void IRAM_ATTR i2s_out_intr_handler (void *arg)
+{
+    lldesc_t *finish_desc;
     portBASE_TYPE high_priority_task_awoken = pdFALSE;
 
     if (I2S0.int_st.out_eof || I2S0.int_st.out_total_eof) {
@@ -470,8 +459,10 @@ static void IRAM_ATTR i2s_out_intr_handler(void* arg) {
 //
 // I2S bitstream generator task
 //
-static void IRAM_ATTR i2sOutTask(void* parameter) {
-    lldesc_t* dma_desc;
+static void IRAM_ATTR i2sOutTask(void* parameter)
+{
+    lldesc_t *dma_desc;
+
     while (1) {
         // Wait a DMA complete event from I2S isr
         // (Block until a DMA transfer has complete)
@@ -519,13 +510,12 @@ static void IRAM_ATTR i2sOutTask(void* parameter) {
         I2S_OUT_PULSER_EXIT_CRITICAL();  // Unlock pulser status
     }
 }
-#    endif
 
 //
 // External funtions
 //
-void IRAM_ATTR i2s_out_delay() {
-#    ifdef USE_I2S_OUT_STREAM_IMPL
+void IRAM_ATTR i2s_out_delay (void)
+{
     I2S_OUT_PULSER_ENTER_CRITICAL();
     if (i2s_out_pulser_status == PASSTHROUGH) {
         // Depending on the timing, it may not be reflected immediately,
@@ -537,36 +527,32 @@ void IRAM_ATTR i2s_out_delay() {
         delay(I2S_OUT_DELAY_MS);
     }
     I2S_OUT_PULSER_EXIT_CRITICAL();
-#    else
-    ets_delay_us(I2S_OUT_USEC_PER_PULSE * 2);
-#    endif
 }
 
-void IRAM_ATTR i2s_out_write(uint8_t pin, uint8_t val) {
+void IRAM_ATTR i2s_out_write (uint8_t pin, uint8_t val)
+{
     uint32_t bit = bit(pin);
     if (val) {
         atomic_fetch_or(&i2s_out_port_data, bit);
     } else {
         atomic_fetch_and(&i2s_out_port_data, ~bit);
     }
-#    ifdef USE_I2S_OUT_STREAM_IMPL
     // It needs a lock for access, but I've given up because I need speed.
     // This is not a problem as long as there is no overlap between the status change and digitalWrite().
     if (i2s_out_pulser_status == PASSTHROUGH) {
         i2s_out_single_data();
     }
-#    else
-    i2s_out_single_data();
-#    endif
 }
 
-uint8_t IRAM_ATTR i2s_out_state(uint8_t pin) {
+bool IRAM_ATTR i2s_out_state (uint8_t pin)
+{
     uint32_t port_data = atomic_load(&i2s_out_port_data);
+
     return (!!(port_data & bit(pin)));
 }
 
-uint32_t IRAM_ATTR i2s_out_push_sample(uint32_t num) {
-#    ifdef USE_I2S_OUT_STREAM_IMPL
+uint32_t IRAM_ATTR i2s_out_push_sample (uint32_t num)
+{
     if (num > SAMPLE_SAFE_COUNT) {
         return 0;
     }
@@ -577,39 +563,37 @@ uint32_t IRAM_ATTR i2s_out_push_sample(uint32_t num) {
         o_dma.current[o_dma.rw_pos++] = port_data;
         n++;
     } while (n < num);
+
     return n;
-#    else
-    return 0;
-#    endif
 }
 
-i2s_out_pulser_status_t IRAM_ATTR i2s_out_get_pulser_status() {
+i2s_out_pulser_status_t IRAM_ATTR i2s_out_get_pulser_status (void)
+{
     I2S_OUT_PULSER_ENTER_CRITICAL();
     i2s_out_pulser_status_t s = i2s_out_pulser_status;
     I2S_OUT_PULSER_EXIT_CRITICAL();
+
     return s;
 }
 
-int IRAM_ATTR i2s_out_set_passthrough() {
+void IRAM_ATTR i2s_out_set_passthrough (void)
+{
     I2S_OUT_PULSER_ENTER_CRITICAL();
-#    ifdef USE_I2S_OUT_STREAM_IMPL
     if (i2s_out_pulser_status == STEPPING) {
         i2s_out_pulser_status = WAITING;  // Start stopping the pulser
+        delay(I2S_OUT_DELAY_MS);
     }
-#    else
-    i2s_out_pulser_status = PASSTHROUGH;
-#    endif
     I2S_OUT_PULSER_EXIT_CRITICAL();
-    return 0;
 }
 
-int IRAM_ATTR i2s_out_set_stepping() {
+void IRAM_ATTR i2s_out_set_stepping (void)
+{
     I2S_OUT_PULSER_ENTER_CRITICAL();
-#    ifdef USE_I2S_OUT_STREAM_IMPL
+
     if (i2s_out_pulser_status == STEPPING) {
         // Re-entered (fail safe)
         I2S_OUT_PULSER_EXIT_CRITICAL();
-        return 0;
+        return;
     }
 
     if (i2s_out_pulser_status == WAITING) {
@@ -627,7 +611,7 @@ int IRAM_ATTR i2s_out_set_stepping() {
             }
             // Another function change the I2S state to STEPPING
             I2S_OUT_PULSER_EXIT_CRITICAL();
-            return 0;
+            return;
         }
     }
 
@@ -640,32 +624,24 @@ int IRAM_ATTR i2s_out_set_stepping() {
     // because the process in i2s_out_start() is different depending on the status.
     i2s_out_pulser_status = STEPPING;
     i2s_out_start();
-#    else
-    i2s_out_pulser_status = STEPPING;
-#    endif
     I2S_OUT_PULSER_EXIT_CRITICAL();
-    return 0;
 }
 
-int IRAM_ATTR i2s_out_set_pulse_period(uint64_t period) {
-#    ifdef USE_I2S_OUT_STREAM_IMPL
+void IRAM_ATTR i2s_out_set_pulse_period (uint64_t period)
+{
     // Use 64-bit values to avoid overflowing during the calculation.
     i2s_out_pulse_period = period * 1000000 / F_STEPPER_TIMER;
-#    endif
-    return 0;
 }
 
-int IRAM_ATTR i2s_out_set_pulse_callback(i2s_out_pulse_func_t func) {
-#    ifdef USE_I2S_OUT_STREAM_IMPL
+void IRAM_ATTR i2s_out_set_pulse_callback (i2s_out_pulse_func_t func)
+{
     i2s_out_pulse_func = func;
-#    endif
-    return 0;
 }
 
-int IRAM_ATTR i2s_out_reset() {
+void IRAM_ATTR i2s_out_reset (void)
+{
     I2S_OUT_PULSER_ENTER_CRITICAL();
     i2s_out_stop();
-#    ifdef USE_I2S_OUT_STREAM_IMPL
     if (i2s_out_pulser_status == STEPPING) {
         uint32_t port_data = atomic_load(&i2s_out_port_data);
         i2s_clear_o_dma_buffers(port_data);
@@ -673,21 +649,20 @@ int IRAM_ATTR i2s_out_reset() {
         i2s_clear_o_dma_buffers(0);
         i2s_out_pulser_status = PASSTHROUGH;
     }
-#    endif
     // You need to set the status before calling i2s_out_start()
     // because the process in i2s_out_start() is different depending on the status.
     i2s_out_start();
     I2S_OUT_PULSER_EXIT_CRITICAL();
-    return 0;
 }
 
 //
 // Initialize funtion (external function)
 //
-int IRAM_ATTR i2s_out_init2(i2s_out_init_t init_param) {
+bool IRAM_ATTR i2s_out_init2 (i2s_out_init_t init_param)
+{
     if (i2s_out_initialized) {
         // already initialized
-        return -1;
+        return false;
     }
 
     atomic_store(&i2s_out_port_data, init_param.init_val);
@@ -724,27 +699,26 @@ int IRAM_ATTR i2s_out_init2(i2s_out_init_t init_param) {
    *      M = 2
    */
 
-#    ifdef USE_I2S_OUT_STREAM_IMPL
     // Allocate the array of pointers to the buffers
-    o_dma.buffers = (uint32_t**)malloc(sizeof(uint32_t*) * I2S_OUT_DMABUF_COUNT);
+    o_dma.buffers = (uint32_t **)malloc(sizeof(uint32_t *)*I2S_OUT_DMABUF_COUNT);
     if (o_dma.buffers == nullptr)
         return -1;
 
     // Allocate each buffer that can be used by the DMA controller
     for (int buf_idx = 0; buf_idx < I2S_OUT_DMABUF_COUNT; buf_idx++) {
-        o_dma.buffers[buf_idx] = (uint32_t*)heap_caps_calloc(1, I2S_OUT_DMABUF_LEN, MALLOC_CAP_DMA);
+        o_dma.buffers[buf_idx] = (uint32_t *)heap_caps_calloc(1, I2S_OUT_DMABUF_LEN, MALLOC_CAP_DMA);
         if (o_dma.buffers[buf_idx] == nullptr)
             return -1;
     }
 
     // Allocate the array of DMA descriptors
-    o_dma.desc = (lldesc_t**)malloc(sizeof(lldesc_t*) * I2S_OUT_DMABUF_COUNT);
+    o_dma.desc = (lldesc_t**)malloc(sizeof(lldesc_t *)*I2S_OUT_DMABUF_COUNT);
     if (o_dma.desc == nullptr)
         return -1;
 
     // Allocate each DMA descriptor that will be used by the DMA controller
     for (int buf_idx = 0; buf_idx < I2S_OUT_DMABUF_COUNT; buf_idx++) {
-        o_dma.desc[buf_idx] = (lldesc_t*)heap_caps_malloc(sizeof(lldesc_t), MALLOC_CAP_DMA);
+        o_dma.desc[buf_idx] = (lldesc_t *)heap_caps_malloc(sizeof(lldesc_t), MALLOC_CAP_DMA);
         if (o_dma.desc[buf_idx] == nullptr)
             return -1;
     }
@@ -753,11 +727,10 @@ int IRAM_ATTR i2s_out_init2(i2s_out_init_t init_param) {
     i2s_clear_o_dma_buffers(init_param.init_val);
     o_dma.rw_pos  = 0;
     o_dma.current = NULL;
-    o_dma.queue   = xQueueCreate(I2S_OUT_DMABUF_COUNT, sizeof(uint32_t*));
+    o_dma.queue   = xQueueCreate(I2S_OUT_DMABUF_COUNT, sizeof(uint32_t *));
 
     // Set the first DMA descriptor
     I2S0.out_link.addr = (uint32_t)o_dma.desc[0];
-#    endif
 
     // stop i2s
     I2S0.out_link.stop = 1;
@@ -792,17 +765,14 @@ int IRAM_ATTR i2s_out_init2(i2s_out_init_t init_param) {
     I2S0.lc_conf.outdscr_burst_en   = 0;
     I2S0.lc_conf.out_no_restart_clr = 0;
     I2S0.lc_conf.indscr_burst_en    = 0;
-#    ifdef USE_I2S_OUT_STREAM_IMPL
-    I2S0.lc_conf.out_eof_mode = 1;  // I2S_OUT_EOF_INT generated when DMA has popped all data from the FIFO;
-#    endif
-    I2S0.conf2.lcd_en             = 0;
-    I2S0.conf2.camera_en          = 0;
-    I2S0.pdm_conf.pcm2pdm_conv_en = 0;
-    I2S0.pdm_conf.pdm2pcm_conv_en = 0;
+    I2S0.lc_conf.out_eof_mode       = 1;  // I2S_OUT_EOF_INT generated when DMA has popped all data from the FIFO;
+    I2S0.conf2.lcd_en               = 0;
+    I2S0.conf2.camera_en            = 0;
+    I2S0.pdm_conf.pcm2pdm_conv_en   = 0;
+    I2S0.pdm_conf.pdm2pcm_conv_en   = 0;
 
-    I2S0.fifo_conf.dscr_en = 0;
+    I2S0.fifo_conf.dscr_en          = 0;
 
-#    ifdef USE_I2S_OUT_STREAM_IMPL
     if (i2s_out_pulser_status == STEPPING) {
         // Stream output mode
         I2S0.conf_chan.tx_chan_mod = 4;  // 3:right+constant 4:left+constant (when tx_msb_right = 1)
@@ -812,31 +782,26 @@ int IRAM_ATTR i2s_out_init2(i2s_out_init_t init_param) {
         I2S0.conf_chan.tx_chan_mod = 3;  // 3:right+constant 4:left+constant (when tx_msb_right = 1)
         I2S0.conf_single_data      = init_param.init_val;
     }
-#    else
-    // For the static output mode
-    I2S0.conf_chan.tx_chan_mod = 3;                    // 3:right+constant 4:left+constant (when tx_msb_right = 1)
-    I2S0.conf_single_data      = init_param.init_val;  // initial constant value
-#    endif
-#    if I2S_OUT_NUM_BITS == 16
+
+#if I2S_OUT_NUM_BITS == 16
     I2S0.fifo_conf.tx_fifo_mod        = 0;   // 0: 16-bit dual channel data, 3: 32-bit single channel data
     I2S0.fifo_conf.rx_fifo_mod        = 0;   // 0: 16-bit dual channel data, 3: 32-bit single channel data
     I2S0.sample_rate_conf.tx_bits_mod = 16;  // default is 16-bits
     I2S0.sample_rate_conf.rx_bits_mod = 16;  // default is 16-bits
-#    else
+#else
     I2S0.fifo_conf.tx_fifo_mod = 3;                    // 0: 16-bit dual channel data, 3: 32-bit single channel data
     I2S0.fifo_conf.rx_fifo_mod = 3;                    // 0: 16-bit dual channel data, 3: 32-bit single channel data
     // Data width is 32-bit. Forgetting this setting will result in a 16-bit transfer.
     I2S0.sample_rate_conf.tx_bits_mod = 32;
     I2S0.sample_rate_conf.rx_bits_mod = 32;
-#    endif
+#endif
     I2S0.conf.tx_mono = 0;  // Set this bit to enable transmitter’s mono mode in PCM standard mode.
 
     I2S0.conf_chan.rx_chan_mod = 1;  // 1: right+right
     I2S0.conf.rx_mono          = 0;
 
-#    ifdef USE_I2S_OUT_STREAM_IMPL
     I2S0.fifo_conf.dscr_en = 1;  //connect DMA to fifo
-#    endif
+
     I2S0.conf.tx_start = 0;
     I2S0.conf.rx_start = 0;
 
@@ -844,9 +809,9 @@ int IRAM_ATTR i2s_out_init2(i2s_out_init_t init_param) {
     I2S0.conf.tx_right_first = 0;  // Setting this bit allows the right-channel data to be sent first.
 
     I2S0.conf.tx_slave_mod = 0;  // Master
-#    ifdef USE_I2S_OUT_STREAM_IMPL
+
     I2S0.fifo_conf.tx_fifo_mod_force_en = 1;  //The bit should always be set to 1.
-#    endif
+
     I2S0.pdm_conf.rx_pdm_en = 0;  // Set this bit to enable receiver’s PDM mode.
     I2S0.pdm_conf.tx_pdm_en = 0;  // Set this bit to enable transmitter’s PDM mode.
 
@@ -863,13 +828,13 @@ int IRAM_ATTR i2s_out_init2(i2s_out_init_t init_param) {
     // set clock (fi2s) 160MHz / 5
     I2S0.clkm_conf.clka_en = 0;  // Use 160 MHz PLL_D2_CLK as reference
                                  // N + b/a = 0
-#    if I2S_OUT_NUM_BITS == 16
+#if I2S_OUT_NUM_BITS == 16
     // N = 10
     I2S0.clkm_conf.clkm_div_num = 10;  // minimum value of 2, reset value of 4, max 256 (I²S clock divider’s integral value)
-#    else
+#else
     // N = 5
     I2S0.clkm_conf.clkm_div_num = 5;  // minimum value of 2, reset value of 4, max 256 (I²S clock divider’s integral value)
-#    endif
+#endif
     // b/a = 0
     I2S0.clkm_conf.clkm_div_b = 0;  // 0 at reset
     I2S0.clkm_conf.clkm_div_a = 0;  // 0 at reset, what about divide by 0? (not an issue)
@@ -879,7 +844,7 @@ int IRAM_ATTR i2s_out_init2(i2s_out_init_t init_param) {
     I2S0.sample_rate_conf.tx_bck_div_num = 2;  // minimum value of 2 defaults to 6
     I2S0.sample_rate_conf.rx_bck_div_num = 2;
 
-#    ifdef USE_I2S_OUT_STREAM_IMPL
+
     // Enable TX interrupts (DMA Interrupts)
     I2S0.int_ena.out_eof       = 1;  // Triggered when rxlink has finished sending a packet.
     I2S0.int_ena.out_dscr_err  = 0;  // Triggered when invalid rxlink descriptors are encountered.
@@ -903,7 +868,6 @@ int IRAM_ATTR i2s_out_init2(i2s_out_init_t init_param) {
     // Allocate and Enable the I2S interrupt
     esp_intr_alloc(ETS_I2S0_INTR_SOURCE, 0, i2s_out_intr_handler, nullptr, &i2s_out_isr_handle);
     esp_intr_enable(i2s_out_isr_handle);
-#    endif
 
     // Remember GPIO pin numbers
     i2s_out_ws_pin      = init_param.ws_pin;
@@ -914,27 +878,19 @@ int IRAM_ATTR i2s_out_init2(i2s_out_init_t init_param) {
     // Start the I2S peripheral
     i2s_out_start();
 
-    return 0;
+    return true;
 }
 
-#    ifndef I2S_OUT_WS
-#        define I2S_OUT_WS GPIO_NUM_17
-#    endif
-#    ifndef I2S_OUT_BCK
-#        define I2S_OUT_BCK GPIO_NUM_22
-#    endif
-#    ifndef I2S_OUT_DATA
-#        define I2S_OUT_DATA GPIO_NUM_21
-#    endif
-#    ifndef I2S_OUT_INIT_VAL
-#        define I2S_OUT_INIT_VAL 0
-#    endif
+#ifndef I2S_OUT_INIT_VAL
+#    define I2S_OUT_INIT_VAL 0
+#endif
 /*
   Initialize I2S out by default parameters.
 
   return -1 ... already initialized
 */
-int IRAM_ATTR i2s_out_init() {
+bool IRAM_ATTR i2s_out_init (void)
+{
     i2s_out_init_t default_param = {
         .ws_pin       = I2S_OUT_WS,
         .bck_pin      = I2S_OUT_BCK,
@@ -943,7 +899,8 @@ int IRAM_ATTR i2s_out_init() {
         .pulse_period = I2S_OUT_USEC_PER_PULSE,
         .init_val     = I2S_OUT_INIT_VAL,
     };
+
     return i2s_out_init2(default_param);
 }
 
-#endif
+//#endif

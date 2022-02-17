@@ -42,28 +42,28 @@
 #include "driver.h"
 
 #ifdef USE_I2S_OUT
-#    include <stdint.h>
+#include <stdint.h>
 
 /* Assert */
-#    if defined(I2S_OUT_NUM_BITS)
-#        if (I2S_OUT_NUM_BITS != 16) && (I2S_OUT_NUM_BITS != 32)
-#            error "I2S_OUT_NUM_BITS should be 16 or 32"
-#        endif
-#    else
-#        define I2S_OUT_NUM_BITS 32
-#    endif
+#if defined(I2S_OUT_NUM_BITS)
+#if (I2S_OUT_NUM_BITS != 16) && (I2S_OUT_NUM_BITS != 32)
+#error "I2S_OUT_NUM_BITS should be 16 or 32"
+#endif
+#else
+#define I2S_OUT_NUM_BITS 32
+#endif
 
-#    define I2SO(n) (I2S_OUT_PIN_BASE + n)
+#define I2SO(n) (I2S_OUT_PIN_BASE + n)
 
 /* 16-bit mode: 1000000 usec / ((160000000 Hz) / 10 / 2) x 16 bit/pulse x 2(stereo) = 4 usec/pulse */
 /* 32-bit mode: 1000000 usec / ((160000000 Hz) /  5 / 2) x 32 bit/pulse x 2(stereo) = 4 usec/pulse */
-#    define I2S_OUT_USEC_PER_PULSE 4
+#define I2S_OUT_USEC_PER_PULSE 4
 
-#    define I2S_OUT_DMABUF_COUNT 5  /* number of DMA buffers to store data */
-#    define I2S_OUT_DMABUF_LEN 2000 /* maximum size in bytes (4092 is DMA's limit) */
+#define I2S_OUT_DMABUF_COUNT 5  /* number of DMA buffers to store data */
+#define I2S_OUT_DMABUF_LEN 2000 /* maximum size in bytes (4092 is DMA's limit) */
 
-#    define I2S_OUT_DELAY_DMABUF_MS (I2S_OUT_DMABUF_LEN / sizeof(uint32_t) * I2S_OUT_USEC_PER_PULSE / 1000)
-#    define I2S_OUT_DELAY_MS (I2S_OUT_DELAY_DMABUF_MS * (I2S_OUT_DMABUF_COUNT + 1))
+#define I2S_OUT_DELAY_DMABUF_MS (I2S_OUT_DMABUF_LEN / sizeof(uint32_t) * I2S_OUT_USEC_PER_PULSE / 1000)
+#define I2S_OUT_DELAY_MS (I2S_OUT_DELAY_DMABUF_MS * (I2S_OUT_DMABUF_COUNT + 1))
 
 typedef void (*i2s_out_pulse_func_t)(void);
 
@@ -91,9 +91,9 @@ typedef struct {
 
 /*
   Initialize I2S out by parameters.
-  return -1 ... already initialized
+  return false ... already initialized
 */
-//int i2s_out_init2(i2s_out_init_t init_param);
+//bool i2s_out_init2(i2s_out_init_t init_param);
 
 /*
   Initialize I2S out by default parameters.
@@ -105,15 +105,15 @@ typedef struct {
         .pulse_period = I2S_OUT_USEC_PER_PULSE,
         .init_val = I2S_OUT_INIT_VAL,
     };
-  return -1 ... already initialized
+  return false ... already initialized
 */
-int i2s_out_init();
+bool i2s_out_init (void);
 
 /*
   Get a bit state from the internal pin state var.
   pin: expanded pin No. (0..31)
 */
-uint8_t i2s_out_state(uint8_t pin);
+bool i2s_out_state (uint8_t pin);
 
 /*
    Set a bit in the internal pin state var. (not written electrically)
@@ -130,7 +130,7 @@ void i2s_out_write(uint8_t pin, uint8_t val);
     return: number of puhsed samples
             0 .. no space for push
  */
-uint32_t i2s_out_push_sample(uint32_t num);
+uint32_t i2s_out_push_sample (uint32_t num);
 
 /*
    Set pulser mode to passtrough
@@ -138,7 +138,7 @@ uint32_t i2s_out_push_sample(uint32_t num);
    the callback function to generate the pulse data
    will not be called.
  */
-int i2s_out_set_passthrough();
+void i2s_out_set_passthrough (void);
 
 /*
    Set pulser mode to stepping
@@ -146,24 +146,24 @@ int i2s_out_set_passthrough();
    the callback function to generate stepping pulse data
    will be called.
  */
-int i2s_out_set_stepping();
+void i2s_out_set_stepping (void);
 
 /*
   Dynamically delay until the Shift Register Pin changes
   according to the current I2S processing state and mode.
  */
-void i2s_out_delay();
+void i2s_out_delay (void);
 
 /*
    Set the pulse callback period in ISR ticks.
    (same value of the timer period for the ISR)
  */
-int i2s_out_set_pulse_period(uint64_t period);
+void i2s_out_set_pulse_period (uint64_t period);
 
 /*
    Register a callback function to generate pulse data
  */
-int i2s_out_set_pulse_callback(i2s_out_pulse_func_t func);
+void i2s_out_set_pulse_callback (i2s_out_pulse_func_t func);
 
 /*
    Get current pulser mode
@@ -173,7 +173,8 @@ typedef enum  {
     STEPPING,         // Streaming step data.
     WAITING,          // Waiting for the step DMA completion
 } i2s_out_pulser_status_t;
-i2s_out_pulser_status_t IRAM_ATTR i2s_out_get_pulser_status();
+
+i2s_out_pulser_status_t i2s_out_get_pulser_status (void);
 
 /*
    Reset i2s I/O expander
@@ -181,7 +182,7 @@ i2s_out_pulser_status_t IRAM_ATTR i2s_out_get_pulser_status();
    - Clear DMA buffer with the current expanded GPIO bits
    - Retart ISR/DMA
  */
-int i2s_out_reset();
+void i2s_out_reset (void);
 
 #endif
 
