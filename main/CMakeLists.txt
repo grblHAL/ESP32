@@ -57,7 +57,7 @@ set(SDCARD_SOURCE sdcard/sdcard.c sdcard/ymodem.c)
 set(KEYPAD_SOURCE keypad/keypad.c)
 set(WEBUI_SOURCE webui/server.c webui/response.c webui/commands.c webui/flashfs.c )
 set(BLUETOOTH_SOURCE bluetooth.c )
-set(HUANYANG_SOURCE spindle/huanyang.c spindle/modbus)
+set(HUANYANG_SOURCE spindle/huanyang.c spindle/modbus spindle/select.c)
 set(EEPROM_SOURCE eeprom/eeprom_24LC16B.c eeprom/eeprom_24AAxxx.c)
 set(NETWORKING_FTP_SOURCE networking/ftpd.c networking/sfifo.c networking/vfs.c)
 set(NETWORKING_SOURCE

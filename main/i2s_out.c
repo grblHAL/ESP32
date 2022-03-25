@@ -40,11 +40,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
+
 #include "driver.h"
 
 #include "grbl/report.h"
 
-//#ifdef USE_I2S_OUT
+#ifdef USE_I2S_OUT
 
 //#include <FreeRTOS.h>
 #include <driver/periph_ctrl.h>
@@ -903,4 +904,4 @@ bool IRAM_ATTR i2s_out_init (void)
     return i2s_out_init2(default_param);
 }
 
-//#endif
+#endif

@@ -88,10 +88,37 @@
 #include "i2c.h"
 #endif
 
-#if VFD_SPINDLE != 1 && defined(SPINDLEPWMPIN)
+#if (!VFD_SPINDLE || N_SPINDLE > 1) && defined(SPINDLE_ENABLE_PIN)
+
+#define PWM_SPINDLE
+
+#if defined(SPINDLEPWMPIN)
+
+static ledc_timer_config_t ledTimerConfig = {
+    .speed_mode = LEDC_HIGH_SPEED_MODE,
+    .duty_resolution = LEDC_TIMER_10_BIT,
+    .timer_num = LEDC_TIMER_0,
+    .freq_hz = 5000
+};
+
+static ledc_channel_config_t ledConfig = {
+    .gpio_num = SPINDLEPWMPIN,
+    .speed_mode = LEDC_HIGH_SPEED_MODE,
+    .channel = LEDC_CHANNEL_0,
+    .intr_type = LEDC_INTR_DISABLE,
+    .timer_sel = LEDC_TIMER_0,
+    .duty = 0,  /*!< LEDC channel duty, the range of duty setting is [0, (2**duty_resolution)] */
+    .hpoint = 0
+};
+
 static uint32_t pwm_max_value;
 static bool pwmEnabled = false;
 static spindle_pwm_t spindle_pwm;
+
+static void spindle_set_speed (uint_fast16_t pwm_value);
+
+#endif
+
 #else
 #undef SPINDLE_RPM_CONTROLLED
 #endif
@@ -207,11 +234,13 @@ static output_signal_t outputpin[] =
 #if defined(STEPPERS_ENABLE_PIN) && STEPPERS_ENABLE_PIN != IOEXPAND
     { .id = Output_StepperEnable, .pin = STEPPERS_ENABLE_PIN,   .group = PinGroup_StepperEnable },
 #endif
+#ifdef PWM_SPINDLE
 #if defined(SPINDLE_ENABLE_PIN) && SPINDLE_ENABLE_PIN != IOEXPAND
     { .id = Output_SpindleOn,     .pin = SPINDLE_ENABLE_PIN,    .group = PinGroup_SpindleControl },
 #endif
 #if defined(SPINDLE_DIRECTION_PIN) && SPINDLE_DIRECTION_PIN != IOEXPAND
     { .id = Output_SpindleDir,    .pin = SPINDLE_DIRECTION_PIN, .group = PinGroup_SpindleControl },
+#endif
 #endif
 #if defined(COOLANT_FLOOD_PIN) && COOLANT_FLOOD_PIN != IOEXPAND
     { .id = Output_CoolantFlood,  .pin = COOLANT_FLOOD_PIN,     .group = PinGroup_Coolant },
@@ -306,29 +335,6 @@ static bool irq_claim (irq_type_t irq, uint_fast8_t id, irq_callback_ptr handler
 
     return ok;
 }
-
-#endif
-
-#if VFD_SPINDLE != 1 && defined(SPINDLEPWMPIN)
-
-static void spindle_set_speed (uint_fast16_t pwm_value);
-
-static ledc_timer_config_t ledTimerConfig = {
-    .speed_mode = LEDC_HIGH_SPEED_MODE,
-    .duty_resolution = LEDC_TIMER_10_BIT,
-    .timer_num = LEDC_TIMER_0,
-    .freq_hz = 5000
-};
-
-static ledc_channel_config_t ledConfig = {
-    .gpio_num = SPINDLEPWMPIN,
-    .speed_mode = LEDC_HIGH_SPEED_MODE,
-    .channel = LEDC_CHANNEL_0,
-    .intr_type = LEDC_INTR_DISABLE,
-    .timer_sel = LEDC_TIMER_0,
-    .duty = 0,  /*!< LEDC channel duty, the range of duty setting is [0, (2**duty_resolution)] */
-    .hpoint = 0
-};
 
 #endif
 
@@ -1053,7 +1059,7 @@ probe_state_t probeGetState (void)
 
 #endif
 
-#if VFD_SPINDLE != 1
+#ifdef PWM_SPINDLE
 
 // Static spindle (off, on cw & on ccw)
 IRAM_ATTR inline static void spindle_off (void)
@@ -1078,7 +1084,7 @@ IRAM_ATTR inline static void spindle_on (void)
 
 IRAM_ATTR inline static void spindle_dir (bool ccw)
 {
-    if(hal.driver_cap.spindle_dir) {
+    if(hal.spindle.cap.direction) {
 #if IOEXPAND_ENABLE
         iopins.spindle_dir = (ccw ^ settings.spindle.invert.ccw) ? On : Off;
         ioexpand_out(iopins);
@@ -1135,21 +1141,10 @@ IRAM_ATTR static void spindle_set_speed (uint_fast16_t pwm_value)
     }
 }
 
-#ifdef SPINDLE_PWM_DIRECT
-
 static uint_fast16_t spindleGetPWM (float rpm)
 {
     return spindle_compute_pwm_value(&spindle_pwm, rpm, false);
 }
-
-#else // Only enable if (when?) ESP IDF supports FPU access in ISR !!
-
-IRAM_ATTR static void spindleUpdateRPM (float rpm)
-{
-    spindle_set_speed(spindle_compute_pwm_value(&spindle_pwm, rpm, false));
-}
-
-#endif
 
 // Start or stop spindle, variable version
 
@@ -1175,20 +1170,10 @@ IRAM_ATTR static void spindle_set_speed (uint_fast16_t pwm_value)
 {
 }
 
-#ifdef SPINDLE_PWM_DIRECT
-
 static uint_fast16_t spindleGetPWM (float rpm)
 {
     return 0;
 }
-
-#else // Only enable if (when?) ESP IDF supports FPU access in ISR !!
-
-IRAM_ATTR static void spindleUpdateRPM (float rpm)
-{
-}
-
-#endif
 
 // Start or stop spindle, variable version
 
@@ -1214,11 +1199,11 @@ static spindle_state_t spindleGetState (void)
 
 #if IOEXPAND_ENABLE // TODO: read from expander?
     state.on = iopins.spindle_on;
-    state.ccw = hal.driver_cap.spindle_dir && iopins.spindle_dir;
+    state.ccw = hal.spindle.cap.direction && iopins.spindle_dir;
 #elif defined(SPINDLE_ENABLE_PIN)
     state.on = gpio_get_level(SPINDLE_ENABLE_PIN) != 0;
   #if defined(SPINDLE_DIRECTION_PIN)
-    state.ccw = hal.driver_cap.spindle_dir && gpio_get_level(SPINDLE_DIRECTION_PIN) != 0;
+    state.ccw = hal.spindle.cap.direction && gpio_get_level(SPINDLE_DIRECTION_PIN) != 0;
   #endif
 #endif
     state.value ^= settings.spindle.invert.mask;
@@ -1232,9 +1217,52 @@ static spindle_state_t spindleGetState (void)
     return state;
 }
 
-// end spindle code
+bool spindleConfig (void)
+{
+#if defined(SPINDLEPWMPIN)
 
-#endif
+    if((hal.spindle.cap.variable = settings.spindle.rpm_max > settings.spindle.rpm_min)) {
+
+        hal.spindle.set_state = spindleSetStateVariable;
+
+        if(ledTimerConfig.freq_hz != (uint32_t)settings.spindle.pwm_freq) {
+            ledTimerConfig.freq_hz = (uint32_t)settings.spindle.pwm_freq;
+            if(ledTimerConfig.freq_hz <= 100) {
+                if(ledTimerConfig.duty_resolution != LEDC_TIMER_16_BIT) {
+                    ledTimerConfig.duty_resolution = LEDC_TIMER_16_BIT;
+                    ledc_timer_config(&ledTimerConfig);
+                }
+            } else if(ledTimerConfig.duty_resolution != LEDC_TIMER_10_BIT) {
+                ledTimerConfig.duty_resolution = LEDC_TIMER_10_BIT;
+                ledc_timer_config(&ledTimerConfig);
+            }
+        }
+
+        pwm_max_value = (1UL << ledTimerConfig.duty_resolution) - 1;
+
+        spindle_pwm.period = (uint32_t)(80000000UL / settings.spindle.pwm_freq);
+        if(settings.spindle.pwm_off_value == 0.0f)
+            spindle_pwm.off_value = settings.spindle.invert.pwm ? pwm_max_value : 0;
+        else {
+            spindle_pwm.off_value = (uint32_t)(pwm_max_value * settings.spindle.pwm_off_value / 100.0f);
+            if(settings.spindle.invert.pwm)
+                spindle_pwm.off_value = pwm_max_value - spindle_pwm.off_value;
+        }
+        spindle_pwm.min_value = (uint32_t)(pwm_max_value * settings.spindle.pwm_min_value / 100.0f);
+        spindle_pwm.max_value = (uint32_t)(pwm_max_value * settings.spindle.pwm_max_value / 100.0f) + (settings.spindle.invert.pwm ? -1 : 1);
+        spindle_pwm.pwm_gradient = (float)(spindle_pwm.max_value - spindle_pwm.min_value) / (settings.spindle.rpm_max - settings.spindle.rpm_min);
+        spindle_pwm.always_on = settings.spindle.pwm_off_value != 0.0f;
+
+        ledc_set_freq(ledTimerConfig.speed_mode, ledTimerConfig.timer_num, ledTimerConfig.freq_hz);
+
+    } else
+#endif // SPINDLEPWMPIN
+        hal.spindle.set_state = spindleSetState;
+
+    return true;
+}
+
+#endif // PWM_SPINDLE
 
 // Start/stop coolant (and mist if enabled)
 IRAM_ATTR static void coolantSetState (coolant_state_t mode)
@@ -1378,49 +1406,12 @@ gpio_int_type_t map_intr_type (pin_irq_mode_t mode)
 // Configures perhipherals when settings are initialized or changed
 static void settings_changed (settings_t *settings)
 {
-
-#if VFD_SPINDLE != 1 && defined(SPINDLEPWMPIN)
-
-    if((hal.driver_cap.variable_spindle = settings->spindle.rpm_max > settings->spindle.rpm_min)) {
-
-        if(ledTimerConfig.freq_hz != (uint32_t)settings->spindle.pwm_freq) {
-            ledTimerConfig.freq_hz = (uint32_t)settings->spindle.pwm_freq;
-            if(ledTimerConfig.freq_hz <= 100) {
-                if(ledTimerConfig.duty_resolution != LEDC_TIMER_16_BIT) {
-                    ledTimerConfig.duty_resolution = LEDC_TIMER_16_BIT;
-                    ledc_timer_config(&ledTimerConfig);
-                }
-            } else if(ledTimerConfig.duty_resolution != LEDC_TIMER_10_BIT) {
-                ledTimerConfig.duty_resolution = LEDC_TIMER_10_BIT;
-                ledc_timer_config(&ledTimerConfig);
-            }
-        }
-
-        pwm_max_value = (1UL << ledTimerConfig.duty_resolution) - 1;
-
-        spindle_pwm.period = (uint32_t)(80000000UL / settings->spindle.pwm_freq);
-        if(settings->spindle.pwm_off_value == 0.0f)
-            spindle_pwm.off_value = settings->spindle.invert.pwm ? pwm_max_value : 0;
-        else {
-            spindle_pwm.off_value = (uint32_t)(pwm_max_value * settings->spindle.pwm_off_value / 100.0f);
-            if(settings->spindle.invert.pwm)
-                spindle_pwm.off_value = pwm_max_value - spindle_pwm.off_value;
-        }
-        spindle_pwm.min_value = (uint32_t)(pwm_max_value * settings->spindle.pwm_min_value / 100.0f);
-        spindle_pwm.max_value = (uint32_t)(pwm_max_value * settings->spindle.pwm_max_value / 100.0f) + (settings->spindle.invert.pwm ? -1 : 1);
-        spindle_pwm.pwm_gradient = (float)(spindle_pwm.max_value - spindle_pwm.min_value) / (settings->spindle.rpm_max - settings->spindle.rpm_min);
-        spindle_pwm.always_on = settings->spindle.pwm_off_value != 0.0f;
-
-        ledc_set_freq(ledTimerConfig.speed_mode, ledTimerConfig.timer_num, ledTimerConfig.freq_hz);
-    }
-
-#endif
-
     if(IOInitDone) {
 
-      #if VFD_SPINDLE != 1
-        hal.spindle.set_state = hal.driver_cap.variable_spindle ? spindleSetStateVariable : spindleSetState;
-      #endif
+#ifdef PWM_SPINDLE
+        if(hal.spindle.get_state == spindleGetState)
+            spindleConfig();
+#endif
 
 #if BLUETOOTH_ENABLE
         static bool bluetooth_ok = false;
@@ -1926,7 +1917,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "220215";
+    hal.driver_version = "220325";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -1972,18 +1963,6 @@ bool driver_init (void)
     hal.probe.configure = probeConfigure;
 #endif
 
-#if VFD_SPINDLE != 1
-    hal.spindle.set_state = spindleSetState;
-    hal.spindle.get_state = spindleGetState;
-  #ifdef SPINDLE_PWM_DIRECT
-    hal.spindle.get_pwm = spindleGetPWM;
-    hal.spindle.update_pwm = spindle_set_speed;
-  #else
-    hal.spindle.update_rpm = spindleUpdateRPM; // NOTE: fails in laser mode as ESP32 does not handle FPU access in ISRs!
-  #endif
-    hal.spindle.esp32_off = spindleOff;
-#endif
-
     hal.control.get_state = systemGetState;
 
 //    hal.reboot = esp_restart; crashes the MCU...
@@ -2021,23 +2000,40 @@ bool driver_init (void)
     hal.debug_out = debug_out;
 #endif
 
+#ifdef PWM_SPINDLE
+
+    static const spindle_ptrs_t spindle = {
+#if IOEXPAND_ENABLE || defined(SPINDLE_DIRECTION_PIN)
+        .cap.direction = On,
+#endif
+#ifdef SPINDLEPWMPIN
+        .cap.variable = On,
+        .cap.laser = On,
+        .cap.pwm_invert = On,
+#endif
+#if PWM_RAMPED
+        .cap.at_speed = On;
+#endif
+        .get_pwm = spindleGetPWM,
+        .update_pwm = spindle_set_speed,
+#if PPI_ENABLE
+        .pulse_on = spindlePulseOn,
+#endif
+        .config = spindleConfig,
+        .set_state = spindleSetState,
+        .get_state = spindleGetState,
+        .esp32_off = spindleOff
+    };
+
+    spindle_register(&spindle, "PWM");
+
+#endif // PWM_SPINDLE
+
   // driver capabilities, used for announcing and negotiating (with Grbl) driver functionality
 
-#if VFD_SPINDLE != 1
-  #if IOEXPAND_ENABLE || defined(SPINDLE_DIRECTION_PIN)
-    hal.driver_cap.spindle_dir = On;
-  #endif
-  #ifdef SPINDLEPWMPIN
-    hal.driver_cap.variable_spindle = On;
-    hal.driver_cap.spindle_pwm_invert = On;
-   #if PWM_RAMPED
-    hal.driver_cap.spindle_at_speed = On;
-   #endif
-  #endif
   #if IOEXPAND_ENABLE || defined(COOLANT_MIST_PIN)
     hal.driver_cap.mist_control = On;
   #endif
-#endif
     hal.driver_cap.software_debounce = On;
     hal.driver_cap.step_pulse_delay = On;
     hal.driver_cap.amass_level = 3;
