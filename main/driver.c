@@ -507,6 +507,15 @@ static void stepperEnable (axes_signals_t enable)
   #ifdef C_ENABLE_PIN
     DIGITAL_OUT(C_ENABLE_PIN, enable.c);
   #endif
+  #ifdef X2_ENABLE_PIN
+    DIGITAL_OUT(X2_ENABLE_PIN, enable.x);
+  #endif
+  #ifdef Y2_ENABLE_PIN
+    DIGITAL_OUT(Y2_ENABLE_PIN, enable.y);
+  #endif
+  #ifdef Z2_ENABLE_PIN
+    DIGITAL_OUT(Z2_ENABLE_PIN, enable.z);
+  #endif
 #endif
 #endif
 }
@@ -613,13 +622,13 @@ inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs
     DIGITAL_OUT(Y_STEP_PIN, step_outbits_1.y);
     DIGITAL_OUT(Z_STEP_PIN, step_outbits_1.z);
 #ifdef X2_STEP_PIN
-    DIGITAL_OUT(X_STEP_PIN, step_outbits_2.x);
+    DIGITAL_OUT(X2_STEP_PIN, step_outbits_2.x);
 #endif
 #ifdef Y2_STEP_PIN
-    DIGITAL_OUT(X_STEP_PIN, step_outbits_2.y);
+    DIGITAL_OUT(Y2_STEP_PIN, step_outbits_2.y);
 #endif
 #ifdef Z2_STEP_PIN
-    DIGITAL_OUT(X_STEP_PIN, step_outbits_2.z);
+    DIGITAL_OUT(Z2_STEP_PIN, step_outbits_2.z);
 #endif
 #ifdef A_AXIS
     DIGITAL_OUT(A_STEP_PIN, step_outbits_1.a);
@@ -714,13 +723,13 @@ inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs
     DIGITAL_OUT(Y_STEP_PIN, step_outbits.y);
     DIGITAL_OUT(Z_STEP_PIN, step_outbits.z);
 #ifdef X2_STEP_PIN
-    DIGITAL_OUT(X_STEP_PIN, step_outbits.x);
+    DIGITAL_OUT(X2_STEP_PIN, step_outbits.x);
 #endif
 #ifdef Y2_STEP_PIN
-    DIGITAL_OUT(X_STEP_PIN, step_outbits.y);
+    DIGITAL_OUT(Y2_STEP_PIN, step_outbits.y);
 #endif
 #ifdef Z2_STEP_PIN
-    DIGITAL_OUT(X_STEP_PIN, step_outbits.z);
+    DIGITAL_OUT(Z2_STEP_PIN, step_outbits.z);
 #endif
 #ifdef A_AXIS
     DIGITAL_OUT(A_STEP_PIN, step_outbits.a);
@@ -1917,7 +1926,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "220325";
+    hal.driver_version = "220327";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
