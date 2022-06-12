@@ -28,7 +28,7 @@ cd ~/esp/esp-idf
 Then get the grblHAL driver code:
 
 ```bash
-git clone --recursive git://github.com/grblHAL/ESP32
+git clone --recursive https://github.com/grblHAL/ESP32.git
 git pull --recurse-submodules
 git submodule update --remote
 ```
@@ -81,4 +81,4 @@ dns_server.c is Copyright (c) 2019 Tony Pottier - from his [ESP32 WiFi Manager](
 Snippets of code is extracted from Espressif ESP-IDF examples which are public domain.
 
 ---
-2021-11-24
+2022-05-24

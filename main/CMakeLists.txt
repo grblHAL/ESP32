@@ -124,6 +124,7 @@ set(SRCS
  grbl/ngc_params.c
  grbl/regex.c
  grbl/ioports.c
+ grbl/corexy.c
 )
 
 if(Networking)
@@ -325,6 +326,6 @@ unset(FRAM CACHE)
 unset(NOPROBE CACHE)
 
 #target_compile_options("${COMPONENT_LIB}" PRIVATE -Werror -Wall -Wextra -Wmissing-field-initializers)
-target_compile_options("${COMPONENT_LIB}" PRIVATE -Wimplicit-fallthrough=1 -Wno-missing-field-initializers)
+target_compile_options("${COMPONENT_LIB}" PRIVATE -Wimplicit-fallthrough=1 -Wno-missing-field-initializers -Wno-maybe-uninitialized)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
