@@ -24,7 +24,7 @@ OPTION(Z_AXIS_SQUARED "Compile with auto-squared Z axis" OFF)
 
 # The following plugins/options are supported:
 
-OPTION(SafetyDoor "Safety door enable" ON)
+OPTION(SafetyDoor "Safety door enable" OFF)
 OPTION(Networking "Wifi + protocols" OFF)
 OPTION(Bluetooth "Bluetooth" OFF)
 OPTION(Keypad "I2C Keypad" OFF)
@@ -43,7 +43,7 @@ OPTION(SoftAP "Enable soft AP mode" OFF)
 OPTION(FtpDaemon "Enable ftp daemon" OFF) # Requires SDcard On
 
 # For Huanyan spindle support copy the spindle plugin code to the project.
-OPTION(HUANYANG "Compile with Huanyang RS485 Spindle support" ON)
+OPTION(HUANYANG "Compile with Huanyang RS485 Spindle support" OFF)
 
 # ModBus options
 OPTION(RS485_DIR_OUT "Compile with RS485 direction pin enabled" OFF)
