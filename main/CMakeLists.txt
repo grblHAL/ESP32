@@ -43,7 +43,7 @@ OPTION(SoftAP "Enable soft AP mode" OFF)
 OPTION(FtpDaemon "Enable ftp daemon" OFF) # Requires SDcard On
 
 # For Huanyan spindle support copy the spindle plugin code to the project.
-OPTION(HUANYANG "Compile with Huanyang RS485 Spindle support" OFF)
+OPTION(HUANYANG "Compile with Huanyang RS485 Spindle support" ON)
 
 # ModBus options
 OPTION(RS485_DIR_OUT "Compile with RS485 direction pin enabled" OFF)
@@ -57,7 +57,7 @@ set(SDCARD_SOURCE sdcard/sdcard.c sdcard/ymodem.c)
 set(KEYPAD_SOURCE keypad/keypad.c)
 set(WEBUI_SOURCE webui/server.c webui/response.c webui/commands.c webui/flashfs.c )
 set(BLUETOOTH_SOURCE bluetooth.c )
-set(HUANYANG_SOURCE spindle/huanyang.c spindle/modbus spindle/select.c)
+set(HUANYANG_SOURCE spindle/modbus spindle/select.c spindle/vfd/spindle.c spindle/vfd/huanyang.c)
 set(EEPROM_SOURCE eeprom/eeprom_24LC16B.c eeprom/eeprom_24AAxxx.c)
 set(NETWORKING_FTP_SOURCE networking/ftpd.c networking/sfifo.c networking/vfs.c)
 set(NETWORKING_SOURCE
