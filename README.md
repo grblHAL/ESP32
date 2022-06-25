@@ -28,25 +28,21 @@ cd ~/esp/esp-idf
 Then get the grblHAL driver code:
 
 ```bash
+#Create directory and clone the ESP32 grblHAL driver into it:
 git clone --recursive https://github.com/grblHAL/ESP32.git
-git pull --recurse-submodules
-git submodule update --remote
 ```
 
-Once you have ESP-IDF prepared, go back to grblHAL directory and copy `grbl/*` to `drivers/ESP32/grbl/` in grblHAL repo
-as well as desired plugins into the respective folders. eg. `plugins/spindle/*` to `drivers/ESP32/spindle/` and so on...
-
-Modify settings in `grbl/config.h` and `CMakeLists.txt` as needed.
+Go into the `ESP32` directory and modify settings in `grbl/config.h` and `CMakeLists.txt` as needed.
 Pin assignments and board specific config is in `*_map.h` files for each individual board.
 
-Go into the `drivers/ESP32/` directory and run `idf.py build`.
+Run `idf.py build` from the `ESP32` directory.
 This will build the firmware image which can be later flashed into ESP32 device.
 
 Note that `idf.py` command is only available in terminal window which was previously configured
 using the `. ~/esp/esp-idf/export.sh` command.
 
 After build is completed you will be instructed on how to flash firmware into the device.
-Typicaly you can use command similar to this: `idf.py -p /dev/ttyUSB0 flash`
+Typically you can use command similar to this: `idf.py -p /dev/ttyUSB0 flash`
 
 Once flashing is complete, your CNC controller is ready to be configured and used.
 
@@ -81,4 +77,4 @@ dns_server.c is Copyright (c) 2019 Tony Pottier - from his [ESP32 WiFi Manager](
 Snippets of code is extracted from Espressif ESP-IDF examples which are public domain.
 
 ---
-2022-05-24
+2022-06-25
