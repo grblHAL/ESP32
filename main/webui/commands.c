@@ -42,12 +42,15 @@
 #include <esp_ota_ops.h>
 
 #include "grbl/report.h"
-#include "wifi.h"
 #include "webui.h"
 #include "networking/websocketd.h"
 #include "networking/urldecode.h"
 #include "networking/utils.h"
 #include "networking/strutils.h"
+
+#if WIFI_ENABLE
+#include "wifi.h"
+#endif
 
 #if SDCARD_ENABLE
 #include "sdcard/sdcard.h"

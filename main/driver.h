@@ -32,38 +32,14 @@
 //
 #include "my_machine.h"
 
-#if NETWORKING_ENABLE
-#define WIFI_ENABLE 1
-#endif
-
 #if WEBUI_ENABLE
 #error "WebUI is not available in this setup!"
 #endif
 //
 #else
 //
-// Set options from CMakeLists.txt
+// Process options from CMakeLists.txt
 //
-#ifdef WEBUI_ENABLE
-#undef WEBUI_ENABLE
-#define WEBUI_ENABLE 1
-#endif
-
-#ifdef WEBUI_AUTH_ENABLE
-#undef WEBUI_AUTH_ENABLE
-#define WEBUI_AUTH_ENABLE 1
-#endif
-
-#ifdef SDCARD_ENABLE
-#undef SDCARD_ENABLE
-#define SDCARD_ENABLE 1
-#endif
-
-#ifdef BLUETOOTH_ENABLE
-#undef BLUETOOTH_ENABLE
-#define BLUETOOTH_ENABLE 1
-#endif
-
 #ifdef MPG_MODE_ENABLE
 #undef MPG_MODE_ENABLE
 #define MPG_MODE_ENABLE 1
@@ -74,26 +50,44 @@
 #define KEYPAD_ENABLE 1
 #endif
 
-#ifdef NETWORKING_ENABLE
-#define WIFI_ENABLE      1
-#define HTTP_ENABLE      0
-#define TELNET_ENABLE    1
-#ifdef FTP_ENABLE
-#undef FTP_ENABLE
-#define FTP_ENABLE       1
+#if WIFI_ENABLE || ETHERNET_ENABLE
+#if WEBUI_ENABLE
+#undef HTTP_ENABLE
+#define HTTP_ENABLE             1
 #else
-#define FTP_ENABLE       0
+#define HTTP_ENABLE             0
 #endif
-#define WEBSOCKET_ENABLE 1
+#define TELNET_ENABLE           1
+#define WEBSOCKET_ENABLE        1
 #define NETWORK_TELNET_PORT     23
 #define NETWORK_FTP_PORT        21
 #define NETWORK_HTTP_PORT       80
 #define NETWORK_WEBSOCKET_PORT  81
+
+// WiFi Station (STA) settings
+#define NETWORK_HOSTNAME    "Grbl"
+#define NETWORK_IPMODE      1 // 0 = static, 1 = DHCP, 2 = AutoIP
+#define NETWORK_IP          "192.168.5.1"
+#define NETWORK_GATEWAY     "192.168.5.1"
+#define NETWORK_MASK        "255.255.255.0"
+
+// WiFi Access Point (AP) settings
+#if WIFI_SOFTAP
+#define NETWORK_AP_HOSTNAME "GrblAP"
+#define NETWORK_AP_IP       "192.168.5.1"
+#define NETWORK_AP_GATEWAY  "192.168.5.1"
+#define NETWORK_AP_MASK     "255.255.255.0"
+#define WIFI_AP_SSID        "GRBL"
+#define WIFI_AP_PASSWORD    "GrblPassword" // Minimum 8 characters, or blank for open
+#define WIFI_MODE WiFiMode_AP; // OPTION: WiFiMode_APSTA
+#else
+#define WIFI_MODE WiFiMode_STA; // Do not change!
 #endif
 
-#if WEBUI_ENABLE
-#undef HTTP_ENABLE
-#define HTTP_ENABLE 1
+#if NETWORK_IPMODE == 0 && WIFI_SOFTAP
+#error "Cannot use static IP for station when soft AP is enabled!"
+#endif
+
 #endif
 
 #ifdef RS485_DIR_ENABLE
@@ -105,10 +99,6 @@
 #endif
 #else
 #define RS485_DIR_ENABLE 0
-#endif
-
-#ifndef EEPROM_ENABLE
-#define EEPROM_ENABLE 0
 #endif
 
 #endif // CMakeLists options
@@ -146,48 +136,13 @@ static const DRAM_ATTR float FZERO = 0.0f;
 #define WIFI_SOFTAP      0
 #endif
 
-#ifndef NETWORKING_ENABLE
-#define WIFI_ENABLE      0
-#endif
-
 #define IOEXPAND 0xFF   // Dummy pin number for I2C IO expander
 
 // end configuration
 
-#if !WIFI_ENABLE
-  #if HTTP_ENABLE || TELNET_ENABLE || WEBSOCKET_ENABLE
-  #error "Networking protocols requires networking enabled!"
-  #endif // WIFI_ENABLE
-#else
-
-#if !NETWORK_PARAMETERS_OK
-
-// WiFi Station (STA) settings
-#define NETWORK_HOSTNAME    "Grbl"
-#define NETWORK_IPMODE      1 // 0 = static, 1 = DHCP, 2 = AutoIP
-#define NETWORK_IP          "192.168.5.1"
-#define NETWORK_GATEWAY     "192.168.5.1"
-#define NETWORK_MASK        "255.255.255.0"
-
-// WiFi Access Point (AP) settings
-#if WIFI_SOFTAP
-#define NETWORK_AP_HOSTNAME "GrblAP"
-#define NETWORK_AP_IP       "192.168.5.1"
-#define NETWORK_AP_GATEWAY  "192.168.5.1"
-#define NETWORK_AP_MASK     "255.255.255.0"
-#define WIFI_AP_SSID        "GRBL"
-#define WIFI_AP_PASSWORD    "GrblPassword" // Minimum 8 characters, or blank for open
-#define WIFI_MODE WiFiMode_AP; // OPTION: WiFiMode_APSTA
-#else
-#define WIFI_MODE WiFiMode_STA; // Do not change!
+#if !(WIFI_ENABLE || ETHERNET_ENABLE) && (HTTP_ENABLE || TELNET_ENABLE || WEBSOCKET_ENABLE || FTP_ENABLE)
+#error "Networking protocols requires networking enabled!"
 #endif
-
-#if NETWORK_IPMODE == 0 && WIFI_SOFTAP
-#error "Cannot use static IP for station when soft AP is enabled!"
-#endif
-
-#endif // !NETWORK_PARAMETERS_OK
-#endif // WIFI_ENABLE
 
 // End configuration
 

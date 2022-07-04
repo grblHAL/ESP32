@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2019-2021 Terje Io
+  Copyright (c) 2019-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,10 +34,13 @@
 #include "esp_log.h"
 #include "esp_spiffs.h"
 
-#include "wifi.h"
 #include "webui.h"
 #include "grbl/grbl.h"
 #include "grbl/protocol.h"
+
+#if WIFI_ENABLE
+#include "wifi.h"
+#endif
 
 static const char *TAG = "webui";
 

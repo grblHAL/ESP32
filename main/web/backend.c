@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2019-2021 Terje Io
+  Copyright (c) 2019-2022 Terje Io
 
   Some parts of the code is based on example code by Espressif, in the public domain
 
@@ -38,19 +38,19 @@
 #include <dirent.h>
 
 #include <esp_log.h>
-#include "esp_wifi.h"
 #include <esp_system.h>
 #include <esp_http_server.h>
 #include "esp_spiffs.h"
 #include <cJSON.h>
 
 #include "backend.h"
-#include "wifi.h"
 #include "grbl/report.h"
 #include "networking/urldecode.h"
-
-#if WEBUI_ENABLE
 #include "webui/server.h"
+
+#if WIFI_ENABLE
+#include "wifi.h"
+#include "esp_wifi.h"
 #endif
 
 //#define CORS_ENABLE 1 // Enable only when debugging

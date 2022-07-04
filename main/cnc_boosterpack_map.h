@@ -82,8 +82,8 @@
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 #define RESET_PIN               GPIO_NUM_35
-#define FEED_HOLD_PIN           GPIO_NUM_4 //!
-#define CYCLE_START_PIN         GPIO_NUM_4 //!
+#define FEED_HOLD_PIN           GPIO_NUM_39
+#define CYCLE_START_PIN         GPIO_NUM_36
 #if SAFETY_DOOR_ENABLE
 #define SAFETY_DOOR_PIN         GPIO_NUM_34
 #endif

@@ -51,7 +51,15 @@
 #define Y_LIMIT_PIN         GPIO_NUM_35
 #define Z_LIMIT_PIN         GPIO_NUM_15
 
-#if VFD_SPINDLE != 1
+// Define ganged axis or A axis step pulse and step direction output pins.
+#if N_ABC_MOTORS > 0
+#define M3_AVAILABLE
+#define M3_STEP_PIN         GPIO_NUM_16
+#define M3_DIRECTION_PIN    GPIO_NUM_17
+//#define M3_LIMIT_PIN        GPIO_NUM_36
+#endif
+
+#if VFD_SPINDLE == 0
 // Define spindle enable and spindle direction output pins.
 #define SPINDLE_ENABLE_PIN      GPIO_NUM_4
 //#define SPINDLE_DIRECTION_PIN   GPIO_NUM_5
@@ -67,12 +75,20 @@
 #define FEED_HOLD_PIN       GPIO_NUM_36
 #define CYCLE_START_PIN     GPIO_NUM_39
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN     GPIO_NUM_35
+#if !I2C_ENABLE
+#define SAFETY_DOOR_PIN     GPIO_NUM_22
+#else
+#warning No free pin for safety door input!
+#endif
 #endif
 
 // Define probe switch input pin.
 #if PROBE_ENABLE
-#define PROBE_PIN   GPIO_NUM_32
+#if !I2C_ENABLE
+#define PROBE_PIN   GPIO_NUM_21
+#else
+#warning No free pin for probe input!
+#endif
 #endif
 
 #if KEYPAD_ENABLE

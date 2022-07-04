@@ -25,7 +25,8 @@ OPTION(Z_AXIS_SQUARED "Compile with auto-squared Z axis" OFF)
 # The following plugins/options are supported:
 
 OPTION(SafetyDoor "Safety door enable" OFF)
-OPTION(Networking "Wifi + protocols" OFF)
+OPTION(WiFi "Wifi + protocols" OFF)
+# OPTION(Ethernet "Ethernet + protocols" OFF) # to be completed
 OPTION(Bluetooth "Bluetooth" OFF)
 OPTION(Keypad "I2C Keypad" OFF)
 OPTION(SDcard "SD Card Streaming" OFF)
@@ -38,8 +39,8 @@ OPTION(WebAuth "WebUI authentication" OFF)
 OPTION(MPGMode "MPG mode" OFF)
 OPTION(I2SStepping "Use I2S Stepping" OFF)
 
-# Networking options (WiFi)
-OPTION(SoftAP "Enable soft AP mode" OFF)
+# Networking options
+OPTION(SoftAP "Enable soft AP mode" OFF) # WiFi only
 OPTION(FtpDaemon "Enable ftp daemon" OFF) # Requires SDcard On
 
 # For Huanyan spindle support copy the spindle plugin code to the project.
@@ -60,6 +61,12 @@ set(BLUETOOTH_SOURCE bluetooth.c )
 set(HUANYANG_SOURCE spindle/modbus spindle/select.c spindle/vfd/spindle.c spindle/vfd/huanyang.c)
 set(EEPROM_SOURCE eeprom/eeprom_24LC16B.c eeprom/eeprom_24AAxxx.c)
 set(NETWORKING_FTP_SOURCE networking/ftpd.c networking/sfifo.c networking/vfs.c)
+set(WIFI_SOURCE
+ wifi.c
+)
+set(ETHERNET_SOURCE
+ enet.c
+)
 set(NETWORKING_SOURCE
  wifi.c
  dns_server.c
@@ -73,8 +80,8 @@ set(NETWORKING_SOURCE
  networking/utils.c
  networking/multipartparser.c
  networking/networking.c
- )
- set(TRINAMIC_SOURCE
+)
+set(TRINAMIC_SOURCE
  spi.c
  trinamic_if.c
  motors/trinamic.c
@@ -127,7 +134,15 @@ set(SRCS
  grbl/corexy.c
 )
 
-if(Networking)
+if(Wifi)
+list (APPEND SRCS ${WIFI_SOURCE})
+endif()
+
+if(Ethernet)
+list (APPEND SRCS ${ETHERNET_SOURCE})
+endif()
+
+if(WiFi OR Ethernet)
 list (APPEND SRCS ${NETWORKING_SOURCE})
 if(SDcard AND FtpDaemon)
 list (APPEND SRCS ${NETWORKING_FTP_SOURCE})
@@ -222,10 +237,17 @@ if(SafetyDoor)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC SAFETY_DOOR_ENABLE=1)
 endif()
 
-if(Networking)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC NETWORKING_ENABLE)
+if(WiFi)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC WIFI_ENABLE=1)
+endif()
+
+if(Ethernet)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC ETHERNET_ENABLE=1)
+endif()
+
+if(WiFi OR Ethernet)
 if(SDcard AND FtpDaemon)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC FTP_ENABLE)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC FTP_ENABLE=1)
 endif()
 endif()
 
@@ -234,19 +256,19 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC WIFI_SOFTAP)
 endif()
 
 if(Bluetooth)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC BLUETOOTH_ENABLE)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC BLUETOOTH_ENABLE=1)
 endif()
 
 if(SDcard)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC SDCARD_ENABLE)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC SDCARD_ENABLE=1)
 endif()
 
 if(WebUI)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_ENABLE)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_ENABLE=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC STDIO_FS)
 target_add_binary_data("${COMPONENT_LIB}" "index.html.gz" BINARY)
 if(WebAuth)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_AUTH_ENABLE)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_AUTH_ENABLE=1)
 endif()
 endif()
 
@@ -255,7 +277,7 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC TRINAMIC_ENABLE)
 endif()
 
 if(Keypad)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC KEYPAD_ENABLE)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC KEYPAD_ENABLE=1)
 endif()
 
 if(MPGMode)
@@ -272,11 +294,11 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC RS485_DIR_ENABLE)
 endif()
 
 if(EEPROM OR BOARD_CNC_BOOSTERPACK)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC EEPROM_ENABLE)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC EEPROM_ENABLE=1)
 endif()
 
 if(FRAM)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC EEPROM_IS_FRAM)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC EEPROM_IS_FRAM=1)
 endif()
 
 if(NOPROBE)
@@ -307,7 +329,8 @@ unset(Z_AXIS_GANGED CACHE)
 unset(Z_AXIS_SQUARED CACHE)
 
 unset(SafetyDoor CACHE)
-unset(Networking CACHE)
+unset(WiFi CACHE)
+unset(Ethernet CACHE)
 unset(FtpDaemon CACHE)
 unset(SoftAP CACHE)
 unset(Bluetooth CACHE)

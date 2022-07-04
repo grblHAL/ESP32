@@ -59,6 +59,10 @@
 #include "wifi.h"
 #endif
 
+#if ETHERNET_ENABLE
+#include "enet.h"
+#endif
+
 #if WEBUI_ENABLE
 #include "webui/response.h"
 #endif
@@ -339,7 +343,19 @@ static bool irq_claim (irq_type_t irq, uint_fast8_t id, irq_callback_ptr handler
 #endif
 
 // Interrupt handler prototypes
+#if ETHERNET_ENABLE
+static void gpio_limit_isr (void *signal);
+static void gpio_control_isr (void *signal);
+static void gpio_aux_isr (void *signal);
+#if MPG_MODE_ENABLE
+static void gpio_mpg_isr (void *signal);
+#endif
+#if I2C_STROBE_ENABLE
+static void gpio_i2c_strobe_isr (void *signal);
+#endif
+#else
 static void gpio_isr (void *arg);
+#endif
 static void stepper_driver_isr (void *arg);
 
 static TimerHandle_t xDelayTimer = NULL, debounceTimer = NULL;
@@ -1122,7 +1138,7 @@ IRAM_ATTR static void spindleSetState (spindle_state_t state, float rpm)
 IRAM_ATTR static void spindle_set_speed (uint_fast16_t pwm_value)
 {
     if (pwm_value == spindle_pwm.off_value) {
-        if(settings.spindle.flags.pwm_action == SpindleAction_DisableWithZeroSPeed)
+        if(settings.spindle.flags.enable_rpm_controlled)
             spindle_off();
 #if PWM_RAMPED
         pwm_ramp.pwm_target = pwm_value;
@@ -1165,11 +1181,18 @@ IRAM_ATTR void __attribute__ ((noinline)) _setSpeed (spindle_state_t state, floa
 
 IRAM_ATTR static void spindleSetStateVariable (spindle_state_t state, float rpm)
 {
-    if (!state.on || memcmp(&rpm, &FZERO, sizeof(float)) == 0) { // rpm == 0.0f cannot be used, causes intermittent panic on soft reset!
-        spindle_set_speed(spindle_pwm.off_value);
-        spindle_off();
-    } else
-        _setSpeed(state, rpm);
+#ifdef SPINDLE_DIRECTION_PIN
+    if(state.on)
+        spindle_dir(state.ccw);
+#endif
+    if(!settings.spindle.flags.enable_rpm_controlled) {
+        if(state.on)
+            spindle_on();
+        else
+            spindle_off();
+    }
+
+    spindle_set_speed(state.on ? spindle_compute_pwm_value(&spindle_pwm, rpm, false) : spindle_pwm.off_value);
 }
 
 #else
@@ -1230,7 +1253,7 @@ bool spindleConfig (void)
 {
 #if defined(SPINDLEPWMPIN)
 
-    if((hal.spindle.cap.variable = settings.spindle.rpm_max > settings.spindle.rpm_min)) {
+    if((hal.spindle.cap.variable = !settings.spindle.flags.pwm_disable && settings.spindle.rpm_max > settings.spindle.rpm_min)) {
 
         hal.spindle.set_state = spindleSetStateVariable;
 
@@ -1264,9 +1287,14 @@ bool spindleConfig (void)
 
         ledc_set_freq(ledTimerConfig.speed_mode, ledTimerConfig.timer_num, ledTimerConfig.freq_hz);
 
-    } else
+    } else {
+        if(pwmEnabled)
+            hal.spindle.set_state((spindle_state_t){0}, 0.0f);
 #endif // SPINDLEPWMPIN
         hal.spindle.set_state = spindleSetState;
+    }
+
+    spindle_update_caps(hal.spindle.cap.variable);
 
     return true;
 }
@@ -1378,7 +1406,7 @@ void debounceTimerCallback (TimerHandle_t xTimer)
 //    printf("Debounce %d %d\n", grp, limitsGetState().value);
 
       if(grp & PinGroup_Limit)
-            hal.limits.interrupt_callback(limitsGetState());
+          hal.limits.interrupt_callback(limitsGetState());
 
       if(grp & PinGroup_Control)
           hal.control.interrupt_callback(systemGetState());
@@ -1545,6 +1573,7 @@ static void settings_changed (settings_t *settings)
                     pullup = true;
                     signal->invert = false;
                     config.intr_type = GPIO_INTR_ANYEDGE;
+                    gpio_isr_handler_add(signal->pin, gpio_mpg_isr, signal);
                     break;
 #endif
 #if I2C_STROBE_ENABLE
@@ -1552,6 +1581,7 @@ static void settings_changed (settings_t *settings)
                     pullup = true;
                     signal->invert = false;
                     config.intr_type = GPIO_INTR_ANYEDGE;
+                    gpio_isr_handler_add(signal->pin, gpio_i2c_strobe_isr, signal);
                     break;
 #endif
                 default:
@@ -1563,11 +1593,18 @@ static void settings_changed (settings_t *settings)
                 case PinGroup_Control:
                 case PinGroup_Limit:
                     signal->irq_mode = signal->invert ? IRQ_Mode_Falling : IRQ_Mode_Rising;
+                    signal->debounce = hal.driver_cap.software_debounce;
+#if ETHERNET_ENABLE
+                    gpio_isr_handler_add(signal->pin, signal->group == PinGroup_Limit ? gpio_limit_isr : gpio_control_isr, signal);
+#endif
                     break;
 
                 case PinGroup_AuxInput:
                     pullup = true;
                     signal->invert = false;
+#if ETHERNET_ENABLE
+                    gpio_isr_handler_add(signal->pin, gpio_aux_isr, signal);
+#endif
                     break;
 
                 default:
@@ -1591,8 +1628,7 @@ static void settings_changed (settings_t *settings)
 
                 gpio_config(&config);
 
-                signal->active   = gpio_get_level(signal->pin) == (signal->invert ? 0 : 1);
-                signal->debounce = hal.driver_cap.software_debounce && !(signal->group == PinGroup_Probe || signal->group == PinGroup_Keypad || signal->group == PinGroup_MPG || signal->group == PinGroup_AuxInput);
+                signal->active = signal->debounce && gpio_get_level(signal->pin) == (signal->invert ? 0 : 1);
             }
         } while(i);
 
@@ -1834,7 +1870,11 @@ static bool driver_setup (settings_t *settings)
      *  Control, limit & probe pins dir init  *
      ******************************************/
 
+#if ETHERNET_ENABLE
+    gpio_install_isr_service(0);
+#else
     gpio_isr_register(gpio_isr, NULL, (int)ESP_INTR_FLAG_IRAM, NULL);
+#endif
 
 #if VFD_SPINDLE != 1 && defined(SPINDLEPWMPIN)
 
@@ -1912,6 +1952,10 @@ static bool driver_setup (settings_t *settings)
     hal.settings_changed(settings);
     hal.stepper.go_idle(true);
 
+#if ETHERNET_ENABLE
+    enet_start();
+#endif
+
     return IOInitDone;
 }
 
@@ -1926,7 +1970,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "220327";
+    hal.driver_version = "220703";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -2097,6 +2141,10 @@ bool driver_init (void)
     wifi_init();
 #endif
 
+#if ETHERNET_ENABLE
+    enet_init();
+#endif
+
 #if BLUETOOTH_ENABLE
     bluetooth_init();
 #endif
@@ -2117,6 +2165,60 @@ IRAM_ATTR static void stepper_driver_isr (void *arg)
     
     hal.stepper.interrupt_callback();
 }
+
+#if ETHERNET_ENABLE
+
+IRAM_ATTR static void gpio_limit_isr (void *signal)
+{
+    if(((input_signal_t *)signal)->debounce) {
+        ((input_signal_t *)signal)->active = true;
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        xTimerStartFromISR(debounceTimer, &xHigherPriorityTaskWoken);
+    } else
+        hal.limits.interrupt_callback(limitsGetState());
+}
+
+IRAM_ATTR static void gpio_control_isr (void *signal)
+{
+    if(((input_signal_t *)signal)->debounce) {
+        ((input_signal_t *)signal)->active = true;
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        xTimerStartFromISR(debounceTimer, &xHigherPriorityTaskWoken);
+    } else
+        hal.control.interrupt_callback(systemGetState());
+}
+
+IRAM_ATTR static void gpio_aux_isr (void *signal)
+{
+#ifdef HAS_IOPORTS
+    ioports_event((input_signal_t *)signal);
+#endif
+}
+
+#if MPG_MODE_ENABLE
+
+IRAM_ATTR static void gpio_mpg_isr (void *signal)
+{
+    static bool mpg_mutex = false;
+
+    if(!mpg_mutex) {
+        mpg_mutex = true;
+        protocol_enqueue_rt_command(modeChange);
+        mpg_mutex = false;
+    }
+}
+
+#endif
+
+#if I2C_STROBE_ENABLE
+IRAM_ATTR static void gpio_i2c_strobe_isr (void *signal)
+{
+    if(i2c_strobe.callback)
+        i2c_strobe.callback(0, gpio_get_level(I2C_STROBE_PIN));
+}
+#endif
+
+#else
 
   //GPIO intr process
 IRAM_ATTR static void gpio_isr (void *arg)
@@ -2175,3 +2277,5 @@ IRAM_ATTR static void gpio_isr (void *arg)
         i2c_strobe.callback(0, gpio_get_level(I2C_STROBE_PIN));
 #endif
 }
+
+#endif
