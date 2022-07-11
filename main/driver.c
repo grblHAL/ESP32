@@ -1467,8 +1467,6 @@ static void settings_changed (settings_t *settings)
         // TODO: start/stop services...
 #endif
 
-        stepperEnable(settings->steppers.deenergize);
-
         /*********************
          * Step pulse config *
          *********************/
@@ -1970,7 +1968,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "220703";
+    hal.driver_version = "220710";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
