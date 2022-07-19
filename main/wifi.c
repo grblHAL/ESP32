@@ -142,6 +142,28 @@ static void reportIP (bool newopt)
     }
 }
 
+network_info_t *networking_get_info (void)
+{
+    static network_info_t info;
+
+    memcpy(&info.status, &network, sizeof(network_settings_t));
+
+    strcpy(info.mac, wifi_get_mac());
+    strcpy(info.status.ip, wifi_get_ipaddr());
+
+    if(info.status.ip_mode == IpMode_DHCP) {
+        *info.status.gateway = '\0';
+        *info.status.mask = '\0';
+    }
+
+    info.is_ethernet = false;
+    info.link_up = false;
+//    info.mbps = 100;
+    info.status.services = services;
+
+    return &info;
+}
+
 bool wifi_dns_running (void)
 {
     return services.dns == On;
