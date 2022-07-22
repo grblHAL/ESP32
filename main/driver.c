@@ -1138,7 +1138,7 @@ IRAM_ATTR static void spindleSetState (spindle_state_t state, float rpm)
 IRAM_ATTR static void spindle_set_speed (uint_fast16_t pwm_value)
 {
     if (pwm_value == spindle_pwm.off_value) {
-        if(settings.spindle.flags.pwm_action == SpindleAction_DisableWithZeroSPeed)
+        if(settings.spindle.flags.enable_rpm_controlled)
             spindle_off();
 #if PWM_RAMPED
         pwm_ramp.pwm_target = pwm_value;
@@ -1181,11 +1181,18 @@ IRAM_ATTR void __attribute__ ((noinline)) _setSpeed (spindle_state_t state, floa
 
 IRAM_ATTR static void spindleSetStateVariable (spindle_state_t state, float rpm)
 {
-    if (!state.on || memcmp(&rpm, &FZERO, sizeof(float)) == 0) { // rpm == 0.0f cannot be used, causes intermittent panic on soft reset!
-        spindle_set_speed(spindle_pwm.off_value);
-        spindle_off();
-    } else
-        _setSpeed(state, rpm);
+#ifdef SPINDLE_DIRECTION_PIN
+    if(state.on)
+        spindle_dir(state.ccw);
+#endif
+    if(!settings.spindle.flags.enable_rpm_controlled) {
+        if(state.on)
+            spindle_on();
+        else
+            spindle_off();
+    }
+
+    spindle_set_speed(state.on ? spindle_compute_pwm_value(&spindle_pwm, rpm, false) : spindle_pwm.off_value);
 }
 
 #else
@@ -1246,7 +1253,7 @@ bool spindleConfig (void)
 {
 #if defined(SPINDLEPWMPIN)
 
-    if((hal.spindle.cap.variable = settings.spindle.rpm_max > settings.spindle.rpm_min)) {
+    if((hal.spindle.cap.variable = !settings.spindle.flags.pwm_disable && settings.spindle.rpm_max > settings.spindle.rpm_min)) {
 
         hal.spindle.set_state = spindleSetStateVariable;
 
@@ -1280,9 +1287,14 @@ bool spindleConfig (void)
 
         ledc_set_freq(ledTimerConfig.speed_mode, ledTimerConfig.timer_num, ledTimerConfig.freq_hz);
 
-    } else
+    } else {
+        if(pwmEnabled)
+            hal.spindle.set_state((spindle_state_t){0}, 0.0f);
 #endif // SPINDLEPWMPIN
         hal.spindle.set_state = spindleSetState;
+    }
+
+    spindle_update_caps(hal.spindle.cap.variable);
 
     return true;
 }
@@ -1454,8 +1466,6 @@ static void settings_changed (settings_t *settings)
 
         // TODO: start/stop services...
 #endif
-
-        stepperEnable(settings->steppers.deenergize);
 
         /*********************
          * Step pulse config *
@@ -1958,7 +1968,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "220629";
+    hal.driver_version = "220710";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
