@@ -100,7 +100,7 @@
 
 // Define flood and mist coolant enable output pins.
 
-#define COOLANT_MIST_PIN    GPIO_NUM_2
+#define COOLANT_MIST_PIN    GPIO_NUM_26
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 

@@ -45,7 +45,7 @@
 
 #include "grbl/report.h"
 
-#ifdef USE_I2S_OUT
+#if USE_I2S_OUT
 
 //#include <FreeRTOS.h>
 #include <driver/periph_ctrl.h>

@@ -1,12 +1,13 @@
 //
 // enet.c - lwIP/FreeRTOS TCP/IP stream implementation
 //
-// v1.3 / 2021-12-09 / Io Engineering / Terje
+// v1.4 / 2022-07-22 / Io Engineering / Terje
 //
 
 /*
 
 Copyright (c) 2018-2021, Terje Io
+Copyright (c) 2022, @Henrikastro
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,

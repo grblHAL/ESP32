@@ -28,7 +28,7 @@
 #include "grbl/protocol.h"
 #include "grbl/settings.h"
 
-#ifdef USE_I2S_OUT
+#if USE_I2S_OUT
 #include "i2s_out.h"
 #endif
 

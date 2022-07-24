@@ -107,8 +107,9 @@ static io_stream_properties_t serial[] = {
       .flags.claimed = Off,
       .flags.connected = On,
       .flags.can_set_baud = On,
+#ifdef UART2_TX_PIN
       .flags.modbus_ready = On,
-#if !MODBUS_ENABLE
+#else
       .flags.rx_only = On,
 #endif
       .claim = serial2Init
@@ -236,7 +237,7 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
 
 #if SERIAL2_ENABLE
     if(uart->num == 1)
-  #if MODBUS_ENABLE
+  #ifdef UART2_TX_PIN
         uart_set_pin(uart->num, UART2_TX_PIN, UART2_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
   #else
         uart_set_pin(uart->num, UART_PIN_NO_CHANGE, UART2_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
@@ -661,7 +662,7 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
     uartConfig(uart2, baud_rate);
 
     serial2Flush();
-#if MODBUS_ENABLE
+#ifdef UART2_TX_PIN
     uartEnableInterrupt(uart2, _uart2_isr, true);
 
     static const periph_pin_t tx = {
@@ -673,7 +674,6 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
     };
 
     hal.periph_port.register_pin(&tx);
-
 #else
     uartEnableInterrupt(uart2, _uart2_isr, false);
 #endif

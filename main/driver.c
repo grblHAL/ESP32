@@ -51,7 +51,7 @@
 #include "grbl/state_machine.h"
 #include "grbl/motor_pins.h"
 
-#ifdef USE_I2S_OUT
+#if USE_I2S_OUT
 #include "i2s_out.h"
 #endif
 
@@ -212,7 +212,7 @@ static input_signal_t inputpin[] = {
 
 static output_signal_t outputpin[] =
 {
-#ifndef USE_I2S_OUT
+#if !USE_I2S_OUT
     { .id = Output_StepX,         .pin = X_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
     { .id = Output_StepY,         .pin = Y_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
     { .id = Output_StepZ,         .pin = Z_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
@@ -317,7 +317,7 @@ static probe_state_t probe = {
 static axes_signals_t motors_1 = {AXES_BITMASK}, motors_2 = {AXES_BITMASK};
 #endif
 
-#ifdef USE_I2S_OUT
+#if USE_I2S_OUT
 static bool goIdlePending = false;
 static uint32_t i2s_step_length = I2S_OUT_USEC_PER_PULSE, i2s_step_samples = 1;
 #endif
@@ -360,7 +360,7 @@ static void stepper_driver_isr (void *arg);
 
 static TimerHandle_t xDelayTimer = NULL, debounceTimer = NULL;
 
-#ifdef USE_I2S_OUT
+#if USE_I2S_OUT
 
 // Set stepper pulse output pins
 inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits_1);
@@ -593,7 +593,7 @@ inline IRAM_ATTR static void set_dir_outputs (axes_signals_t dir_outbits)
 #endif
 }
 
-#ifdef USE_I2S_OUT
+#if USE_I2S_OUT
 
 IRAM_ATTR static void I2S_stepperCyclesPerTick (uint32_t cycles_per_tick)
 {
@@ -625,7 +625,7 @@ static void I2S_stepperWakeUp (void)
 
 #ifdef SQUARING_ENABLED
 
-#ifdef USE_I2S_OUT
+#if USE_I2S_OUT
 
 // Set stepper pulse output pins
 inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits_1)
@@ -729,7 +729,7 @@ static void StepperDisableMotors (axes_signals_t axes, squaring_mode_t mode)
 
 #else // SQUARING DISABLED
 
-#ifdef USE_I2S_OUT
+#if USE_I2S_OUT
 
 // Set stepper pulse output pins
 inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits)
@@ -863,7 +863,7 @@ IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
         set_dir_outputs(stepper->dir_outbits);
 
     if(stepper->step_outbits.value) {
-#ifdef USE_I2S_OUT
+#if USE_I2S_OUT
         uint64_t step_pulse_start_time = esp_timer_get_time();
         i2s_set_step_outputs(stepper->step_outbits);
         while (esp_timer_get_time() - step_pulse_start_time < i2s_step_length) {
@@ -882,7 +882,7 @@ IRAM_ATTR static void stepperGoIdle (bool clear_signals)
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.enable = 0;
 
     if(clear_signals) {
-#ifdef USE_I2S_OUT
+#if USE_I2S_OUT
         i2s_set_step_outputs((axes_signals_t){0});
 #else
         set_step_outputs((axes_signals_t){0});
@@ -891,7 +891,7 @@ IRAM_ATTR static void stepperGoIdle (bool clear_signals)
     }
 }
 
-#ifdef USE_I2S_OUT
+#if USE_I2S_OUT
 
 void i2s_step_sink (void)
 {
@@ -953,7 +953,7 @@ static void i2s_set_streaming_mode (bool stream)
 // Enable/disable limit pins interrupt
 static void limitsEnable (bool on, bool homing)
 {
-#ifdef USE_I2S_OUT
+#if USE_I2S_OUT
     i2s_set_streaming_mode(!homing);
 #endif
 
@@ -1050,7 +1050,7 @@ inline IRAM_ATTR static control_signals_t systemGetState (void)
 // and the probing cycle modes for toward-workpiece/away-from-workpiece.
 static void probeConfigure(bool is_probe_away, bool probing)
 {
-#ifdef USE_I2S_OUT
+#if USE_I2S_OUT
     i2s_set_streaming_mode(!probing);
 #endif
 
@@ -1093,7 +1093,11 @@ IRAM_ATTR inline static void spindle_off (void)
     iopins.spindle_on = settings.spindle.invert.on ? On : Off;
     ioexpand_out(iopins);
 #elif defined(SPINDLE_ENABLE_PIN)
+  #if I2S_SPINDLE
+    DIGITAL_OUT(SPINDLE_ENABLE_PIN, settings.spindle.invert.on ? 1 : 0);
+  #else
     gpio_set_level(SPINDLE_ENABLE_PIN, settings.spindle.invert.on ? 1 : 0);
+  #endif
 #endif
 }
 
@@ -1103,7 +1107,11 @@ IRAM_ATTR inline static void spindle_on (void)
     iopins.spindle_on = settings.spindle.invert.on ? Off : On;
     ioexpand_out(iopins);
 #elif defined(SPINDLE_ENABLE_PIN)
+  #if I2S_SPINDLE
+    DIGITAL_OUT(SPINDLE_ENABLE_PIN, settings.spindle.invert.on ? 0 : 1);
+  #else
     gpio_set_level(SPINDLE_ENABLE_PIN, settings.spindle.invert.on ? 0 : 1);
+  #endif
 #endif
 }
 
@@ -1114,7 +1122,11 @@ IRAM_ATTR inline static void spindle_dir (bool ccw)
         iopins.spindle_dir = (ccw ^ settings.spindle.invert.ccw) ? On : Off;
         ioexpand_out(iopins);
 #elif defined(SPINDLE_DIRECTION_PIN)
-        gpio_set_level(SPINDLE_DIRECTION_PIN, (ccw ^ settings.spindle.invert.ccw) ? 1 : 0);
+  #if I2S_SPINDLE
+    DIGITAL_OUT(SPINDLE_DIRECTION_PIN, (ccw ^ settings.spindle.invert.ccw) ? 1 : 0);
+  #else
+    gpio_set_level(SPINDLE_DIRECTION_PIN, (ccw ^ settings.spindle.invert.ccw) ? 1 : 0);
+  #endif
 #endif
     }
 }
@@ -1232,11 +1244,21 @@ static spindle_state_t spindleGetState (void)
 #if IOEXPAND_ENABLE // TODO: read from expander?
     state.on = iopins.spindle_on;
     state.ccw = hal.spindle.cap.direction && iopins.spindle_dir;
-#elif defined(SPINDLE_ENABLE_PIN)
+#else
+ #if defined(SPINDLE_ENABLE_PIN)
+  #if I2S_SPINDLE
+    state.on = DIGITAL_IN(SPINDLE_ENABLE_PIN) != 0;
+  #else
     state.on = gpio_get_level(SPINDLE_ENABLE_PIN) != 0;
-  #if defined(SPINDLE_DIRECTION_PIN)
-    state.ccw = hal.spindle.cap.direction && gpio_get_level(SPINDLE_DIRECTION_PIN) != 0;
   #endif
+ #endif
+ #if defined(SPINDLE_DIRECTION_PIN)
+  #if I2S_SPINDLE
+    state.ccw = DIGITAL_IN(SPINDLE_DIRECTION_PIN) != 0;
+  #else
+    state.ccw = gpio_get_level(SPINDLE_DIRECTION_PIN) != 0;
+  #endif
+ #endif
 #endif
     state.value ^= settings.spindle.invert.mask;
 #ifdef SPINDLEPWMPIN
@@ -1310,12 +1332,20 @@ IRAM_ATTR static void coolantSetState (coolant_state_t mode)
     iopins.mist_on = mode.mist;
     ioexpand_out(iopins);
 #else
-  #ifdef COOLANT_FLOOD_PIN
+ #ifdef COOLANT_FLOOD_PIN
+  #if I2S_COOLANT
+    DIGITAL_OUT(COOLANT_FLOOD_PIN, mode.flood ? 1 : 0);
+  #else
     gpio_set_level(COOLANT_FLOOD_PIN, mode.flood ? 1 : 0);
   #endif
-  #ifdef COOLANT_MIST_PIN
+ #endif
+ #ifdef COOLANT_MIST_PIN
+  #if I2S_COOLANT
+    DIGITAL_OUT(COOLANT_MIST_PIN, mode.mist ? 1 : 0);
+  #else
     gpio_set_level(COOLANT_MIST_PIN, mode.mist ? 1 : 0);
   #endif
+ #endif
 #endif
 }
 
@@ -1328,12 +1358,20 @@ static coolant_state_t coolantGetState (void)
     state.flood = iopins.flood_on;
     state.mist = iopins.mist_on;
 #else
-  #ifdef COOLANT_FLOOD_PIN
+ #ifdef COOLANT_FLOOD_PIN
+  #if I2S_COOLANT
+    DIGITAL_IN(COOLANT_FLOOD_PIN);
+  #else
     state.flood = gpio_get_level(COOLANT_FLOOD_PIN);
   #endif
-  #ifdef COOLANT_MIST_PIN
+ #endif
+ #ifdef COOLANT_MIST_PIN
+  #if I2S_COOLANT
+    state.mist  = DIGITAL_IN(COOLANT_MIST_PIN);
+  #else
     state.mist  = gpio_get_level(COOLANT_MIST_PIN);
   #endif
+ #endif
 #endif
 
     state.value ^= settings.coolant_invert.mask;
@@ -1471,7 +1509,7 @@ static void settings_changed (settings_t *settings)
          * Step pulse config *
          *********************/
 
-#ifdef USE_I2S_OUT
+#if USE_I2S_OUT
         i2s_step_length = (uint32_t)(settings->steppers.pulse_microseconds);
         if(i2s_step_length < I2S_OUT_USEC_PER_PULSE)
             i2s_step_length = I2S_OUT_USEC_PER_PULSE;
@@ -1968,7 +2006,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "220710";
+    hal.driver_version = "220723";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -1979,7 +2017,7 @@ bool driver_init (void)
     hal.delay_ms = driver_delay_ms;
     hal.settings_changed = settings_changed;
 
-#ifndef USE_I2S_OUT
+#if !USE_I2S_OUT
     hal.stepper.wake_up = stepperWakeUp;
     hal.stepper.go_idle = stepperGoIdle;
     hal.stepper.enable = stepperEnable;

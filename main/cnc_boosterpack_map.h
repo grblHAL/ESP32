@@ -95,12 +95,16 @@
 #define I2C_STROBE_PIN          GPIO_NUM_33
 #endif
 
-#if MPG_MODE_ENABLE || MODBUS_ENABLE
+#if MODBUS_ENABLE
 #define UART2_RX_PIN            GPIO_NUM_33
 #define UART2_TX_PIN            GPIO_NUM_25
 #if RS485_DIR_ENABLE
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_25
 #endif
+#endif
+
+#if MPG_MODE_ENABLE
+#define UART2_RX_PIN            GPIO_NUM_33
 #define MPG_ENABLE_PIN          GPIO_NUM_25
 #endif
 

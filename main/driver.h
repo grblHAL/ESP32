@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2021 Terje Io
+  Copyright (c) 2018-2022 Terje Io
   Copyright (c) 2011-2015 Sungeun K. Jeon
   Copyright (c) 2009-2011 Simen Svale Skogsrud
 
@@ -194,6 +194,8 @@ typedef struct {
   #include "xPro_v5_map.h"
 #elif defined(BOARD_MKS_DLC32_V2P0)
   #include "mks_dlc32_2_0_map.h"
+#elif defined(BOARD_MKS_TINYBEE_V1)
+  #include "mks_tinybee_1_0_map.h"
 #elif defined(BOARD_MY_MACHINE)
   #include "my_machine_map.h"
 #else // default board - NOTE: NOT FINAL VERSION!
@@ -216,11 +218,28 @@ typedef struct {
 #endif
 
 #ifdef USE_I2S_OUT
+#undef USE_I2S_OUT
+#define USE_I2S_OUT 1
 #define DIGITAL_IN(pin) i2s_out_state(pin)
 #define DIGITAL_OUT(pin, state) i2s_out_write(pin, state)
 #else
+#define USE_I2S_OUT 0
 #define DIGITAL_IN(pin) gpio_get_level(pin)
 #define DIGITAL_OUT(pin, state) gpio_set_level(pin, state)
+#endif
+
+#ifndef I2S_SPINDLE
+#define I2S_SPINDLE USE_I2S_OUT
+#else
+#undef I2S_SPINDLE
+#define I2S_SPINDLE 1
+#endif
+
+#ifndef I2S_COOLANT
+#define I2S_COOLANT USE_I2S_OUT
+#else
+#undef I2S_COOLANT
+#define I2S_COOLANT 1
 #endif
 
 #ifdef I2C_PORT
