@@ -1612,7 +1612,9 @@ static void settings_changed (settings_t *settings)
                     pullup = true;
                     signal->invert = false;
                     config.intr_type = GPIO_INTR_ANYEDGE;
+  #if ETHERNET_ENABLE
                     gpio_isr_handler_add(signal->pin, gpio_mpg_isr, signal);
+  #endif
                     break;
 #endif
 #if I2C_STROBE_ENABLE
@@ -2010,7 +2012,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "220725";
+    hal.driver_version = "220726";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -2235,7 +2237,7 @@ IRAM_ATTR static void gpio_aux_isr (void *signal)
 #endif
 }
 
-#if MPG_MODE_ENABLE
+#if MPG_MODE_ENABLE && ETHERNET_ENABLE
 
 IRAM_ATTR static void gpio_mpg_isr (void *signal)
 {

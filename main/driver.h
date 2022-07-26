@@ -249,7 +249,7 @@ extern SemaphoreHandle_t i2cBusy;
 #error "I2C port not available!"
 #endif
 
-#if MPG_MODE_ENABLE || MODBUS_ENABLE
+#if MPG_MODE_ENABLE || MODBUS_ENABLE || TRINAMIC_UART_ENABLE
 #define SERIAL2_ENABLE 1
 #endif
 

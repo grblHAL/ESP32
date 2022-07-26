@@ -34,6 +34,7 @@ OPTION(SDcard "SD Card Streaming" OFF)
 # NOTE: SPI mode Trinamic drivers cannot currently be used with SD Card enabled!
 OPTION(TMC2130 "Trinamic TMC2130 driver support" OFF)
 OPTION(TMC2209 "Trinamic TMC2209 driver support" OFF)
+OPTION(TMC2209_HWADDR "Trinamic TMC2209 drivers uses hardware addressing" OFF)
 OPTION(TMC5160 "Trinamic TMC5160 driver support" OFF)
 OPTION(Trinamic "Trinamic driver support via I2C" OFF)
 OPTION(WebUI "WebUI services" OFF)
@@ -83,7 +84,7 @@ set(NETWORKING_SOURCE
  networking/multipartparser.c
  networking/networking.c
 )
-set(TRINAMIC_SOURCE
+set(TRINAMIC_SPI_SOURCE
  spi.c
  trinamic_if.c
  motors/trinamic.c
@@ -95,6 +96,14 @@ set(TRINAMIC_SOURCE
  trinamic/tmc2209hal.c
  trinamic/tmc5160.c
  trinamic/tmc5160hal.c
+)
+set(TRINAMIC_UART_SOURCE
+ trinamic_if.c
+ motors/trinamic.c
+ trinamic/common.c
+ trinamic/tmc_interface.c
+ trinamic/tmc2209.c
+ trinamic/tmc2209hal.c
 )
 
 set(SRCS
@@ -159,8 +168,12 @@ if(Keypad)
 list (APPEND SRCS ${KEYPAD_SOURCE})
 endif()
 
-if(Trinamic OR TMC2130 OR TMC5160 OR TMC2209)
-list (APPEND SRCS ${TRINAMIC_SOURCE})
+if(Trinamic OR TMC2130 OR TMC5160)
+list (APPEND SRCS ${TRINAMIC_SPI_SOURCE})
+endif()
+
+if(TMC2209)
+list (APPEND SRCS ${TRINAMIC_UART_SOURCE})
 endif()
 
 if(WebUI)
@@ -235,6 +248,11 @@ endif()
 
 if(TMC2209)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC TRINAMIC_ENABLE=2209)
+if(TMC2209_HWADDR)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC TRINAMIC_UART_HWADDR=1)
+else()
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC TRINAMIC_UART_HWADDR=0)
+endif()
 endif()
 
 if(TMC5160)
@@ -348,6 +366,7 @@ unset(SDcard CACHE)
 unset(Trinamic CACHE)
 unset(TMC2130 CACHE)
 unset(TMC2209 CACHE)
+unset(TMC2209_HWADDR CACHE)
 unset(TMC5160 CACHE)
 unset(WebUI CACHE)
 unset(WebAuth CACHE)

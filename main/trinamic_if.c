@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2021 Terje Io
+  Copyright (c) 2020-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -169,7 +169,7 @@ TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read
     static TMC_uart_write_datagram_t wdgr = {0};
     volatile uint32_t dly = 50, ms = hal.get_elapsed_ticks();
 
-    if(tmc_uart.write_n == null)
+    if(tmc_uart.write_n == NULL)
         return &wdgr;
 
 //    tmc_uart.reset_write_buffer();
@@ -210,14 +210,21 @@ TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read
 
 void tmc_uart_write (trinamic_motor_t driver, TMC_uart_write_datagram_t *dgr)
 {
-    if(tmc_uart.write_n == null)
+    if(tmc_uart.write_n == NULL)
         return;
 
     tmc_uart.write_n((char *)dgr->data, sizeof(TMC_uart_write_datagram_t));
     while(tmc_uart.get_tx_buffer_count());
 }
 
+#if TRINAMIC_UART_HWADDR
+static void driver_preinit (motor_map_t motor, trinamic_driver_config_t *config)
+{
+    config->address = 0;
+}
 #endif
+
+#endif // TRINAMIC_UART_ENABLE
 
 void board_init (void)
 {
@@ -238,7 +245,15 @@ void board_init (void)
 
 #elif TRINAMIC_UART_ENABLE
 
-    io_stream_t *uart = serial2Init(230400);
+#if TRINAMIC_UART_HWADDR
+    static trinamic_driver_if_t driver_if = {
+        .on_driver_preinit = driver_preinit
+    };
+
+    trinamic_if_init(&driver_if);
+#endif
+
+    const io_stream_t *uart = serial2Init(230400);
 
     if(uart) {
         memcpy(&tmc_uart, uart, sizeof(io_stream_t));
