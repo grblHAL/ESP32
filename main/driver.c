@@ -294,6 +294,9 @@ static output_signal_t outputpin[] =
 #ifdef MOTOR_CSM5_PIN
     { .id = Output_MotorChipSelectM5, .pin = MOTOR_CSM5_PIN,    .group = PinGroup_MotorChipSelect },
 #endif
+#ifdef PIN_NUM_CS
+    { .id = Output_SdCardCS,          .pin = PIN_NUM_CS,        .group = PinGroup_SdCard },
+#endif
 #ifdef MODBUS_DIRECTION_PIN
     { .id = Output_Aux0,          .pin = MODBUS_DIRECTION_PIN,  .group = PinGroup_AuxOutput },
 #endif
@@ -1813,7 +1816,7 @@ static char *sdcard_mount (FATFS **fs)
             report_message(ret == ESP_FAIL ? "Failed to mount filesystem" : "Failed to initialize SD card", Message_Warning);
     }
 
-    if(fs) {
+    if(card && fs) {
         if(*fs == NULL)
             *fs = malloc(sizeof(FATFS));
 
@@ -1860,7 +1863,8 @@ static bool driver_setup (settings_t *settings)
     uint64_t mask = 0;
     idx = sizeof(outputpin) / sizeof(output_signal_t);
     do {
-        if(outputpin[--idx].mode == Pin_GPIO)
+        idx--;
+        if(outputpin[idx].mode == Pin_GPIO && outputpin[idx].id != Output_SdCardCS)
             mask |= (1ULL << outputpin[idx].pin);
     } while(idx);
 
@@ -2006,7 +2010,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "220723";
+    hal.driver_version = "220725";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
