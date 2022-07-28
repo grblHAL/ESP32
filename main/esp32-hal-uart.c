@@ -29,6 +29,7 @@
 #include "soc/gpio_sig_map.h"
 #include "soc/dport_reg.h"
 #include "driver/uart.h"
+#include "hal/uart_ll.h"
 #include "esp_intr_alloc.h"
 
 #include "esp32-hal-uart.h"
@@ -249,8 +250,6 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
 
 IRAM_ATTR static void flush (uart_t *uart)
 {
-    UART_MUTEX_LOCK(uart);
-
     while(uart->dev->status.txfifo_cnt);
 
     //Due to hardware issue, we can not use fifo_rst to reset uart fifo.
@@ -260,7 +259,7 @@ IRAM_ATTR static void flush (uart_t *uart)
     while(uart->dev->status.rxfifo_cnt || (uart->dev->mem_rx_status.wr_addr != uart->dev->mem_rx_status.rd_addr))
         READ_PERI_REG(UART_FIFO_REG(uart->num));
 
-    UART_MUTEX_UNLOCK(uart);
+    uart_ll_rxfifo_rst(uart->dev);
 }
 
 static uint16_t serialAvailable (void)
@@ -318,9 +317,12 @@ static void serialWriteS (const char *data)
 
 IRAM_ATTR static void serialFlush (void)
 {
-    flush(uart1);
+    UART_MUTEX_LOCK(uart1);
 
+    flush(uart1);
     rxbuffer.tail = rxbuffer.head;
+
+    UART_MUTEX_UNLOCK(uart1);
 }
 
 IRAM_ATTR static void serialCancel (void)
@@ -344,21 +346,27 @@ IRAM_ATTR static bool serialSuspendInput (bool suspend)
 
 IRAM_ATTR static bool serialDisable (bool disable)
 {
+    UART_MUTEX_LOCK(uart1);
+
     if(disable) {
         // Disable interrupts
         uart1->dev->int_ena.rxfifo_full = 0;
         uart1->dev->int_ena.frm_err = 0;
         uart1->dev->int_ena.rxfifo_tout = 0;
     } else {
-        flush(uart1);
         // Clear and enable interrupts
+        uart1->dev->int_ena.rxfifo_full = 0;
         uart1->dev->int_clr.rxfifo_full = 1;
         uart1->dev->int_clr.frm_err = 1;
         uart1->dev->int_clr.rxfifo_tout = 1;
+        flush(uart1);
+        rxbuffer.tail = rxbuffer.head;
         uart1->dev->int_ena.rxfifo_full = 1;
         uart1->dev->int_ena.frm_err = 1;
         uart1->dev->int_ena.rxfifo_tout = 1;
     }
+
+    UART_MUTEX_UNLOCK(uart1);
 
     return true;
 }
@@ -476,28 +484,6 @@ static void IRAM_ATTR _uart2_isr (void *arg)
     */
 }
 
-IRAM_ATTR static bool serial2Disable (bool disable)
-{
-    if(disable) {
-        // Disable interrupts
-        uart2->dev->int_ena.rxfifo_full = 0;
-        uart2->dev->int_ena.frm_err = 0;
-        uart2->dev->int_ena.rxfifo_tout = 0;
-    } else {
-        flush(uart2);
-
-        // Clear and enable interrupts
-        uart2->dev->int_clr.rxfifo_full = 1;
-        uart2->dev->int_clr.frm_err = 1;
-        uart2->dev->int_clr.rxfifo_tout = 1;
-        uart2->dev->int_ena.rxfifo_full = 1;
-        uart2->dev->int_ena.frm_err = 1;
-        uart2->dev->int_ena.rxfifo_tout = 1;
-    }
-
-    return true;
-}
-
 uint16_t static serial2Available (void)
 {
     uint16_t head = rxbuffer2.head, tail = rxbuffer2.tail;
@@ -507,7 +493,7 @@ uint16_t static serial2Available (void)
 
 uint16_t static serial2txCount (void)
 {
-    return (uint16_t)uart2->dev->status.txfifo_cnt + (uart2->dev->int_raw.tx_done ? 0 : 1);
+    return (uint16_t)uart2->dev->status.txfifo_cnt + (uart2->dev->status.st_utx_out ? 1 : 0);
 }
 
 uint16_t static serial2RXFree (void)
@@ -524,6 +510,7 @@ bool static serial2PutC (const char c)
     while(uart2->dev->status.txfifo_cnt == 0x7F);
 
     uart2->dev->fifo.rw_byte = c;
+
     UART_MUTEX_UNLOCK(uart2);
 
     return true;
@@ -560,6 +547,7 @@ void static serial2Write (const char *s, uint16_t length)
 int16_t static serial2Read (void)
 {
     UART_MUTEX_LOCK(uart2);
+
     int16_t data;
     uint16_t bptr = rxbuffer2.tail;
 
@@ -570,6 +558,7 @@ int16_t static serial2Read (void)
 
     data = rxbuffer2.data[bptr++];                 // Get next character, increment tmp pointer
     rxbuffer2.tail = bptr & (RX_BUFFER_SIZE - 1);  // and update pointer
+
     UART_MUTEX_UNLOCK(uart2);
 
     return data;
@@ -577,9 +566,12 @@ int16_t static serial2Read (void)
 
 IRAM_ATTR static void serial2Flush (void)
 {
-    flush(uart2);
+    UART_MUTEX_LOCK(uart2);
 
+    flush(uart2);
     rxbuffer2.tail = rxbuffer2.head;
+
+    UART_MUTEX_UNLOCK(uart2);
 }
 
 IRAM_ATTR static void serial2Cancel (void)
@@ -594,11 +586,41 @@ IRAM_ATTR static void serial2Cancel (void)
 static bool serial2SuspendInput (bool suspend)
 {
     bool ok;
+
     UART_MUTEX_LOCK(uart2);
+
     ok = stream_rx_suspend(&rxbuffer2, suspend);
+
     UART_MUTEX_UNLOCK(uart2);
 
     return ok;
+}
+
+IRAM_ATTR static bool serial2Disable (bool disable)
+{
+    UART_MUTEX_LOCK(uart2);
+
+    if(disable) {
+        // Disable interrupts
+        uart2->dev->int_ena.rxfifo_full = 0;
+        uart2->dev->int_ena.frm_err = 0;
+        uart2->dev->int_ena.rxfifo_tout = 0;
+    } else {
+        // Clear and enable interrupts
+        uart2->dev->int_ena.rxfifo_full = 0;
+        uart2->dev->int_clr.rxfifo_full = 1;
+        uart2->dev->int_clr.frm_err = 1;
+        uart2->dev->int_clr.rxfifo_tout = 1;
+        flush(uart2);
+        rxbuffer2.tail = rxbuffer2.head;
+        uart2->dev->int_ena.rxfifo_full = 1;
+        uart2->dev->int_ena.frm_err = 1;
+        uart2->dev->int_ena.rxfifo_tout = 1;
+    }
+
+    UART_MUTEX_UNLOCK(uart2);
+
+    return true;
 }
 
 static bool serial2SetBaudRate (uint32_t baud_rate)

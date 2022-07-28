@@ -21,7 +21,7 @@
 
 #include "driver.h"
 
-#if defined(BOARD_XPRO_V5)
+#if defined(BOARD_XPRO_V5) // || defined(BOARD_CNC_BOOSTERPACK)
 
 #include <math.h>
 #include <string.h>
@@ -172,23 +172,28 @@ TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read
     if(tmc_uart.write_n == NULL)
         return &wdgr;
 
-//    tmc_uart.reset_write_buffer();
+    vTaskSuspendAll();
+
+    tmc_uart.reset_write_buffer();
     tmc_uart.write_n((char *)dgr->data, sizeof(TMC_uart_read_datagram_t));
 
     while(tmc_uart.get_tx_buffer_count());
 
     while(--dly);
 
-    tmc_uart.disable_rx(false);
     tmc_uart.reset_read_buffer();
+    tmc_uart.disable_rx(false);
 
-    // Wait for response with 2ms timeout
+    xTaskResumeAll();
+
+    // Wait for response with 10 ms timeout
     while(tmc_uart.get_rx_buffer_count() < 8) {
-        if(hal.get_elapsed_ticks() - ms >= 3)
+        if(hal.get_elapsed_ticks() - ms >= 11)
             break;
     }
 
-    if((tmc_uart.get_rx_buffer_count()) >= 8) {
+    if(tmc_uart.get_rx_buffer_count() >= 8) {
+
         wdgr.data[0] = tmc_uart.read();
         wdgr.data[1] = tmc_uart.read();
         wdgr.data[2] = tmc_uart.read();
@@ -197,6 +202,7 @@ TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read
         wdgr.data[5] = tmc_uart.read();
         wdgr.data[6] = tmc_uart.read();
         wdgr.data[7] = tmc_uart.read();
+
     } else
         wdgr.msg.addr.value = 0xFF;
 
@@ -213,7 +219,9 @@ void tmc_uart_write (trinamic_motor_t driver, TMC_uart_write_datagram_t *dgr)
     if(tmc_uart.write_n == NULL)
         return;
 
+    tmc_uart.reset_read_buffer();
     tmc_uart.write_n((char *)dgr->data, sizeof(TMC_uart_write_datagram_t));
+
     while(tmc_uart.get_tx_buffer_count());
 }
 
