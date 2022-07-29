@@ -22,3 +22,6 @@
 [submodule "main/trinamic"]
 	path = main/trinamic
 	url = https://github.com/terjeio/Trinamic-library
+[submodule "main/webui"]
+	path = main/webui
+	url = https://github.com/grblHAL/Plugin_WebUI
