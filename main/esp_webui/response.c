@@ -23,7 +23,7 @@
 
 #include "driver.h"
 
-#if WEBUI_ENABLE
+#if WEBUI_OLD_ENABLE
 
 #include <stdio.h>
 #include <string.h>
@@ -34,7 +34,7 @@
 #include "esp_log.h"
 #include "esp_spiffs.h"
 
-#include "webui.h"
+#include "../esp_webui/webui.h"
 #include "grbl/grbl.h"
 #include "grbl/protocol.h"
 

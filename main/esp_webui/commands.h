@@ -24,7 +24,7 @@
 #ifndef __WEBUI_COMMANDS_H__
 #define __WEBUI_COMMANDS_H__
 
-#include "server.h"
+#include "../esp_webui/server.h"
 #include "grbl/grbl.h"
 
 status_code_t webui_command_handler (uint32_t command, char *args);

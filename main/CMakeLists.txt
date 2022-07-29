@@ -34,7 +34,7 @@ OPTION(SDcard "SD Card Streaming" OFF)
 # NOTE: SPI mode Trinamic drivers cannot currently be used with SD Card enabled!
 OPTION(TMC2130 "Trinamic TMC2130 driver support" OFF)
 OPTION(TMC2209 "Trinamic TMC2209 driver support" OFF)
-OPTION(TMC2209_HWADDR "Trinamic TMC2209 drivers uses hardware addressing" OFF)
+OPTION(TMC2209_HWADDR "Trinamic TMC2209 drivers uses hardware addressing" ON)
 OPTION(TMC5160 "Trinamic TMC5160 driver support" OFF)
 OPTION(Trinamic "Trinamic driver support via I2C" OFF)
 OPTION(WebUI "WebUI services" OFF)
@@ -59,7 +59,13 @@ OPTION(NOPROBE "Compile without probe support" OFF)
 
 set(SDCARD_SOURCE sdcard/sdcard.c sdcard/ymodem.c)
 set(KEYPAD_SOURCE keypad/keypad.c)
-set(WEBUI_SOURCE webui/server.c webui/response.c webui/commands.c webui/flashfs.c )
+set(WEBUI_SOURCE
+ webui/commands.c
+ esp_webui/server.c
+ esp_webui/flashfs.c
+ networking/fs.c
+ networking/vfs.c
+)
 set(BLUETOOTH_SOURCE bluetooth.c )
 set(HUANYANG_SOURCE spindle/modbus spindle/select.c spindle/vfd/spindle.c spindle/vfd/huanyang.c)
 set(EEPROM_SOURCE eeprom/eeprom_24LC16B.c eeprom/eeprom_24AAxxx.c)
@@ -292,6 +298,7 @@ endif()
 if(WebUI)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_ENABLE=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC STDIO_FS)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC LWIP_HTTPD_CUSTOM_FILES=1)
 target_add_binary_data("${COMPONENT_LIB}" "index.html.gz" BINARY)
 if(WebAuth)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_AUTH_ENABLE=1)
@@ -378,6 +385,6 @@ unset(FRAM CACHE)
 unset(NOPROBE CACHE)
 
 #target_compile_options("${COMPONENT_LIB}" PRIVATE -Werror -Wall -Wextra -Wmissing-field-initializers)
-target_compile_options("${COMPONENT_LIB}" PRIVATE -Wimplicit-fallthrough=1 -Wno-missing-field-initializers -Wno-maybe-uninitialized)
+target_compile_options("${COMPONENT_LIB}" PRIVATE -Wimplicit-fallthrough=1 -Wno-missing-field-initializers -Wno-maybe-uninitialized -Wno-stringop-truncation)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

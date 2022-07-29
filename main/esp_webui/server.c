@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2021 Terje Io
+  Copyright (c) 2020-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,22 +36,122 @@
 #include "esp_spiffs.h"
 
 #include "wifi.h"
-#include "webui.h"
+#include "../esp_webui/webui.h"
+#include "../webui/commands.h"
 #include "networking/websocketd.h"
 #include "networking/urldecode.h"
 #include "networking/utils.h"
 #include "networking/strutils.h"
 #include "networking/http_upload.h"
+#include "grbl/protocol.h"
 
 #if SDCARD_ENABLE
 #include "sdcard/sdcard.h"
 #include "esp_vfs_fat.h"
 #endif
 
+extern struct fs_file *fs_create (void);
+extern err_t fs_open(struct fs_file *file, const char *name);
+extern void fs_close(struct fs_file *file);
+extern int fs_read(struct fs_file *file, char *buffer, int count);
+extern void fs_reset (void);
+
+static bool file_is_json = false;
+static httpd_req_t *http_request = NULL;
+static driver_reset_ptr driver_reset;
+static on_report_options_ptr on_report_options;
+static on_stream_changed_ptr on_stream_changed;
+static stream_write_ptr pre_stream;
+static stream_write_ptr claim_stream;
+static const char *TAG = "webui";
+
+void data_is_json (void)
+{
+    file_is_json = true;
+
+    if(http_request)
+        httpd_resp_set_type(http_request, HTTPD_TYPE_JSON);
+
+}
+
+void stream_changed (stream_type_t type)
+{
+    if(on_stream_changed)
+        on_stream_changed(type);
+
+    if(!(type == StreamType_SDCard || type == StreamType_FlashFs) && hal.stream.write == claim_stream)
+        hal.stream.write = pre_stream;
+}
+
+static void http_write (const char *s)
+{
+    httpd_resp_sendstr_chunk(http_request, s);
+}
+
+bool claim_output (struct fs_file **file)
+{
+    pre_stream = hal.stream.write;
+
+    claim_stream = hal.stream.write = http_write; // (*file = fs_create()) ? hal.stream.write : NULL;
+
+    return claim_stream != NULL;
+}
+
+void webui_set_http_request (httpd_req_t *req)
+{
+    http_request = req;
+    httpd_resp_set_hdr(http_request, "Cache-Control", "no-cache");
+}
+
+void write_response (struct fs_file *file)
+{
+/*
+    !! MCU crashes on free() in fs.c for some odd reason
+
+    char buf[201];
+    uint_fast16_t len = fs_bytes_left(file);
+
+    pre_stream(uitoa(len));
+
+    err_t t;
+    fs_close(file);
+    if(fs_open(file, file_is_json ? "cgi:qry.json" : "cgi:qry.txt") == 0) {
+
+        pre_stream("open!");
+
+
+        if(len < 200) {
+            fs_read(file, buf, len);
+            buf[len] = '\0';
+            httpd_resp_sendstr(http_request, buf);
+        } else {
+            while((len = fs_bytes_left(file))) {
+                fs_read(file, buf, len > 200 ? 200 : len);
+                buf[len > 200 ? 200 : len] = '\0';
+                httpd_resp_sendstr_chunk(http_request, buf);
+            }
+            httpd_resp_sendstr_chunk(http_request, NULL);
+        }
+
+        fs_close(file);
+    } */
+    hal.stream.write = pre_stream;
+    httpd_resp_sendstr_chunk(http_request, NULL);
+}
+
 #if WEBUI_AUTH_ENABLE
+
 static webui_auth_t *sessions = NULL;
 static webui_auth_level_t get_auth_level (httpd_req_t *req);
-#endif
+
+#else
+
+static webui_auth_level_t get_auth_level (http_request_t *req)
+{
+    return WebUIAuth_Admin;
+}
+
+#endif // WEBUI_AUTH_ENABLE
 
 bool is_authorized (httpd_req_t *req, webui_auth_level_t min_level)
 {
@@ -78,7 +178,7 @@ esp_err_t webui_http_command_handler (httpd_req_t *req)
 
         httpd_req_get_url_query_str(req, query, qlen);
 
-        if(http_get_key_value(query, "commandText", data, sizeof(data)) == NULL)
+        if(http_get_key_value(query, "commandText", data, sizeof(data)) == NULL && http_get_key_value(query, "cmd", data, sizeof(data)) == NULL)
             http_get_key_value(query, "plain", data, sizeof(data));
 
         free(query);
@@ -92,19 +192,93 @@ esp_err_t webui_http_command_handler (httpd_req_t *req)
 
         if((cmd = strstr(data, "[ESP"))) {
 
+            struct fs_file *file;
+            status_code_t status;
+
+            claim_output(&file);
+            webui_set_http_request(req);
+
             cmd += 4;
 
-            char *args = NULL;
+            uint_fast16_t argc = 0;
+            char c, cp = '\0', *args = NULL, **argv = NULL, *tmp, **tmp2, *tmp3;
 
             if((ok = (args = strchr(cmd, ']')))) {
+
                 *args++ = '\0';
-#if WEBUI_AUTH_ENABLE
-//              if(!is_authorized(req, get_auth_required(atol(cmd), args)))
-//                  return ESP_OK;
-#endif
-                webui_set_http_request(req);
-                ok = webui_command_handler(atol(cmd), args) == Status_OK;
-            }
+
+                if(*args) {
+
+                    // Trim leading and trailing spaces
+                    while(*args == ' ')
+                        args++;
+
+                    if((tmp = args + strlen(args)) != args) {
+                        while(*(--tmp) == ' ')
+                            *tmp = '\0';
+                    }
+
+                    // remove duplicate delimiters (spaces)
+                    tmp = tmp3 = args;
+                    while((c = *tmp++) != '\0') {
+                        if(c != ' ' || cp != ' ')
+                            *tmp3++ = c;
+                        cp = c;
+                    }
+                    *tmp3 = '\0';
+                }
+
+
+                // tokenize arguments (if any)
+                if(*args) {
+
+                    argc = 1;
+                    tmp = args;
+                    while((c = *tmp++) != '\0') {
+                        if(c == ' ')
+                            argc++;
+                    }
+
+                    if(argc == 1)
+                        argv = &args;
+                    else if((ok = !!(argv = tmp2 = malloc(sizeof(char *) * argc)))) {
+
+                        tmp = strtok(args, " ");
+                        while(tmp) {
+                            *tmp2++ = tmp;
+                            tmp = strtok(NULL, " ");
+                        }
+
+                        tmp = args;
+                        while((c = *tmp) != '\0') {
+                            if(c == ' ')
+                                *tmp = '\0';
+                            tmp++;
+                        }
+                    } else {
+                        httpd_resp_set_status(req, "500 Internal server error");
+                        hal.stream.write("Failed to generate response");
+                    }
+                }
+
+                ok &= (status = webui_command_handler(atol(cmd), argc, argv, get_auth_level(req))) == Status_OK;
+
+    #if WEBUI_AUTH_ENABLE
+                if(status == Status_AuthenticationRequired || status == Status_AccessDenied) {
+                    httpd_resp_set_status(req, status == Status_AuthenticationRequired ? "401 Unauthorized" : "403 Forbidden");
+                    if(fs_bytes_left(file) == 0)
+                        hal.stream.write(status == Status_AuthenticationRequired ? "Login and try again\n" : "Not authorized\n"); // ??
+                } else
+    #endif
+                if(status != Status_OK)
+                    hal.stream.write("Bad command!\n");
+
+                if(argc > 1 && argv)
+                    free(argv);
+            } else
+                hal.stream.write("Bad command!\n");
+
+            write_response(file);
 
         } else { // GCode - add to websocket input buffer
 
@@ -1091,6 +1265,69 @@ esp_err_t webui_index_html_get_handler (httpd_req_t *req)
     set_content_type_from_file(req, "index.html");
     httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
     return httpd_resp_send(req, (const char *)index_html_gz_start, index_html_gz_end - index_html_gz_start);
+}
+
+static void webui_reset (void)
+{
+    driver_reset();
+
+//    fs_reset();
+
+    if(hal.stream.write == claim_stream)
+        hal.stream.write = pre_stream;
+}
+
+static void webui_options (bool newopt)
+{
+    on_report_options(newopt);
+
+    if(!newopt)
+        hal.stream.write("[PLUGIN:ESP32 WebUI v0.03]" ASCII_EOL);
+}
+
+static void webui_check_networking (uint_fast16_t state)
+{
+    network_settings_t *settings = get_network_settings();
+
+    if(!(settings->services.http && settings->services.websocket))
+        report_message("WebUI requires both http and websocket services enabled!", Message_Warning);
+}
+
+void webui_init (void)
+{
+//    grbl.on_user_command = webui_parse_command;
+
+    driver_reset = hal.driver_reset;
+    hal.driver_reset = webui_reset;
+
+    on_report_options = grbl.on_report_options;
+    grbl.on_report_options = webui_options;
+
+    on_stream_changed = grbl.on_stream_changed;
+    grbl.on_stream_changed = stream_changed;
+
+    esp_vfs_spiffs_conf_t conf = {
+      .base_path = "/spiffs",
+      .partition_label = NULL,
+      .max_files = 50,
+      .format_if_mount_failed = true
+    };
+
+    // Use settings defined above to initialize and mount SPIFFS filesystem.
+    // Note: esp_vfs_spiffs_register is an all-in-one convenience function.
+    esp_err_t ret = esp_vfs_spiffs_register(&conf);
+
+    if (ret != ESP_OK) {
+        if (ret == ESP_FAIL) {
+            ESP_LOGE(TAG, "Failed to mount or format filesystem");
+        } else if (ret == ESP_ERR_NOT_FOUND) {
+            ESP_LOGE(TAG, "Failed to find SPIFFS partition");
+        } else {
+            ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+        }
+    }
+
+    protocol_enqueue_rt_command(webui_check_networking);
 }
 
 #endif

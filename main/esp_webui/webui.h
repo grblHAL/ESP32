@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2019 Terje Io
+  Copyright (c) 2019-2022 Terje Io
 
   Some parts of the code is based on example code by Espressif, in the public domain
 
@@ -26,10 +26,10 @@
 #ifndef __WEBUI_H__
 #define __WEBUI_H__
 
-#include "response.h"
-#include "commands.h"
-#include "server.h"
-#include "flashfs.h"
+#include "../esp_webui/flashfs.h"
+#include "../esp_webui/response.h"
+#include "../esp_webui/server.h"
+#include "../webui/commands.h"
 
 #endif
 

@@ -64,7 +64,7 @@
 #endif
 
 #if WEBUI_ENABLE
-#include "webui/response.h"
+#include <esp_webui/response.h>
 #endif
 
 #if BLUETOOTH_ENABLE
@@ -2012,7 +2012,7 @@ bool driver_init (void)
     strcpy(idf, esp_get_idf_version());
 
     hal.info = "ESP32";
-    hal.driver_version = "220726";
+    hal.driver_version = "220729";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif

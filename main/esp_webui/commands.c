@@ -23,7 +23,7 @@
 
 #include "driver.h"
 
-#if WEBUI_ENABLE
+#if WEBUI_OLD_ENABLE
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -42,7 +42,7 @@
 #include <esp_ota_ops.h>
 
 #include "grbl/report.h"
-#include "webui.h"
+#include "../esp_webui/webui.h"
 #include "networking/websocketd.h"
 #include "networking/urldecode.h"
 #include "networking/utils.h"
@@ -57,7 +57,7 @@
 #include "esp_vfs_fat.h"
 #endif
 
-#include "flashfs.h"
+#include "../esp_webui/flashfs.h"
 
 #ifndef LINE_BUFFER_SIZE
 #define LINE_BUFFER_SIZE 257 // 256 characters plus terminator

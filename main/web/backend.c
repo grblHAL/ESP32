@@ -46,7 +46,7 @@
 #include "backend.h"
 #include "grbl/report.h"
 #include "networking/urldecode.h"
-#include "webui/server.h"
+#include "esp_webui/server.h"
 
 #if WIFI_ENABLE
 #include "wifi.h"
@@ -751,6 +751,16 @@ static const httpd_uri_t basic_handlers[] = {
     { .uri      = "/SD/*",
       .method   = HTTP_GET,
       .handler  = sdcard_get_handler,
+      .user_ctx = &sd_fs_data
+    },
+    { .uri      = "/sdfiles",
+      .method   = HTTP_GET,
+      .handler  = webui_sdcard_handler,
+      .user_ctx = &sd_fs_data
+    },
+    { .uri      = "/sdfiles",
+      .method   = HTTP_POST,
+      .handler  = webui_sdcard_upload_handler,
       .user_ctx = &sd_fs_data
     },
   #else
