@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2019 Terje Io
+  Copyright (c) 2019-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,34 +30,21 @@
 #include "freertos/task.h"
 #include "web/backend.h"
 
-#define COOKIEPREFIX "ESPSESSIONID="
+#include "../webui/webui.h"
 
-typedef enum {
-    WebUIAuth_None = 0,
-    WebUIAuth_Guest,
-    WebUIAuth_User,
-    WebUIAuth_Admin
-} webui_auth_level_t;
-
-typedef char session_id_t[21];
-typedef char user_id_t[17];
-
-typedef struct webui_auth {
-    webui_auth_level_t level;
-    struct sockaddr_in6 ip;
-    user_id_t user_id;
-    session_id_t session_id;
-    TickType_t last_access;
-    struct webui_auth *next;
-} webui_auth_t;
+extern struct fs_file *fs_create (void);
 
 esp_err_t webui_http_command_handler (httpd_req_t *req);
 esp_err_t webui_sdcard_handler (httpd_req_t *req);
 esp_err_t webui_sdcard_upload_handler (httpd_req_t *req);
 esp_err_t webui_spiffs_handler (httpd_req_t *req);
 esp_err_t webui_spiffs_upload_handler (httpd_req_t *req);
-esp_err_t webui_login_handler (httpd_req_t *req);
 esp_err_t webui_index_html_get_handler (httpd_req_t *req);
+
+void data_is_json (void);
+bool claim_output (struct fs_file **file);
+void webui_set_http_request (httpd_req_t *req);
+void write_response (struct fs_file *file);
 
 #endif
 

@@ -53,10 +53,15 @@
 #include "esp_wifi.h"
 #endif
 
+#if WEBUI_AUTH_ENABLE
+#include "../webui/login.h"
+#endif
+
 //#define CORS_ENABLE 1 // Enable only when debugging
 
 #if SDCARD_ENABLE
 #include "sdcard/sdcard.h"
+#include "webui/sdcard.h"
 #include "esp_vfs_fat.h"
 #endif
 
@@ -725,12 +730,12 @@ static const httpd_uri_t basic_handlers[] = {
   #if WEBUI_ENABLE
     { .uri      = "/upload",
       .method   = HTTP_GET,
-      .handler  = webui_sdcard_handler,
+      .handler  = sdcard_handler,
       .user_ctx = &file_server_data
     },
     { .uri      = "/upload",
       .method   = HTTP_POST,
-      .handler  = webui_sdcard_upload_handler,
+      .handler  = sdcard_upload_handler,
       .user_ctx = &file_server_data
     },
     { .uri      = "/files",
@@ -755,12 +760,12 @@ static const httpd_uri_t basic_handlers[] = {
     },
     { .uri      = "/sdfiles",
       .method   = HTTP_GET,
-      .handler  = webui_sdcard_handler,
+      .handler  = sdcard_handler,
       .user_ctx = &sd_fs_data
     },
     { .uri      = "/sdfiles",
       .method   = HTTP_POST,
-      .handler  = webui_sdcard_upload_handler,
+      .handler  = sdcard_upload_handler,
       .user_ctx = &sd_fs_data
     },
   #else
@@ -804,8 +809,13 @@ static const httpd_uri_t basic_handlers[] = {
     },
     { .uri      = "/login",
       .method   = HTTP_GET,
-      .handler  = webui_login_handler,
+      .handler  = login_handler_get,
       .user_ctx = NULL
+    },
+    { .uri      = "/login",
+      .method   = HTTP_POST,
+      .handler  = login_handler_post,
+      .user_ctx = &file_server_data
     },
 #endif
 #if CORS_ENABLE

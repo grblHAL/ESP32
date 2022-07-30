@@ -658,10 +658,6 @@ static const setting_group_detail_t ethernet_groups [] = {
 
 static const setting_detail_t ethernet_settings[] = {
     { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, netservices, NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL },
-#if WEBUI_AUTH_ENABLE
-    { Setting_AdminPassword, Group_General, "Admin Password", NULL, Format_Password, "x(32)", NULL, "32", Setting_NonCore, &wifi.admin_password, NULL, NULL },
-    { Setting_UserPassword, Group_General, "User Password", NULL, Format_Password, "x(32)", NULL, "32", Setting_NonCore, &wifi.user_password, NULL, NULL },
-#endif
     { Setting_WiFi_STA_SSID, Group_Networking_Wifi, "WiFi Station (STA) SSID", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.sta.ssid, NULL, NULL },
     { Setting_WiFi_STA_Password, Group_Networking_Wifi, "WiFi Station (STA) Password", NULL, Format_Password, "x(32)", NULL, "32", Setting_NonCore, &wifi.sta.password, NULL, NULL },
     { Setting_Hostname, Group_Networking, "Hostname", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.sta.network.hostname, NULL, NULL },
@@ -698,10 +694,6 @@ static const setting_detail_t ethernet_settings[] = {
 
 static const setting_descr_t ethernet_settings_descr[] = {
     { Setting_NetworkServices, "Network services to enable. Consult driver documentation for availability." SETTINGS_HARD_RESET_REQUIRED },
-#if WEBUI_AUTH_ENABLE
-    { Setting_AdminPassword, "Administrator password." },
-    { Setting_UserPassword, "User password." },
-#endif
     { Setting_WiFi_STA_SSID, "WiFi Station (STA) SSID." },
     { Setting_WiFi_STA_Password, "WiFi Station (STA) Password." },
     { Setting_Hostname, "Network hostname." SETTINGS_HARD_RESET_REQUIRED },

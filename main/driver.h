@@ -158,13 +158,12 @@ static const DRAM_ATTR float FZERO = 0.0f;
 #include "spindle/modbus.h"
 #endif
 
+// TODO: move to wifi.c!
 typedef struct
 {
     grbl_wifi_mode_t mode;
     wifi_sta_settings_t sta;
     wifi_ap_settings_t ap;
-    password_t admin_password;
-    password_t user_password;
 } wifi_settings_t;
 
 typedef struct {

@@ -23,8 +23,8 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __WEBUI_H__
-#define __WEBUI_H__
+#ifndef __WEBUI_OLD_H__
+#define __WEBUI_OLD_H__
 
 #include "../esp_webui/flashfs.h"
 #include "../esp_webui/response.h"

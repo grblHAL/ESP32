@@ -1983,10 +1983,6 @@ static bool driver_setup (settings_t *settings)
     ioexpand_init();
 #endif
 
-#if WEBUI_ENABLE
-    webui_init();
-#endif
-
   // Set defaults
 
     IOInitDone = settings->version == 21;
@@ -2192,6 +2188,10 @@ bool driver_init (void)
 #endif
 
 #include "grbl/plugins_init.h"
+
+#if WEBUI_ENABLE
+    webui_init();
+#endif
 
     // no need to move version check before init - compiler will fail any mismatch for existing entries
     return hal.version == 9;
