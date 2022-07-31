@@ -279,7 +279,11 @@ static void msg_ap_disconnected (sys_state_t state)
 
 static void msg_sta_active (sys_state_t state)
 {
-    hal.stream.write_all("[MSG:WIFI STA ACTIVE]" ASCII_EOL);
+    char buf[50];
+
+    sprintf(buf, "[MSG:WIFI STA ACTIVE, IP=%s]" ASCII_EOL, iptoa(&ap_list.ip_addr));
+
+    hal.stream.write_all(buf);
 }
 
 static void msg_sta_disconnected (sys_state_t state)
@@ -293,7 +297,6 @@ static void ip_event_handler (void *arg, esp_event_base_t event_base, int32_t ev
 
         case IP_EVENT_STA_GOT_IP:
             // handle IP change (ip_change)
-            protocol_enqueue_rt_command(msg_sta_active);
             xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
             ap_list.ap_selected = wifi_sta_config.sta.ssid;
             memcpy(&ap_list.ip_addr, &((ip_event_got_ip_t *)event_data)->ip_info.ip, sizeof(ip4_addr_t));
@@ -308,6 +311,7 @@ static void ip_event_handler (void *arg, esp_event_base_t event_base, int32_t ev
                 strcpy(wifi.sta.password, (char *)wifi_sta_config.sta.password);
                 // commit to EEPROM
             }
+            protocol_enqueue_rt_command(msg_sta_active);
             break;
 
         default:
