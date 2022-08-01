@@ -2003,17 +2003,17 @@ bool driver_init (void)
 {
     // Enable EEPROM and serial port here for Grbl to be able to configure itself and report any errors
 
-    static char idf[48];
-
-    strcpy(idf, esp_get_idf_version());
+    rtc_cpu_freq_config_t cpu;
+    rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "220729";
+    hal.driver_version = "220801";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
     hal.driver_options = IDF_VER;
     hal.driver_setup = driver_setup;
+    hal.f_mcu = cpu.freq_mhz;
     hal.f_step_timer = rtc_clk_apb_freq_get() / STEPPER_DRIVER_PRESCALER; // 20 MHz
     hal.rx_buffer_size = RX_BUFFER_SIZE;
     hal.delay_ms = driver_delay_ms;
