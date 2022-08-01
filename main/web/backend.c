@@ -807,6 +807,7 @@ static const httpd_uri_t basic_handlers[] = {
       .handler  = webui_http_command_handler,
       .user_ctx = NULL
     },
+  #if WEBUI_AUTH_ENABLE
     { .uri      = "/login",
       .method   = HTTP_GET,
       .handler  = login_handler_get,
@@ -817,6 +818,7 @@ static const httpd_uri_t basic_handlers[] = {
       .handler  = login_handler_post,
       .user_ctx = &file_server_data
     },
+  #endif
 #endif
 #if CORS_ENABLE
     { .uri      = "/wifi",

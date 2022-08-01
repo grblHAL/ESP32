@@ -54,19 +54,25 @@
 #include "../webui/login.h"
 #endif
 
+#ifndef WEBUI_AUTO_REPORT_INTERVAL
+#define WEBUI_AUTO_REPORT_INTERVAL 0 // ms
+#endif
+
 extern struct fs_file *fs_create (void);
 extern err_t fs_open(struct fs_file *file, const char *name);
 extern void fs_close(struct fs_file *file);
 extern int fs_read(struct fs_file *file, char *buffer, int count);
 extern void fs_reset (void);
 
+static const char *TAG = "webui";
+static uint32_t auto_report_interval = WEBUI_AUTO_REPORT_INTERVAL;
 static httpd_req_t *http_request = NULL;
 static driver_reset_ptr driver_reset;
 static on_report_options_ptr on_report_options;
 static on_stream_changed_ptr on_stream_changed;
+static on_execute_realtime_ptr on_execute_realtime;
 static stream_write_ptr pre_stream;
 static stream_write_ptr claim_stream;
-static const char *TAG = "webui";
 
 void data_is_json (void)
 {
@@ -665,6 +671,19 @@ static void webui_check_networking (uint_fast16_t state)
         report_message("WebUI requires both http and websocket services enabled!", Message_Warning);
 }
 
+static void webui_auto_report (sys_state_t state)
+{
+    static uint32_t ms = 0;
+
+    if(auto_report_interval > 0 && (hal.get_elapsed_ticks() - ms) >= auto_report_interval) {
+        ms = hal.get_elapsed_ticks();
+        if(hal.stream.state.webui_connected)
+            protocol_enqueue_realtime_command(CMD_STATUS_REPORT);
+    }
+
+    on_execute_realtime(state);
+}
+
 void webui_init (void)
 {
     driver_reset = hal.driver_reset;
@@ -675,6 +694,9 @@ void webui_init (void)
 
     on_stream_changed = grbl.on_stream_changed;
     grbl.on_stream_changed = stream_changed;
+
+    on_execute_realtime = grbl.on_execute_realtime;
+    grbl.on_execute_realtime = webui_auto_report;
 
     //    grbl.on_user_command = webui_parse_command;
 

@@ -34,7 +34,7 @@ OPTION(SDcard "SD Card Streaming" OFF)
 # NOTE: SPI mode Trinamic drivers cannot currently be used with SD Card enabled!
 OPTION(TMC2130 "Trinamic TMC2130 driver support" OFF)
 OPTION(TMC2209 "Trinamic TMC2209 driver support" OFF)
-OPTION(TMC2209_HWADDR "Trinamic TMC2209 drivers uses hardware addressing" ON)
+OPTION(TMC2209_HWADDR "Trinamic TMC2209 drivers uses hardware addressing" OFF)
 OPTION(TMC5160 "Trinamic TMC5160 driver support" OFF)
 OPTION(Trinamic "Trinamic driver support via I2C" OFF)
 OPTION(WebUI "WebUI services" OFF)
@@ -60,7 +60,9 @@ OPTION(NOPROBE "Compile without probe support" OFF)
 set(SDCARD_SOURCE sdcard/sdcard.c sdcard/ymodem.c)
 set(KEYPAD_SOURCE keypad/keypad.c)
 set(WEBUI_SOURCE
+ webui/login.c
  webui/commands.c
+ webui/sdcard.c
  esp_webui/server.c
  esp_webui/flashfs.c
  networking/fs.c
@@ -166,9 +168,6 @@ list (APPEND SRCS ${NETWORKING_FTP_SOURCE})
 endif()
 endif()
 
-if(SDcard)
-list (APPEND SRCS ${SDCARD_SOURCE})
-endif()
 
 if(Keypad)
 list (APPEND SRCS ${KEYPAD_SOURCE})
@@ -184,6 +183,9 @@ endif()
 
 if(WebUI)
 list (APPEND SRCS ${WEBUI_SOURCE})
+list (APPEND SRCS ${SDCARD_SOURCE})
+elseif(SDcard)
+list (APPEND SRCS ${SDCARD_SOURCE})
 endif()
 
 if(Bluetooth)
@@ -291,18 +293,19 @@ if(Bluetooth)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC BLUETOOTH_ENABLE=1)
 endif()
 
-if(SDcard)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC SDCARD_ENABLE=1)
-endif()
 
 if(WebUI)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_ENABLE=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC STDIO_FS)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC LWIP_HTTPD_CUSTOM_FILES=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC SDCARD_ENABLE=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_AUTO_REPORT_INTERVAL=0)
 target_add_binary_data("${COMPONENT_LIB}" "index.html.gz" BINARY)
 if(WebAuth)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_AUTH_ENABLE=1)
 endif()
+elseif(SDcard)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC SDCARD_ENABLE=1)
 endif()
 
 if(Trinamic)
