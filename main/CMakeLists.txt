@@ -45,6 +45,7 @@ OPTION(I2SStepping "Use I2S Stepping" OFF)
 # Networking options
 OPTION(SoftAP "Enable soft AP mode" OFF) # WiFi only
 OPTION(FtpDaemon "Enable ftp daemon" OFF) # Requires SDcard On
+OPTION(WebDAV "Enable WebDAV protocol" OFF) # Requires SDcard On
 
 # For Huanyan spindle support copy the spindle plugin code to the project.
 OPTION(HUANYANG "Compile with Huanyang RS485 Spindle support" OFF)
@@ -57,21 +58,39 @@ OPTION(EEPROM "Compile with I2C EEPROM support" OFF)
 OPTION(FRAM "Compile with I2C FRAM support" OFF)
 OPTION(NOPROBE "Compile without probe support" OFF)
 
-set(SDCARD_SOURCE sdcard/sdcard.c sdcard/ymodem.c)
-set(KEYPAD_SOURCE keypad/keypad.c)
+set(SDCARD_SOURCE
+ sdcard/sdcard.c
+ sdcard/ymodem.c
+ sdcard/fs_fatfs.c
+)
+set(KEYPAD_SOURCE
+ keypad/keypad.c
+)
 set(WEBUI_SOURCE
  webui/login.c
  webui/commands.c
  webui/sdcard.c
- esp_webui/server.c
- esp_webui/flashfs.c
- networking/fs.c
- networking/vfs.c
+ webui/server.c
+ esp_webui/fs_embedded.c
+ esp_webui/fs_spiffs.c
 )
-set(BLUETOOTH_SOURCE bluetooth.c )
-set(HUANYANG_SOURCE spindle/modbus spindle/select.c spindle/vfd/spindle.c spindle/vfd/huanyang.c)
-set(EEPROM_SOURCE eeprom/eeprom_24LC16B.c eeprom/eeprom_24AAxxx.c)
-set(NETWORKING_FTP_SOURCE networking/ftpd.c networking/sfifo.c networking/vfs.c)
+set(BLUETOOTH_SOURCE
+ bluetooth.c
+)
+set(HUANYANG_SOURCE
+ spindle/modbus
+ spindle/select.c
+ spindle/vfd/spindle.c
+ spindle/vfd/huanyang.c
+)
+set(EEPROM_SOURCE
+ eeprom/eeprom_24LC16B.c
+ eeprom/eeprom_24AAxxx.c
+)
+set(NETWORKING_FTP_SOURCE
+ networking/ftpd.c
+ networking/sfifo.c
+)
 set(WIFI_SOURCE
  wifi.c
 )
@@ -81,16 +100,20 @@ set(ETHERNET_SOURCE
 set(NETWORKING_SOURCE
  wifi.c
  dns_server.c
- web/backend.c
+ networking/httpd.c
  networking/http_upload.c
  networking/telnetd.c
  networking/websocketd.c
  networking/base64.c
  networking/sha1.c
+ networking/urlencode.c
  networking/urldecode.c
  networking/utils.c
  networking/multipartparser.c
  networking/networking.c
+ networking/fs_ram.c
+ networking/fs_stream.c
+ networking/webdav.c
 )
 set(TRINAMIC_SPI_SOURCE
  spi.c
@@ -151,6 +174,7 @@ set(SRCS
  grbl/regex.c
  grbl/ioports.c
  grbl/corexy.c
+ grbl/vfs.c
 )
 
 if(Wifi)
@@ -167,7 +191,6 @@ if(SDcard AND FtpDaemon)
 list (APPEND SRCS ${NETWORKING_FTP_SOURCE})
 endif()
 endif()
-
 
 if(Keypad)
 list (APPEND SRCS ${KEYPAD_SOURCE})
@@ -283,21 +306,29 @@ if(WiFi OR Ethernet)
 if(SDcard AND FtpDaemon)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC FTP_ENABLE=1)
 endif()
+if(SDcard AND WebDAV)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBDAV_ENABLE=1)
+endif()
 endif()
 
 if(SoftAP)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC WIFI_SOFTAP)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC WIFI_SOFTAP=1)
 endif()
 
 if(Bluetooth)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC BLUETOOTH_ENABLE=1)
 endif()
 
-
 if(WebUI)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_ENABLE=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC STDIO_FS)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC LWIP_HTTPD_CUSTOM_FILES=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC HTTP_ENABLE=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC LWIP_HTTPD_CUSTOM_FILES=0)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC LWIP_HTTPD_DYNAMIC_HEADERS=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC LWIP_HTTPD_SUPPORT_V09=0)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC LWIP_HTTPD_SUPPORT_11_KEEPALIVE=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC LWIP_HTTPD_SUPPORT_POST=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC LWIP_HTTPD_DYNAMIC_FILE_READ=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC SDCARD_ENABLE=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_AUTO_REPORT_INTERVAL=0)
 target_add_binary_data("${COMPONENT_LIB}" "index.html.gz" BINARY)
@@ -369,6 +400,7 @@ unset(SafetyDoor CACHE)
 unset(WiFi CACHE)
 unset(Ethernet CACHE)
 unset(FtpDaemon CACHE)
+unset(WebDAV CACHE)
 unset(SoftAP CACHE)
 unset(Bluetooth CACHE)
 unset(Keypad CACHE)

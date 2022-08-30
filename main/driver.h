@@ -132,10 +132,6 @@ static const DRAM_ATTR float FZERO = 0.0f;
 #define IOEXPAND_ENABLE 0 // I2C IO expander for some output signals.
 #endif
 
-#ifndef WIFI_SOFTAP
-#define WIFI_SOFTAP      0
-#endif
-
 #define IOEXPAND 0xFF   // Dummy pin number for I2C IO expander
 
 // end configuration

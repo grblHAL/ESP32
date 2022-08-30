@@ -63,10 +63,6 @@
 #include "enet.h"
 #endif
 
-#if WEBUI_ENABLE
-#include <esp_webui/response.h>
-#endif
-
 #if BLUETOOTH_ENABLE
 #include "bluetooth.h"
 #endif
@@ -2188,10 +2184,6 @@ bool driver_init (void)
 #endif
 
 #include "grbl/plugins_init.h"
-
-#if WEBUI_ENABLE
-    webui_init();
-#endif
 
     // no need to move version check before init - compiler will fail any mismatch for existing entries
     return hal.version == 9;
