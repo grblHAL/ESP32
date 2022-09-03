@@ -45,7 +45,6 @@
 
 #include "wifi.h"
 #include "dns_server.h"
-#include "web/backend.h"
 #include "grbl/report.h"
 #include "grbl/nvs_buffer.h"
 #include "grbl/protocol.h"
@@ -70,7 +69,7 @@ static nvs_address_t nvs_address;
 static esp_netif_t *sta_netif = NULL, *ap_netif = NULL;
 static on_report_options_ptr on_report_options;
 static on_stream_changed_ptr on_stream_changed;
-static char netservices[40] = ""; // must be large enough to hold all service names
+static char netservices[NETWORK_SERVICES_LEN] = ""; // must be large enough to hold all service names
 
 ap_list_t *wifi_get_aplist (void)
 {
@@ -203,8 +202,14 @@ static void start_services (void)
         services.ftp = ftpd_init(network.ftp_port == 0 ? NETWORK_FTP_PORT : network.ftp_port);
 #endif
 #if HTTP_ENABLE
-    if(network.services.http && !services.http)
-        services.http = httpdaemon_start(&network);
+    if(network.services.http && !services.http) {
+        services.http = httpd_init(80);
+//        services.http = httpdaemon_start(&network);
+#if WEBDAV_ENABLE
+        if(network.services.webdav && !services.webdav)
+            services.webdav = webdav_init();
+#endif
+    }
 #endif
 #if TELNET_ENABLE || WEBSOCKET_ENABLE || FTP_ENABLE
     sys_timeout(STREAM_POLL_INTERVAL, lwIPHostTimerHandler, NULL);
@@ -218,7 +223,7 @@ static void stop_services (void)
     running.mask = services.mask;
     services.mask = 0;
 
-#if HTTP_ENABLE
+#if xHTTP_ENABLE
     if(running.http)
         httpdaemon_stop();
 #endif
