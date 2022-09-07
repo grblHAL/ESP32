@@ -67,10 +67,14 @@ set(KEYPAD_SOURCE
  keypad/keypad.c
 )
 set(WEBUI_SOURCE
+ webui/args.c
  webui/login.c
- webui/commands.c
+ webui/commands_v2.c
+ webui/commands_v3.c
  webui/sdcard.c
  webui/server.c
+ webui/fs_handlers.c
+ webui/flashfs.c
  esp_webui/fs_embedded.c
  esp_webui/fs_spiffs.c
 )
@@ -151,7 +155,7 @@ set(SRCS
  grbl/coolant_control.c
  grbl/nvs_buffer.c
  grbl/gcode.c
- grbl/limits.c
+ grbl/machine_limits.c
  grbl/motion_control.c
  grbl/my_plugin.c
  grbl/nuts_bolts.c

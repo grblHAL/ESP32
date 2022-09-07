@@ -46,10 +46,10 @@
 
 //#include "grbl_esp32_if/grbl_esp32_if.h"
 
-#include "grbl/limits.h"
 #include "grbl/protocol.h"
 #include "grbl/state_machine.h"
 #include "grbl/motor_pins.h"
+#include "grbl/machine_limits.h"
 
 #if USE_I2S_OUT
 #include "i2s_out.h"
@@ -304,7 +304,7 @@ static output_signal_t outputpin[] =
 #endif
 };
 
-static bool IOInitDone = false;
+static bool IOInitDone = false, rtc_started = false;
 static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 #if PROBE_ENABLE
 static probe_state_t probe = {
@@ -1677,7 +1677,7 @@ static void settings_changed (settings_t *settings)
     }
 }
 
-static void enumeratePins (bool low_level, pin_info_ptr pin_info)
+static void enumeratePins (bool low_level, pin_info_ptr pin_info, void *data)
 {
     static xbar_t pin = {0};
     uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
@@ -1691,7 +1691,7 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info)
         pin.mode.pwm = pin.group == PinGroup_SpindlePWM;
         pin.description = inputpin[i].description;
 
-        pin_info(&pin);
+        pin_info(&pin, data);
     };
 
     pin.mode.mask = 0;
@@ -1703,7 +1703,7 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info)
         pin.group = outputpin[i].group;
         pin.description = outputpin[i].description;
 
-        pin_info(&pin);
+        pin_info(&pin, data);
     };
 
     periph_signal_t *ppin = periph_pins;
@@ -1715,7 +1715,7 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info)
         pin.mode = ppin->pin.mode;
         pin.description = ppin->pin.description;
 
-        pin_info(&pin);
+        pin_info(&pin, data);
 
         ppin = ppin->next;
     } while(ppin);
@@ -1993,6 +1993,33 @@ static bool driver_setup (settings_t *settings)
     return IOInitDone;
 }
 
+static bool set_rtc_time (struct tm *time)
+{
+    const struct timezone tz = {
+        .tz_minuteswest = 0,
+        .tz_dsttime = 0
+    };
+    struct timeval t;
+    t.tv_sec = mktime(time);
+    t.tv_usec = 0;
+
+    return (rtc_started = settimeofday(&t, &tz) == 0);
+}
+#include <time.h>
+
+static bool get_rtc_time (struct tm *dt)
+{
+    bool ok = false;
+
+    if(rtc_started) {
+        time_t now;
+        if((ok = time(&now) != (time_t)-1))
+            localtime_r(&now, dt);
+    }
+
+    return ok;
+}
+
 // Initialize HAL pointers, setup serial comms and enable EEPROM
 // NOTE: Grbl is not yet configured (from EEPROM data), driver_setup() will be called when done
 bool driver_init (void)
@@ -2003,7 +2030,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "220801";
+    hal.driver_version = "220907";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -2065,6 +2092,9 @@ bool driver_init (void)
     hal.enumerate_pins = enumeratePins;
     hal.periph_port.register_pin = registerPeriphPin;
     hal.periph_port.set_pin_description = setPeriphPinDescription;
+
+    hal.rtc.get_datetime = get_rtc_time;
+    hal.rtc.set_datetime = set_rtc_time;
 
     stream_connect(serialInit(BAUD_RATE));
 
@@ -2186,7 +2216,7 @@ bool driver_init (void)
 #include "grbl/plugins_init.h"
 
     // no need to move version check before init - compiler will fail any mismatch for existing entries
-    return hal.version == 9;
+    return hal.version == 10;
 }
 
 /* interrupt handlers */

@@ -19,7 +19,6 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,6 +33,8 @@
 #include "grbl/vfs.h"
 
 #include "esp_spiffs.h"
+
+#define SPIFFS_PARTITION_LABEL "storage"
 
 static vfs_file_t *fs_open (const char *filename, const char *mode)
 {
@@ -166,21 +167,22 @@ static int fs_stat (const char *filename, vfs_stat_t *st)
 
 static bool fs_getfree (vfs_free_t *free)
 {
-/*    FATFS *fs;
-    DWORD fre_clust, tot_sect;
+    esp_err_t err = esp_spiffs_info(SPIFFS_PARTITION_LABEL, &free->size, &free->used);
 
-    if((vfs_errno = f_getfree("", &fre_clust, &fs)) == FR_OK) {
-        tot_sect = (fs->n_fatent - 2) * fs->csize;
-        free->size = tot_sect << 9; // assuming 512 byte sector size
-        free->used = (tot_sect - fre_clust * fs->csize) << 9;
-    }
-*/
-    return vfs_errno == 0;
+    return err == ESP_OK;
+}
+
+static int fs_format (void)
+{
+    esp_err_t err = esp_spiffs_format(SPIFFS_PARTITION_LABEL);
+
+    return err;
 }
 
 void fs_spiffs_mount (void)
 {
     static const vfs_t fs = {
+        .fs_name = "spiffs",
         .fopen = fs_open,
         .fclose = fs_close,
         .fread = fs_read,
@@ -196,8 +198,17 @@ void fs_spiffs_mount (void)
         .fclosedir = fs_closedir,
         .fstat = fs_stat,
         .fgetcwd = fs_getcwd,
-        .fgetfree = fs_getfree
+        .fgetfree = fs_getfree,
+        .format = fs_format
     };
 
-    vfs_mount("/spiffs", &fs);
+    esp_vfs_spiffs_conf_t conf = {
+        .base_path = "/spiffs",
+        .partition_label = SPIFFS_PARTITION_LABEL,
+        .max_files = 4,
+        .format_if_mount_failed = true
+    };
+
+    if(esp_vfs_spiffs_register(&conf) == ESP_OK)
+        vfs_mount("/spiffs", &fs);
 }
