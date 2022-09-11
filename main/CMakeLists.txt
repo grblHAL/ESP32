@@ -71,12 +71,11 @@ set(WEBUI_SOURCE
  webui/login.c
  webui/commands_v2.c
  webui/commands_v3.c
- webui/sdcard.c
  webui/server.c
  webui/fs_handlers.c
+ webui/sdfs.c
  webui/flashfs.c
  esp_webui/fs_embedded.c
- esp_webui/fs_spiffs.c
 )
 set(BLUETOOTH_SOURCE
  bluetooth.c
@@ -179,6 +178,10 @@ set(SRCS
  grbl/ioports.c
  grbl/corexy.c
  grbl/vfs.c
+ littlefs_hal.c
+ littlefs/lfs.c
+ littlefs/lfs_util.c
+ sdcard/fs_littlefs.c
 )
 
 if(Wifi)
@@ -231,6 +234,7 @@ idf_component_register(SRCS "${SRCS}" INCLUDE_DIRS ".")
 
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC GRBL_ESP32)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC OVERRIDE_MY_MACHINE)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC LITTLEFS_ENABLE=1)
 
 if(BOARD_BDRING_V3P5)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC BOARD_BDRING_V3P5)
@@ -256,6 +260,10 @@ elseif(BOARD_MKS_TINYBEE_V1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC BOARD_MKS_TINYBEE_V1)
 elseif(BOARD_MY_MACHINE)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC BOARD_MY_MACHINE)
+endif()
+
+if(WebUI)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_INFLASH=1)
 endif()
 
 if(X_AXIS_GANGED)
@@ -377,7 +385,7 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC NOPROBE)
 endif()
 
 target_add_binary_data("${COMPONENT_LIB}" "favicon.ico" BINARY)
-target_add_binary_data("${COMPONENT_LIB}" "index.html" BINARY)
+#target_add_binary_data("${COMPONENT_LIB}" "index.html" BINARY)
 target_add_binary_data("${COMPONENT_LIB}" "ap_login.html" BINARY)
 
 unset(BOARD_BDRING_V3P5 CACHE)

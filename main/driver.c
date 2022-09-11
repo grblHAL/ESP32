@@ -29,6 +29,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
+#include <sys/time.h>
 
 #include "./driver.h"
 #include "esp32-hal-uart.h"
@@ -70,6 +72,11 @@
 #if SDCARD_ENABLE
 #include "sdcard/sdcard.h"
 #include "esp_vfs_fat.h"
+#endif
+
+#if LITTLEFS_ENABLE
+#include "littlefs_hal.h"
+#include "sdcard/fs_littlefs.h"
 #endif
 
 #if KEYPAD_ENABLE
@@ -2005,7 +2012,6 @@ static bool set_rtc_time (struct tm *time)
 
     return (rtc_started = settimeofday(&t, &tz) == 0);
 }
-#include <time.h>
 
 static bool get_rtc_time (struct tm *dt)
 {
@@ -2030,7 +2036,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "220907";
+    hal.driver_version = "220910";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -2211,6 +2217,10 @@ bool driver_init (void)
 
 #if BLUETOOTH_ENABLE
     bluetooth_init();
+#endif
+
+#if LITTLEFS_ENABLE
+    fs_littlefs_mount("/littlefs", esp32_littlefs_hal());
 #endif
 
 #include "grbl/plugins_init.h"
