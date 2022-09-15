@@ -163,11 +163,6 @@ network_info_t *networking_get_info (void)
     return &info;
 }
 
-bool wifi_dns_running (void)
-{
-    return services.dns == On;
-}
-
 static void lwIPHostTimerHandler (void *arg)
 {
     if(services.mask)
@@ -241,7 +236,7 @@ static void stop_services (void)
     xEventGroupClearBits(wifi_event_group, CONNECTED_BIT|SCANNING_BIT|APSTA_BIT);
 }
 
-static void wifi_ap_scan (void)
+void wifi_ap_scan (void)
 {
     // https://esp32.com/viewtopic.php?t=5536
     // https://esp32.com/viewtopic.php?t=7305
@@ -314,8 +309,9 @@ static void ip_event_handler (void *arg, esp_event_base_t event_base, int32_t ev
             if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT) {
                 strcpy(wifi.sta.ssid, (char *)wifi_sta_config.sta.ssid);
                 strcpy(wifi.sta.password, (char *)wifi_sta_config.sta.password);
-                // commit to EEPROM
-            }
+                // commit to EEPROM?
+            } else
+                wifi_ap_scan();
             protocol_enqueue_rt_command(msg_sta_active);
             break;
 
@@ -326,7 +322,7 @@ static void ip_event_handler (void *arg, esp_event_base_t event_base, int32_t ev
 
 static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
-    switch(event_id) {
+    if(event_base == WIFI_EVENT) switch(event_id) {
 
         case WIFI_EVENT_AP_START:
             protocol_enqueue_rt_command(msg_ap_ready);
@@ -334,6 +330,7 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
             if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT) {
                 dns_server_start(sta_netif);
                 services.dns = On;
+//                protocol_enqueue_rt_command(wifi_ap_scan);
             }
             break;
 /*??
@@ -362,6 +359,7 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
         case WIFI_EVENT_AP_STADISCONNECTED:
             telnetd_close_connections();
             websocketd_close_connections();
+            wifi_ap_scan();
             protocol_enqueue_rt_command(msg_ap_disconnected);
             break;
                 
@@ -421,7 +419,6 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
                     free(ap_list.ap_records);
 
                 ap_list.ap_num = 0;
-
                 esp_wifi_scan_get_ap_num(&ap_list.ap_num);
 
                 if((ap_list.ap_records = (wifi_ap_record_t *)malloc(sizeof(wifi_ap_record_t) * ap_list.ap_num)) != NULL)
@@ -494,6 +491,7 @@ bool wifi_start (void)
 
         wifi_event_group = xEventGroupCreate();
         aplist_mutex = xSemaphoreCreateMutex();
+        xEventGroupClearBits(wifi_event_group, SCANNING_BIT);
 
         if(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL, NULL) != ESP_OK)
             return false;
@@ -641,16 +639,6 @@ bool wifi_stop (void)
     esp_wifi_stop();
 
     return true;
-}
-
-wifi_settings_t *get_wifi_settings (void)
-{
-    return &wifi;
-}
-
-network_settings_t *get_network_settings (void)
-{
-    return &network;   
 }
 
 static status_code_t wifi_set_int (setting_id_t setting, uint_fast16_t value);

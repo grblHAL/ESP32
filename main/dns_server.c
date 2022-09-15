@@ -81,10 +81,13 @@ static void dns_server (void *pvParameters)
 
     /* Set redirection DNS hijack to the access point IP */
 
+    char *ap_ip;
     ip4_addr_t ip_resolved;
-//    inet_pton(AF_INET, DEFAULT_AP_IP, &ip_resolved);
 
-    memcpy(&ip_resolved, get_wifi_settings()->ap.network.ip, sizeof(ip4_addr_t));
+    if(!(ap_ip = setting_get_value(setting_get_details(Setting_IpAddress2, NULL), 0)) || inet_pton(AF_INET, ap_ip, &ip_resolved) != 1)
+        return;
+
+//    memcpy(&ip_resolved, get_wifi_settings()->ap.network.ip, sizeof(ip4_addr_t));
 
     /* Create UDP socket */
     socket_fd = socket(AF_INET, SOCK_DGRAM, 0);

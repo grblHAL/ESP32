@@ -2036,7 +2036,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "220910";
+    hal.driver_version = "220914";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -2045,6 +2045,7 @@ bool driver_init (void)
     hal.f_mcu = cpu.freq_mhz;
     hal.f_step_timer = rtc_clk_apb_freq_get() / STEPPER_DRIVER_PRESCALER; // 20 MHz
     hal.rx_buffer_size = RX_BUFFER_SIZE;
+    hal.get_free_mem = esp_get_free_heap_size;
     hal.delay_ms = driver_delay_ms;
     hal.settings_changed = settings_changed;
 
