@@ -2036,7 +2036,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "220914";
+    hal.driver_version = "220919";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -2086,7 +2086,7 @@ bool driver_init (void)
 
     hal.control.get_state = systemGetState;
 
-//    hal.reboot = esp_restart; crashes the MCU...
+    hal.reboot = esp_restart;
     hal.irq_enable = enable_irq;
     hal.irq_disable = disable_irq;
 #if I2C_STROBE_ENABLE
