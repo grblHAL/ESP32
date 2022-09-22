@@ -78,16 +78,37 @@ static uart_t _uart_bus_array[3] = {
 };
 #endif
 
-static const DRAM_ATTR uint16_t RX_BUFFER_SIZE_MASK = RX_BUFFER_SIZE - 1;
+//static const DRAM_ATTR uint16_t RX_BUFFER_SIZE_MASK = RX_BUFFER_SIZE - 1;
 
 static uart_t *uart1 = NULL;
 static stream_rx_buffer_t rxbuffer = {0};
 static enqueue_realtime_command_ptr enqueue_realtime_command = protocol_enqueue_realtime_command;
+static uart_config_t uart1Config = {
+    .baud_rate=BAUD_RATE,
+    .data_bits=UART_DATA_8_BITS,
+    .parity=UART_PARITY_DISABLE,
+    .stop_bits=UART_STOP_BITS_2,
+    .flow_ctrl=UART_HW_FLOWCTRL_RTS,
+    .rx_flow_ctrl_thresh=0,
+};
+static QueueHandle_t _uart1_queue;
 
 #if SERIAL2_ENABLE
 static uart_t *uart2 = NULL;
 static stream_rx_buffer_t rxbuffer2 = {0};
 static enqueue_realtime_command_ptr enqueue_realtime_command2 = protocol_enqueue_realtime_command;
+static uart_config_t uart2Config = {
+    .baud_rate=BAUD_RATE,
+    .data_bits=UART_DATA_8_BITS,
+    .parity=UART_PARITY_DISABLE,
+    .stop_bits=UART_STOP_BITS_2,
+    .flow_ctrl=UART_HW_FLOWCTRL_DISABLE,
+    .rx_flow_ctrl_thresh=0,
+};
+static QueueHandle_t _uart2_queue;
+#if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
+xSemaphoreHandle _uart2_modbus_lock = xSemaphoreCreateMutex();
+#endif
 #endif
 
 static io_stream_properties_t serial[] = {
@@ -128,59 +149,49 @@ void serialRegisterStreams (void)
     stream_register_streams(&streams);
 }
 
-IRAM_ATTR static void _uart1_isr (void *arg)
-{
-    uint8_t c;
-
-    uart1->dev->int_clr.rxfifo_full = 1;
-    uart1->dev->int_clr.frm_err = 1;
-    uart1->dev->int_clr.rxfifo_tout = 1;
-
-    while(uart1->dev->status.rxfifo_cnt || (uart1->dev->mem_rx_status.wr_addr != uart1->dev->mem_rx_status.rd_addr)) {
-
-        c = uart1->dev->fifo.rw_byte;
-
-        if(!enqueue_realtime_command(c)) {
-
-            uint32_t bptr = (rxbuffer.head + 1) & RX_BUFFER_SIZE_MASK;  // Get next head pointer
-
-            if(bptr == rxbuffer.tail)                   // If buffer full
-                rxbuffer.overflow = 1;                  // flag overflow,
-            else {
-                rxbuffer.data[rxbuffer.head] = (char)c; // else add data to buffer
-                rxbuffer.head = bptr;                   // and update pointer
+IRAM_ATTR static void _uart1_handle_isr(void *arg){
+    uart_event_t event;
+    char data[RX_BUFFER_SIZE]={0};
+    int i=0;
+    for(;;){
+        if(xQueueReceive(_uart1_queue, (void *)&event, (portTickType)portMAX_DELAY)){
+            uart_read_bytes(uart1->num, data, event.size, portMAX_DELAY);
+            for(i=0;i<event.size;i++){
+                char c = data[i];
+                if(!enqueue_realtime_command(c)) {
+                    uint32_t bptr = BUFNEXT(rxbuffer.head, rxbuffer);
+                    if(bptr == rxbuffer.tail)                   // If buffer full
+                        rxbuffer.overflow = 1;                  // flag overflow,
+                    else {
+                        rxbuffer.data[rxbuffer.head] = (char)c; // else add data to buffer
+                        rxbuffer.head = bptr;                   // and update pointer
+                    }
+                }
             }
         }
     }
 }
 
-static void uartEnableInterrupt (uart_t *uart, uart_isr_ptr isr, bool enable_rx)
+static void uartEnableInterrupt (uart_t *uart, bool enable_rx)
 {
     UART_MUTEX_LOCK(uart);
-
-    esp_intr_alloc(UART_INTR_SOURCE(uart->num), (int)ESP_INTR_FLAG_IRAM, isr, NULL, &uart->intr_handle);
-
-    uart->dev->conf1.rxfifo_full_thrhd = 112;
-    uart->dev->conf1.rx_tout_thrhd = 50;
-    uart->dev->conf1.rx_tout_en = 1;
-    uart->dev->int_ena.rxfifo_full = enable_rx;
-    uart->dev->int_ena.frm_err = enable_rx;
-    uart->dev->int_ena.rxfifo_tout = enable_rx;
-    uart->dev->int_clr.val = 0xffffffff;
-
+    uart_intr_config_t intConfig = {
+        .rx_timeout_thresh = 50,
+        .rxfifo_full_thresh = 112,
+        .intr_enable_mask = UART_INTR_RXFIFO_FULL|UART_INTR_FRAM_ERR|UART_INTR_RXFIFO_TOUT,
+    };
+    intConfig.intr_enable_mask *= enable_rx;
+    uart_intr_config(uart->num, &intConfig);
     UART_MUTEX_UNLOCK(uart);
 }
 /*
 static void uartDisableInterrupt (uart_t *uart)
 {
     UART_MUTEX_LOCK();
-    rx_uart->dev->conf1.val = 0;
-    rx_uart->dev->int_ena.val = 0;
-    rx_uart->dev->int_clr.val = 0xffffffff;
-
-    esp_intr_free(rx_uart->intr_handle);
-    rx_uart->intr_handle = NULL;
-
+    uart_disable_rx_intr(uart->num);
+    uart_disable_intr_mask(uart->num, UART_INTR_RXFIFO_FULL|
+                                      UART_INTR_FRAM_ERR   |
+                                      UART_INTR_RXFIFO_TOUT);
     UART_MUTEX_UNLOCK();
 }
 */
@@ -190,9 +201,7 @@ static void uartSetBaudRate (uart_t *uart, uint32_t baud_rate)
         return;
 
     UART_MUTEX_LOCK(uart);
-    uint32_t clk_div = ((UART_CLK_FREQ << 4) / baud_rate);
-    uart->dev->clk_div.div_int = clk_div >> 4 ;
-    uart->dev->clk_div.div_frag = clk_div & 0xf;
+    uart_set_baudrate(uart->num, baud_rate);
     UART_MUTEX_UNLOCK(uart);
 }
 
@@ -205,61 +214,43 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
             return;
     }
 #endif
-
-    switch(uart->num) {
-
+    switch(uart->num){
         case 0:
-            DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_UART_CLK_EN);
-            DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_UART_RST);
+            uart_param_config(uart->num, &uart1Config);
+            uart_set_pin(uart->num, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
             break;
-
         case 1:
-            DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_UART1_CLK_EN);
-            DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_UART1_RST);
-            break;
-
-        case 2:
-            DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_UART2_CLK_EN);
-            DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_UART2_RST);
-            break;
-    }
-
-    uartSetBaudRate(uart, baud_rate);
-
-    UART_MUTEX_LOCK(uart);
-    uart->dev->conf0.val = SERIAL_8N2;
-
-    if(uart->dev->conf0.stop_bit_num == TWO_STOP_BITS_CONF) {
-        uart->dev->conf0.stop_bit_num = ONE_STOP_BITS_CONF;
-        uart->dev->rs485_conf.dl1_en = 1;
-    }
-
-    // Note: UART0 pin mappings are set at boot, no need to set here unless override is required
-
 #if SERIAL2_ENABLE
-    if(uart->num == 1)
+            uart_param_config(uart->num, &uart2Config);
   #ifdef UART2_TX_PIN
-        uart_set_pin(uart->num, UART2_TX_PIN, UART2_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+            uart_set_pin(uart->num, UART2_TX_PIN, UART2_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
   #else
-        uart_set_pin(uart->num, UART_PIN_NO_CHANGE, UART2_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+            uart_set_pin(uart->num, UART_PIN_NO_CHANGE, UART2_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
   #endif
 #endif
+            break;
+        default:
+            break;
+    }
+    return;
 
     UART_MUTEX_UNLOCK(uart);
 }
 
+inline IRAM_ATTR static void txFlush (uart_t *uart)
+{
+    uart_tx_flush(uart->num);
+}
+
+inline IRAM_ATTR static void rxFlush (uart_t *uart)
+{
+    uart_flush(uart->num);
+}
+
 IRAM_ATTR static void flush (uart_t *uart)
 {
-    while(uart->dev->status.txfifo_cnt);
-
-    //Due to hardware issue, we can not use fifo_rst to reset uart fifo.
-    //See description about UART_TXFIFO_RST and UART_RXFIFO_RST in <<esp32_technical_reference_manual>> v2.6 or later.
-
-    // we read the data out and make `fifo_len == 0 && rd_addr == wr_addr`.
-    while(uart->dev->status.rxfifo_cnt || (uart->dev->mem_rx_status.wr_addr != uart->dev->mem_rx_status.rd_addr))
-        READ_PERI_REG(UART_FIFO_REG(uart->num));
-
-    uart_ll_rxfifo_rst(uart->dev);
+    txFlush(uart);
+    rxFlush(uart);
 }
 
 static uint16_t serialAvailable (void)
@@ -274,6 +265,12 @@ static uint16_t serialRXFree (void)
     uint16_t head = rxbuffer.head, tail = rxbuffer.tail;
 
     return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
+}
+
+static bool serialSetBaudRate (uint32_t baudrate)
+{
+    uartSetBaudRate(uart1, baudrate);
+    return true; //FIXME: return the result of the baudrate set
 }
 /*
 static uint32_t serialAvailableForWrite (void)
@@ -297,22 +294,15 @@ static int16_t serialRead (void)
 
 static bool serialPutC (const char c)
 {
-    while(uart1->dev->status.txfifo_cnt == 0x7F) {
-        if(!hal.stream_blocking_callback())
-            return false;
-    }
-
-    uart1->dev->fifo.rw_byte = c;
-
+    uart_write_bytes(uart1->num, &c, 1);//already waits for space on txRingBuffer
     return true;
 }
 
 static void serialWriteS (const char *data)
 {
-    char c, *ptr = (char *)data;
-
-    while((c = *ptr++) != '\0')
-        serialPutC(c);
+    int n = strlen(data);
+    for(int i=0;i<n;i++)
+        serialPutC(data[i]);
 }
 
 IRAM_ATTR static void serialFlush (void)
@@ -321,6 +311,15 @@ IRAM_ATTR static void serialFlush (void)
 
     flush(uart1);
     rxbuffer.tail = rxbuffer.head;
+
+    UART_MUTEX_UNLOCK(uart1);
+}
+
+IRAM_ATTR static void serialTxFlush (void)
+{
+    UART_MUTEX_LOCK(uart1);
+
+    txFlush(uart1);
 
     UART_MUTEX_UNLOCK(uart1);
 }
@@ -350,20 +349,13 @@ IRAM_ATTR static bool serialDisable (bool disable)
 
     if(disable) {
         // Disable interrupts
-        uart1->dev->int_ena.rxfifo_full = 0;
-        uart1->dev->int_ena.frm_err = 0;
-        uart1->dev->int_ena.rxfifo_tout = 0;
+        uart_disable_intr_mask(uart1->num, UART_INTR_RXFIFO_FULL|UART_INTR_FRAM_ERR|UART_INTR_RXFIFO_TOUT);
     } else {
         // Clear and enable interrupts
-        uart1->dev->int_ena.rxfifo_full = 0;
-        uart1->dev->int_clr.rxfifo_full = 1;
-        uart1->dev->int_clr.frm_err = 1;
-        uart1->dev->int_clr.rxfifo_tout = 1;
+        uart_clear_intr_status(uart1->num, UART_INTR_RXFIFO_FULL|UART_INTR_FRAM_ERR|UART_INTR_RXFIFO_TOUT);
         flush(uart1);
         rxbuffer.tail = rxbuffer.head;
-        uart1->dev->int_ena.rxfifo_full = 1;
-        uart1->dev->int_ena.frm_err = 1;
-        uart1->dev->int_ena.rxfifo_tout = 1;
+        uart_enable_intr_mask(uart1->num, UART_INTR_RXFIFO_FULL|UART_INTR_FRAM_ERR|UART_INTR_RXFIFO_TOUT);
     }
 
     UART_MUTEX_UNLOCK(uart1);
@@ -393,17 +385,17 @@ const io_stream_t *serialInit (uint32_t baud_rate)
         .state.connected = true,
         .read = serialRead,
         .write = serialWriteS,
-//        .write_n =  serialWrite,
+        //.write_n =  serialWrite,
         .write_char = serialPutC,
         .enqueue_rt_command = serialEnqueueRtCommand,
         .get_rx_buffer_free = serialRXFree,
         .get_rx_buffer_count = serialAvailable,
-//        .get_tx_buffer_count = serialTxCount,
-//        .reset_write_buffer = serialTxFlush,
+        //.get_tx_buffer_count = serialTxCount,
+        .reset_write_buffer = serialTxFlush,
         .reset_read_buffer = serialFlush,
         .cancel_read_buffer = serialCancel,
         .suspend_read = serialSuspendInput,
-    //    .set_baud_rate = serialSetBaudRate
+        .set_baud_rate = serialSetBaudRate,
         .disable_rx = serialDisable,
         .set_enqueue_rt_handler = serialSetRtHandler
     };
@@ -416,10 +408,12 @@ const io_stream_t *serialInit (uint32_t baud_rate)
     uart1 = &_uart_bus_array[0]; // use UART 0
 
     uartConfig(uart1, baud_rate);
+    uart_driver_install(uart1->num, RX_BUFFER_SIZE, TX_BUFFER_SIZE, RX_BUFFER_SIZE, &_uart1_queue, 0);
 
     serialFlush();
-    uartEnableInterrupt(uart1, _uart1_isr, true);
-    
+    xTaskCreate(_uart1_handle_isr, "uart1HandleIsr", 2*RX_BUFFER_SIZE, NULL, 12, NULL);
+    uartEnableInterrupt(uart1, true);
+
     static const periph_pin_t tx = {
         .function = Output_TX,
         .group = PinGroup_UART,
@@ -444,44 +438,32 @@ const io_stream_t *serialInit (uint32_t baud_rate)
 
 #if SERIAL2_ENABLE
 
-static void IRAM_ATTR _uart2_isr (void *arg)
-{
-    uint8_t c;
-
-    uart2->dev->int_clr.rxfifo_full = 1;
-    uart2->dev->int_clr.frm_err = 1;
-    uart2->dev->int_clr.rxfifo_tout = 1;
-
+IRAM_ATTR static void _uart2_handle_isr(void *arg){
+    uart_event_t event;
+    char data[RX_BUFFER_SIZE]={0};
+    int i=0;
+    for(;;){
+        if(xQueueReceive(_uart2_queue, (void *)&event, (portTickType)portMAX_DELAY)){
 #if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
-    if(uart2->dev->int_st.tx_done) {
-    //    uart2->dev->int_clr.tx_done = 1;
-        uart2->dev->int_ena.tx_done = 0;
-        gpio_set_level(MODBUS_DIRECTION_PIN, false);
-    }
+            if(xSemaphoreGive(_uart2_modbus_lock,0)==pdTRUE && uart_wait_tx_done(uart2->num, 0)==ESP_OK){
+                gpio_set_level(MODBUS_DIRECTION_PIN, false);
+            }
 #endif
-
-    while(uart2->dev->status.rxfifo_cnt || (uart2->dev->mem_rx_status.wr_addr != uart2->dev->mem_rx_status.rd_addr)) {
-
-        c = uart2->dev->fifo.rw_byte;
-
-        if(!enqueue_realtime_command2(c)) {
-
-            uint32_t bptr = (rxbuffer2.head + 1) & RX_BUFFER_SIZE_MASK;  // Get next head pointer
-
-            if(bptr == rxbuffer2.tail)                    // If buffer full
-                rxbuffer2.overflow = 1;                   // flag overflow,
-            else {
-                rxbuffer2.data[rxbuffer2.head] = (char)c; // else add data to buffer
-                rxbuffer2.head = bptr;                    // and update pointer
+            uart_read_bytes(uart2->num, data, event.size, portMAX_DELAY);
+            for(i=0;i<event.size;i++){
+                char c = data[i];
+                if(!enqueue_realtime_command2(c)) {
+                    uint32_t bptr = BUFNEXT(rxbuffer2.head, rxbuffer2);
+                    if(bptr == rxbuffer2.tail)                   // If buffer full
+                        rxbuffer2.overflow = 1;                  // flag overflow,
+                    else {
+                        rxbuffer2.data[rxbuffer2.head] = (char)c; // else add data to buffer
+                        rxbuffer2.head = bptr;                   // and update pointer
+                    }
+                }
             }
         }
     }
-
-/*
-    if (xHigherPriorityTaskWoken) {
-        portYIELD_FROM_ISR();
-    }
-    */
 }
 
 uint16_t static serial2Available (void)
@@ -506,11 +488,7 @@ uint16_t static serial2RXFree (void)
 bool static serial2PutC (const char c)
 {
     UART_MUTEX_LOCK(uart2);
-
-    while(uart2->dev->status.txfifo_cnt == 0x7F);
-
-    uart2->dev->fifo.rw_byte = c;
-
+    uart_write_bytes(uart2->num, &c, 1);//already waits for space on txRingBuffer
     UART_MUTEX_UNLOCK(uart2);
 
     return true;
@@ -538,9 +516,9 @@ void static serial2Write (const char *s, uint16_t length)
     while(length--)
         serial2PutC(*ptr++);
 
+    //TODO:active mutex that will set MODBUS_DIRECTION_PIN to low on the isrHandler
 #if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
-    uart2->dev->int_clr.tx_done = 1;
-    uart2->dev->int_ena.tx_done = 1;
+    xSemaphoreTake(_uart2_modbus_lock,0);
 #endif
 }
 
@@ -602,22 +580,14 @@ IRAM_ATTR static bool serial2Disable (bool disable)
 
     if(disable) {
         // Disable interrupts
-        uart2->dev->int_ena.rxfifo_full = 0;
-        uart2->dev->int_ena.frm_err = 0;
-        uart2->dev->int_ena.rxfifo_tout = 0;
+        uart_disable_intr_mask(uart2->num, UART_INTR_RXFIFO_FULL|UART_INTR_FRAM_ERR|UART_INTR_RXFIFO_TOUT);
     } else {
         // Clear and enable interrupts
-        uart2->dev->int_ena.rxfifo_full = 0;
-        uart2->dev->int_clr.rxfifo_full = 1;
-        uart2->dev->int_clr.frm_err = 1;
-        uart2->dev->int_clr.rxfifo_tout = 1;
+        uart_clear_intr_status(uart2->num, UART_INTR_RXFIFO_FULL|UART_INTR_FRAM_ERR|UART_INTR_RXFIFO_TOUT);
         flush(uart2);
         rxbuffer2.tail = rxbuffer2.head;
-        uart2->dev->int_ena.rxfifo_full = 1;
-        uart2->dev->int_ena.frm_err = 1;
-        uart2->dev->int_ena.rxfifo_tout = 1;
+        uart_enable_intr_mask(uart2->num, UART_INTR_RXFIFO_FULL|UART_INTR_FRAM_ERR|UART_INTR_RXFIFO_TOUT);
     }
-
     UART_MUTEX_UNLOCK(uart2);
 
     return true;
@@ -682,10 +652,12 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
     uart2 = &_uart_bus_array[1]; // use UART 1
 
     uartConfig(uart2, baud_rate);
+    uart_driver_install(uart2->num, RX_BUFFER_SIZE, TX_BUFFER_SIZE, RX_BUFFER_SIZE, &_uart2_queue, 0);
 
     serial2Flush();
+    xTaskCreate(_uart2_handle_isr, "uart2HandleIsr", 2*RX_BUFFER_SIZE, NULL, 12, NULL);
 #ifdef UART2_TX_PIN
-    uartEnableInterrupt(uart2, _uart2_isr, true);
+    uartEnableInterrupt(uart2, true);
 
     static const periph_pin_t tx = {
         .function = Output_TX,
@@ -697,7 +669,7 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
 
     hal.periph_port.register_pin(&tx);
 #else
-    uartEnableInterrupt(uart2, _uart2_isr, false);
+    uartEnableInterrupt(uart2, false);
 #endif
 
     static const periph_pin_t rx = {
