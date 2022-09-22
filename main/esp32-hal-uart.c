@@ -88,7 +88,7 @@ static uart_config_t uart1Config = {
     .data_bits=UART_DATA_8_BITS,
     .parity=UART_PARITY_DISABLE,
     .stop_bits=UART_STOP_BITS_2,
-    .flow_ctrl=UART_HW_FLOWCTRL_RTS,
+    .flow_ctrl=UART_HW_FLOWCTRL_DISABLE,
     .rx_flow_ctrl_thresh=0,
 };
 static QueueHandle_t _uart1_queue;
