@@ -411,7 +411,7 @@ const io_stream_t *serialInit (uint32_t baud_rate)
     uart_driver_install(uart1->num, RX_BUFFER_SIZE, TX_BUFFER_SIZE, RX_BUFFER_SIZE, &_uart1_queue, 0);
 
     serialFlush();
-    xTaskCreate(_uart1_handle_isr, "uart1HandleIsr", 2*RX_BUFFER_SIZE, NULL, 12, NULL);
+    xTaskCreate(_uart1_handle_isr, "uart1HandleIsr", 2*RX_BUFFER_SIZE, NULL, 10, NULL);
     uartEnableInterrupt(uart1, true);
 
     static const periph_pin_t tx = {
@@ -655,7 +655,7 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
     uart_driver_install(uart2->num, RX_BUFFER_SIZE, TX_BUFFER_SIZE, RX_BUFFER_SIZE, &_uart2_queue, 0);
 
     serial2Flush();
-    xTaskCreate(_uart2_handle_isr, "uart2HandleIsr", 2*RX_BUFFER_SIZE, NULL, 12, NULL);
+    xTaskCreate(_uart2_handle_isr, "uart2HandleIsr", 2*RX_BUFFER_SIZE, NULL, 10, NULL);
 #ifdef UART2_TX_PIN
     uartEnableInterrupt(uart2, true);
 
