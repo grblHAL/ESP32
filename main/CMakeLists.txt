@@ -23,40 +23,51 @@ OPTION(Y_AXIS_SQUARED "Compile with auto-squared Y axis" OFF)
 OPTION(Z_AXIS_GANGED "Compile with ganged Z axis" OFF)
 OPTION(Z_AXIS_SQUARED "Compile with auto-squared Z axis" OFF)
 
-# The following plugins/options are supported:
-
+# Driver options
+OPTION(NOPROBE "Compile without probe support" OFF)
 OPTION(SafetyDoor "Safety door enable" OFF)
+OPTION(MPGMode "MPG mode" OFF)
+OPTION(I2SStepping "Use I2S Stepping" OFF)
+
+# The following plugin options are supported:
+
+# Networking and WebUI plugin options
 OPTION(WiFi "Wifi + protocols" OFF)
 # OPTION(Ethernet "Ethernet + protocols" OFF) # to be completed
 OPTION(Bluetooth "Bluetooth" OFF)
-OPTION(Keypad "I2C Keypad" OFF)
+OPTION(SoftAP "Enable soft AP mode" OFF) # WiFi only
+OPTION(FtpDaemon "Enable ftp daemon" OFF) # Requires SDcard On
+OPTION(WebDAV "Enable WebDAV protocol" OFF) # Requires SDcard On
+OPTION(WebUI "WebUI services" OFF)
+OPTION(WebAuth "WebUI authentication" OFF)
+
+# SD Card plugin options
 OPTION(SDcard "SD Card Streaming" OFF)
+
+# Motor plugin options
 # NOTE: SPI mode Trinamic drivers cannot currently be used with SD Card enabled!
 OPTION(TMC2130 "Trinamic TMC2130 driver support" OFF)
 OPTION(TMC2209 "Trinamic TMC2209 driver support" OFF)
 OPTION(TMC2209_HWADDR "Trinamic TMC2209 drivers uses hardware addressing" OFF)
 OPTION(TMC5160 "Trinamic TMC5160 driver support" OFF)
 OPTION(Trinamic "Trinamic driver support via I2C" OFF)
-OPTION(WebUI "WebUI services" OFF)
-OPTION(WebAuth "WebUI authentication" OFF)
-OPTION(MPGMode "MPG mode" OFF)
-OPTION(I2SStepping "Use I2S Stepping" OFF)
 
-# Networking options
-OPTION(SoftAP "Enable soft AP mode" OFF) # WiFi only
-OPTION(FtpDaemon "Enable ftp daemon" OFF) # Requires SDcard On
-OPTION(WebDAV "Enable WebDAV protocol" OFF) # Requires SDcard On
-
-# For Huanyan spindle support copy the spindle plugin code to the project.
+# Spindle plugin options
 OPTION(HUANYANG "Compile with Huanyang RS485 Spindle support" OFF)
-
-# ModBus options
 OPTION(RS485_DIR_OUT "Compile with RS485 direction pin enabled" OFF)
 
-# For EEPROM/FRAM support copy the EEPROM plugin code to the project.
+# EEPROM/FRAM plugin options
 OPTION(EEPROM "Compile with I2C EEPROM support" OFF)
 OPTION(FRAM "Compile with I2C FRAM support" OFF)
-OPTION(NOPROBE "Compile without probe support" OFF)
+
+# Laser plugin options
+OPTION(LBCLUSTER "Compile with LaserBurn cluster support" OFF)
+OPTION(LASERCOOLANT "Compile with Laser coolant plugin support" OFF)
+
+# Keypad plugin options
+OPTION(Keypad "I2C Keypad" OFF)
+
+# --- Do not change anything below unless you understand what you are doing ---
 
 set(SDCARD_SOURCE
  sdcard/sdcard.c
@@ -138,6 +149,11 @@ set(TRINAMIC_UART_SOURCE
  trinamic/tmc_interface.c
  trinamic/tmc2209.c
  trinamic/tmc2209hal.c
+)
+
+set(LASER_SOURCE
+ laser/coolant.c
+ laser/lb_clusters.c
 )
 
 set(SRCS
@@ -228,6 +244,10 @@ endif()
 
 if(EEPROM OR FRAM OR BOARD_CNC_BOOSTERPACK)
 list (APPEND SRCS ${EEPROM_SOURCE})
+endif()
+
+if(LBCLUSTER OR LASERCOOLANT)
+list (APPEND SRCS ${LASER_SOURCE})
 endif()
 
 idf_component_register(SRCS "${SRCS}" INCLUDE_DIRS ".")
@@ -384,6 +404,14 @@ if(NOPROBE)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC NOPROBE)
 endif()
 
+if(LBCLUSTER)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC LB_CLUSTERS_ENABLE=1)
+endif()
+
+if(LASERCOOLANT)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC LASER_COOLANT_ENABLE=1)
+endif()
+
 target_add_binary_data("${COMPONENT_LIB}" "embedded/favicon.ico" BINARY)
 target_add_binary_data("${COMPONENT_LIB}" "embedded/ap_login.html" BINARY)
 
@@ -429,6 +457,8 @@ unset(RS485_DIR_OUT CACHE)
 unset(EEPROM CACHE)
 unset(FRAM CACHE)
 unset(NOPROBE CACHE)
+unset(LBCLUSTER CACHE)
+unset(LASERCOOLANT CACHE)
 
 #target_compile_options("${COMPONENT_LIB}" PRIVATE -Werror -Wall -Wextra -Wmissing-field-initializers)
 target_compile_options("${COMPONENT_LIB}" PRIVATE -Wimplicit-fallthrough=1 -Wno-missing-field-initializers -Wno-maybe-uninitialized -Wno-stringop-truncation)
