@@ -25,3 +25,6 @@
 [submodule "main/webui"]
 	path = main/webui
 	url = https://github.com/grblHAL/Plugin_WebUI
+[submodule "main/laser"]
+	path = main/laser
+	url = https://github.com/grblHAL/Plugins_laser
