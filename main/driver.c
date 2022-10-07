@@ -2037,9 +2037,14 @@ bool driver_init (void)
 
     hal.info = "ESP32";
     hal.driver_version = "220922";
+    hal.driver_url = "https://github.com/grblHAL/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
+#ifdef BOARD_URL
+    hal.board_url = BOARD_URL;
+#endif
+
     hal.driver_options = IDF_VER;
     hal.driver_setup = driver_setup;
     hal.f_mcu = cpu.freq_mhz;

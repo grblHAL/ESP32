@@ -25,6 +25,7 @@
 #endif
 
 #define BOARD_NAME "CNC BoosterPack"
+#define BOARD_URL "https://github.com/terjeio/CNC_Boosterpack"
 
 #if TRINAMIC_ENABLE
 #ifdef TRINAMIC_MIXED_DRIVERS

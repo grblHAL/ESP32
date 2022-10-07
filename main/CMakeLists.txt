@@ -38,6 +38,8 @@ OPTION(Bluetooth "Bluetooth" OFF)
 OPTION(SoftAP "Enable soft AP mode" OFF) # WiFi only
 OPTION(FtpDaemon "Enable ftp daemon" OFF) # Requires SDcard On
 OPTION(WebDAV "Enable WebDAV protocol" OFF) # Requires SDcard On
+OPTION(mDNS "Enable mDNS protocol" OFF)
+OPTION(SSDP "Enable SSDP protocol" OFF)
 OPTION(WebUI "WebUI services" OFF)
 OPTION(WebAuth "WebUI authentication" OFF)
 
@@ -128,6 +130,7 @@ set(NETWORKING_SOURCE
  networking/fs_ram.c
  networking/fs_stream.c
  networking/webdav.c
+ networking/ssdp.c
 )
 set(TRINAMIC_SPI_SOURCE
  spi.c
@@ -341,6 +344,12 @@ endif()
 if(SDcard AND WebDAV)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBDAV_ENABLE=1)
 endif()
+if(mDNS)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC MDNS_ENABLE=1)
+endif()
+if(SSDP)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC SSDP_ENABLE=1)
+endif()
 endif()
 
 if(SoftAP)
@@ -440,6 +449,8 @@ unset(WiFi CACHE)
 unset(Ethernet CACHE)
 unset(FtpDaemon CACHE)
 unset(WebDAV CACHE)
+unset(mDNS CACHE)
+unset(SSDP CACHE)
 unset(SoftAP CACHE)
 unset(Bluetooth CACHE)
 unset(Keypad CACHE)
