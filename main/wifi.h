@@ -45,6 +45,7 @@ bool wifi_stop (void);
 bool wifi_ap_connect (char *ssid, char *password);
 ap_list_t *wifi_get_aplist (void);
 void wifi_release_aplist (void);
+char *wifi_get_authmode_name (wifi_auth_mode_t authmode);
 char *wifi_get_ipaddr (void);
 char *wifi_get_mac (void);
 void wifi_ap_scan (void);

@@ -290,6 +290,17 @@ static void stop_services (void)
     xEventGroupClearBits(wifi_event_group, CONNECTED_BIT|SCANNING_BIT|APSTA_BIT);
 }
 
+char *wifi_get_authmode_name (wifi_auth_mode_t authmode)
+{
+    return authmode == WIFI_AUTH_OPEN ? "open" :
+           authmode == WIFI_AUTH_WEP ? "wep" :
+           authmode == WIFI_AUTH_WPA_PSK ? "wpa-psk" :
+           authmode == WIFI_AUTH_WPA2_PSK ? "wpa-psk" :
+           authmode == WIFI_AUTH_WPA_WPA2_PSK ? "wpa-wpa2-psk" :
+           authmode == WIFI_AUTH_WPA2_ENTERPRISE ? "wpa-eap" :
+           "unknown";
+}
+
 void wifi_ap_scan (void)
 {
     // https://esp32.com/viewtopic.php?t=5536
