@@ -144,7 +144,7 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *reg
     return status;
 }
 
-static void add_cs_pin (xbar_t *gpio)
+static void add_cs_pin (xbar_t *gpio, void *data)
 {
     if(gpio->function == Output_MotorChipSelect)
         cs.pin = gpio->pin;
@@ -153,7 +153,7 @@ static void add_cs_pin (xbar_t *gpio)
 static void if_init (uint8_t motors, axes_signals_t axisflags)
 {
     n_motors = motors;
-    hal.enumerate_pins(true, add_cs_pin);
+    hal.enumerate_pins(true, add_cs_pin, NULL);
 }
 
 #endif
@@ -225,7 +225,7 @@ void tmc_uart_write (trinamic_motor_t driver, TMC_uart_write_datagram_t *dgr)
     while(tmc_uart.get_tx_buffer_count());
 }
 
-#if TRINAMIC_UART_HWADDR
+#if TRINAMIC_UART_ENABLE == 2
 static void driver_preinit (motor_map_t motor, trinamic_driver_config_t *config)
 {
     config->address = 0;
@@ -253,7 +253,7 @@ void board_init (void)
 
 #elif TRINAMIC_UART_ENABLE
 
-#if TRINAMIC_UART_HWADDR
+#if TRINAMIC_UART_ENABLE == 2
     static trinamic_driver_if_t driver_if = {
         .on_driver_preinit = driver_preinit
     };

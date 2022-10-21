@@ -97,7 +97,7 @@
 
 #if (!VFD_SPINDLE || N_SPINDLE > 1) && defined(SPINDLE_ENABLE_PIN)
 
-#define PWM_SPINDLE
+#define DRIVER_SPINDLE
 
 #if defined(SPINDLEPWMPIN)
 
@@ -241,7 +241,7 @@ static output_signal_t outputpin[] =
 #if defined(STEPPERS_ENABLE_PIN) && STEPPERS_ENABLE_PIN != IOEXPAND
     { .id = Output_StepperEnable, .pin = STEPPERS_ENABLE_PIN,   .group = PinGroup_StepperEnable },
 #endif
-#ifdef PWM_SPINDLE
+#ifdef DRIVER_SPINDLE
 #if defined(SPINDLE_ENABLE_PIN) && SPINDLE_ENABLE_PIN != IOEXPAND
     { .id = Output_SpindleOn,     .pin = SPINDLE_ENABLE_PIN,    .group = PinGroup_SpindleControl },
 #endif
@@ -1090,7 +1090,7 @@ probe_state_t probeGetState (void)
 
 #endif
 
-#ifdef PWM_SPINDLE
+#ifdef DRIVER_SPINDLE
 
 // Static spindle (off, on cw & on ccw)
 IRAM_ATTR inline static void spindle_off (void)
@@ -1146,6 +1146,11 @@ IRAM_ATTR static void spindleSetState (spindle_state_t state, float rpm)
         spindle_dir(state.ccw);
         spindle_on();
     }
+}
+
+IRAM_ATTR static void spindleOff (void)
+{
+    spindle_off();
 }
 
 #ifdef SPINDLEPWMPIN
@@ -1213,74 +1218,8 @@ IRAM_ATTR static void spindleSetStateVariable (spindle_state_t state, float rpm)
     spindle_set_speed(state.on ? spindle_compute_pwm_value(&spindle_pwm, rpm, false) : spindle_pwm.off_value);
 }
 
-#else
-
-// Sets spindle speed
-IRAM_ATTR static void spindle_set_speed (uint_fast16_t pwm_value)
-{
-}
-
-static uint_fast16_t spindleGetPWM (float rpm)
-{
-    return 0;
-}
-
-// Start or stop spindle, variable version
-
-IRAM_ATTR void __attribute__ ((noinline)) _setSpeed (spindle_state_t state, float rpm)
-{
-}
-
-IRAM_ATTR static void spindleSetStateVariable (spindle_state_t state, float rpm)
-{
-}
-
-#endif
-
-IRAM_ATTR static void spindleOff (void)
-{
-    spindle_off();
-}
-
-// Returns spindle state in a spindle_state_t variable
-static spindle_state_t spindleGetState (void)
-{
-    spindle_state_t state = {0};
-
-#if IOEXPAND_ENABLE // TODO: read from expander?
-    state.on = iopins.spindle_on;
-    state.ccw = hal.spindle.cap.direction && iopins.spindle_dir;
-#else
- #if defined(SPINDLE_ENABLE_PIN)
-  #if I2S_SPINDLE
-    state.on = DIGITAL_IN(SPINDLE_ENABLE_PIN) != 0;
-  #else
-    state.on = gpio_get_level(SPINDLE_ENABLE_PIN) != 0;
-  #endif
- #endif
- #if defined(SPINDLE_DIRECTION_PIN)
-  #if I2S_SPINDLE
-    state.ccw = DIGITAL_IN(SPINDLE_DIRECTION_PIN) != 0;
-  #else
-    state.ccw = gpio_get_level(SPINDLE_DIRECTION_PIN) != 0;
-  #endif
- #endif
-#endif
-    state.value ^= settings.spindle.invert.mask;
-#ifdef SPINDLEPWMPIN
-    state.on |= pwmEnabled;
-  #if PWM_RAMPED
-    state.at_speed = ledc_get_duty(ledConfig.speed_mode, ledConfig.channel) == pwm_ramp.pwm_target;
-  #endif
-#endif
-
-    return state;
-}
-
 bool spindleConfig (void)
 {
-#if defined(SPINDLEPWMPIN)
-
     if((hal.spindle.cap.variable = !settings.spindle.flags.pwm_disable && settings.spindle.rpm_max > settings.spindle.rpm_min)) {
 
         hal.spindle.set_state = spindleSetStateVariable;
@@ -1318,7 +1257,6 @@ bool spindleConfig (void)
     } else {
         if(pwmEnabled)
             hal.spindle.set_state((spindle_state_t){0}, 0.0f);
-#endif // SPINDLEPWMPIN
         hal.spindle.set_state = spindleSetState;
     }
 
@@ -1327,7 +1265,44 @@ bool spindleConfig (void)
     return true;
 }
 
-#endif // PWM_SPINDLE
+#endif // SPINDLEPWMPIN
+
+// Returns spindle state in a spindle_state_t variable
+static spindle_state_t spindleGetState (void)
+{
+    spindle_state_t state = {0};
+
+#if IOEXPAND_ENABLE // TODO: read from expander?
+    state.on = iopins.spindle_on;
+    state.ccw = hal.spindle.cap.direction && iopins.spindle_dir;
+#else
+ #if defined(SPINDLE_ENABLE_PIN)
+  #if I2S_SPINDLE
+    state.on = DIGITAL_IN(SPINDLE_ENABLE_PIN) != 0;
+  #else
+    state.on = gpio_get_level(SPINDLE_ENABLE_PIN) != 0;
+  #endif
+ #endif
+ #if defined(SPINDLE_DIRECTION_PIN)
+  #if I2S_SPINDLE
+    state.ccw = DIGITAL_IN(SPINDLE_DIRECTION_PIN) != 0;
+  #else
+    state.ccw = gpio_get_level(SPINDLE_DIRECTION_PIN) != 0;
+  #endif
+ #endif
+#endif
+    state.value ^= settings.spindle.invert.mask;
+#ifdef SPINDLEPWMPIN
+    state.on |= pwmEnabled;
+  #if PWM_RAMPED
+    state.at_speed = ledc_get_duty(ledConfig.speed_mode, ledConfig.channel) == pwm_ramp.pwm_target;
+  #endif
+#endif
+
+    return state;
+}
+
+#endif // DRIVER_SPINDLE
 
 // Start/stop coolant (and mist if enabled)
 IRAM_ATTR static void coolantSetState (coolant_state_t mode)
@@ -1489,8 +1464,8 @@ static void settings_changed (settings_t *settings)
 {
     if(IOInitDone) {
 
-#ifdef PWM_SPINDLE
-        if(hal.spindle.get_state == spindleGetState)
+#ifdef SPINDLEPWMPIN
+        if(hal.spindle.config == spindleConfig)
             spindleConfig();
 #endif
 
@@ -2036,8 +2011,8 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "220922";
-    hal.driver_url = "https://github.com/grblHAL/ESP32";
+    hal.driver_version = "221020";
+    hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
 #endif
@@ -2129,34 +2104,41 @@ bool driver_init (void)
     hal.debug_out = debug_out;
 #endif
 
-#ifdef PWM_SPINDLE
+#ifdef DRIVER_SPINDLE
 
     static const spindle_ptrs_t spindle = {
-#if IOEXPAND_ENABLE || defined(SPINDLE_DIRECTION_PIN)
-        .cap.direction = On,
-#endif
-#ifdef SPINDLEPWMPIN
+ #ifdef SPINDLEPWMPIN
+        .type = SpindleType_PWM,
         .cap.variable = On,
         .cap.laser = On,
         .cap.pwm_invert = On,
-#endif
-#if PWM_RAMPED
+  #if PWM_RAMPED
         .cap.at_speed = On;
-#endif
+  #endif
+        .config = spindleConfig,
         .get_pwm = spindleGetPWM,
         .update_pwm = spindle_set_speed,
-#if PPI_ENABLE
+  #if PPI_ENABLE
         .pulse_on = spindlePulseOn,
-#endif
-        .config = spindleConfig,
+  #endif
+ #else
+       .type = SpindleType_Basic,
+ #endif
+ #if IOEXPAND_ENABLE || defined(SPINDLE_DIRECTION_PIN)
+        .cap.direction = On,
+ #endif
         .set_state = spindleSetState,
         .get_state = spindleGetState,
         .esp32_off = spindleOff
     };
 
+ #ifdef SPINDLEPWMPIN
     spindle_register(&spindle, "PWM");
+ #else
+    spindle_register(&spindle, "Basic");
+ #endif
 
-#endif // PWM_SPINDLE
+#endif // DRIVER_SPINDLE
 
   // driver capabilities, used for announcing and negotiating (with Grbl) driver functionality
 

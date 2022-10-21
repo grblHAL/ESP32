@@ -206,9 +206,10 @@ typedef struct {
 #error "Pins 34 - 39 are input only!"
 #endif
 
-#if IOEXPAND_ENABLE || KEYPAD_ENABLE == 1 || EEPROM_ENABLE || (TRINAMIC_ENABLE && TRINAMIC_I2C)
+#if IOEXPAND_ENABLE || EEPROM_ENABLE || KEYPAD_ENABLE == 1 || I2C_STROBE_ENABLE || (TRINAMIC_ENABLE && TRINAMIC_I2C)
+#undef I2C_ENABLE
 #define I2C_ENABLE 1
-#else
+#elif !defined(I2C_ENABLE)
 #define I2C_ENABLE 0
 #endif
 

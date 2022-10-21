@@ -55,15 +55,20 @@ If you're familiar with [Docker](https://docker.io), you can use it to build grb
 - build with `docker run -it --rm -v $(pwd):/grbl -w /grbl/drivers/ESP32 espressif/idf:release-v4.3 idf.py build`
 - flash with `docker run -it --rm -v $(pwd):/grbl --privileged -v /dev:/dev -w /grbl/drivers/ESP32 espressif/idf:release-v4.3 idf.py -p /dev/ttyUSB0 flash`
 
+### Building with user defined plugin
+
+The file containing `my_plugin_init()` has to be added to _CMakeLists.txt_ in the [SRCS list](https://github.com/grblHAL/ESP32/blob/38dde1140d885fc847a0fa9c643cddd3fb1d02f4/main/CMakeLists.txt#L162)
+and [grbl/my_plugin.c](https://github.com/grblHAL/ESP32/blob/38dde1140d885fc847a0fa9c643cddd3fb1d02f4/main/CMakeLists.txt#L178) has to be removed from it to be linked correctly.
+
 ### Changelog/Notes:
 
 ---
 
-__NOTE:__ `grbl/config.h` or `CMakeLists.txt` may need modification before compilation. If needed an `#error` (with instructions) will be generated when compiling.
+__NOTE:__ _grbl/config.h_ or _CMakeLists.txt_ may need modification before compilation. If needed an `#error` (with instructions) will be generated when compiling.
 
 
 __NOTE:__ Configuration has been simplified a bit, primarily change options in [`CMakeLists.txt`](https://github.com/grblHAL/ESP32/blob/master/main/CMakeLists.txt) to enable/disable.
-Configuration of options in _my_machine.h_ is turned off in CMakeLists.txt by default due to this.
+Configuration of options in _my_machine.h_ is turned off in _CMakeLists.txt_ by default due to this.
 
 
 ---
@@ -77,4 +82,4 @@ dns_server.c is Copyright (c) 2019 Tony Pottier - from his [ESP32 WiFi Manager](
 Snippets of code is extracted from Espressif ESP-IDF examples which are public domain.
 
 ---
-2022-06-25
+2022-10-14
