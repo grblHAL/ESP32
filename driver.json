@@ -48,6 +48,7 @@
         "axes": 3,
         "digital_in": 0,
         "digital_out": 0,
+        "serial_ports": 1,
         "eeprom": 0,
         "fram": 0,
         "i2c": 0
@@ -121,6 +122,7 @@
         "digital_in": 0,
         "digital_out": 0,
         "safety_door": 0,
+        "serial_ports": 1,
         "eeprom": 0,
         "fram": 0,
         "i2c": 0
@@ -135,6 +137,7 @@
         "digital_in": 0,
         "digital_out": 0,
         "safety_door": 0,
+        "serial_ports": 1,
         "eeprom": 0,
         "fram": 0,
         "i2c": 0,
@@ -150,6 +153,7 @@
         "digital_in": 0,
         "digital_out": 0,
         "safety_door": 0,
+        "serial_ports": 1,
         "eeprom": 0,
         "fram": 0,
         "i2c": 1
@@ -161,7 +165,7 @@
       "URL": "",
       "caps": {
         "axes": 3,
-        "digital_in": 0,
+        "digital_in": 2,
         "digital_out": 0,
         "eeprom": 0,
         "fram": 0,
@@ -179,6 +183,7 @@
         "digital_in": 0,
         "digital_out": 0,
         "safety_door": 0,
+        "serial_ports": 1,
         "eeprom": 0,
         "fram": 0,
         "i2c": 0,
@@ -188,7 +193,7 @@
     {
       "name": "CNC BoosterPack",
       "symbol": "BOARD_CNC_BOOSTERPACK",
-      "URL": "https://github.com/terjeio/CNC_Boosterpac",
+      "URL": "https://github.com/terjeio/CNC_Boosterpack",
       "caps": {
         "axes": 3,
         "digital_in": 0,
