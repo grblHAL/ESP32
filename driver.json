@@ -120,13 +120,15 @@
       "URL": "https://www.sourcerabbit.com/",
       "caps": {
         "axes": 4,
+        "auto_square": 0,
         "digital_in": 0,
         "digital_out": 0,
         "safety_door": 0,
         "serial_ports": 1,
         "eeprom": 0,
         "fram": 0,
-        "i2c": 0
+        "i2c": 0,
+        "sdcard": 0
       }
     },
     {
