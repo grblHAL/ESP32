@@ -180,7 +180,7 @@
     {
       "name": "MKS DLC32 2.0",
       "symbol": "BOARD_MKS_DLC32_V2P0",
-      "URL": "",
+      "URL": "https://github.com/makerbase-mks/MKS-DLC32",
       "caps": {
         "axes": 3,
         "digital_in": 0,
@@ -191,6 +191,22 @@
         "fram": 0,
         "i2c": 0,
         "sdcard": 0
+      }
+    },
+    {
+      "name": "BlackBox X32",
+      "symbol": "BOARD_BLACKBOX_X32",
+      "URL": "https://docs.openbuilds.com/doku.php?id=docs:blackbox-x32:start",
+      "caps": {
+        "axes": 4,
+        "digital_in": 0,
+        "digital_out": 0,
+        "safety_door": 1,
+        "serial_ports": 1,
+        "eeprom": 0,
+        "fram": 0,
+        "i2c": 0,
+        "sdcard": 1
       }
     },
     {

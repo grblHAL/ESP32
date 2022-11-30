@@ -3,6 +3,7 @@
 # NOTE: Only one board may be enabled!
 # If none is enabled pin mappings from generic_map.h will be used.
 
+OPTION(BOARD_BLACKBOX_X32 "Compile for BlackBox X32" OFF)
 OPTION(BOARD_BDRING_V3P5 "Compile for v3.5 3-axis board" OFF)
 OPTION(BOARD_BDRING_V4 "Compile for bdring v4 3-axis board" OFF)
 OPTION(BOARD_BDRING_I2S6A "Compile for bdring 6-axis I2S board - untested!" OFF)

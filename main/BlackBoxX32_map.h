@@ -1,11 +1,11 @@
 /*
-  BlackBoxX32.h - GrblHAL - An embedded CNC Controller with rs274/ngc (g-code) support
+  BlackBoxX32_map.h - grblHAL - An embedded CNC Controller with rs274/ngc (g-code) support
 
   Driver code for ESP32
 
   Part of grblHAL
 
-  Copyright (c) 2021-2022 Terje Io
+  Copyright (c) 2022 Peter van der Walt
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #endif
 
 #define BOARD_NAME "BlackBox X32"
+#define BOARD_URL "https://docs.openbuilds.com/doku.php?id=docs:blackbox-x32:start"
 #define HAS_IOPORTS
 
 // timer definitions

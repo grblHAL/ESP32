@@ -191,6 +191,8 @@ typedef struct {
   #include "mks_dlc32_2_0_map.h"
 #elif defined(BOARD_MKS_TINYBEE_V1)
   #include "mks_tinybee_1_0_map.h"
+#elif defined(BOARD_BLACKBOX_X32)
+  #include "BlackBoxX32_map.h"
 #elif defined(BOARD_MY_MACHINE)
   #include "my_machine_map.h"
 #else // default board - NOTE: NOT FINAL VERSION!
