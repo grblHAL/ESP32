@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2020 Terje Io
+  Copyright (c) 2018-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@
 static const DRAM_ATTR char ESP_SPACE_CHAR = ' ';
 static const DRAM_ATTR char ESP_DEL_CHAR = 0x7F;
 static const DRAM_ATTR char ESP_CR = ASCII_CR;
-static const DRAM_ATTR char ESP_LF = ASCII_CR;
+static const DRAM_ATTR char ESP_LF = ASCII_LF;
 static const DRAM_ATTR char ESP_QUESTION_MARK = '?';
 static const esp_partition_t *grblNVS = NULL;
 

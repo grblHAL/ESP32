@@ -312,7 +312,7 @@ static output_signal_t outputpin[] =
 };
 
 static bool IOInitDone = false, rtc_started = false;
-static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED, debounce_mux = portMUX_INITIALIZER_UNLOCKED;
 #if PROBE_ENABLE
 static probe_state_t probe = {
     .connected = On
@@ -1413,22 +1413,26 @@ static void modeEnable (sys_state_t state)
 
 void debounceTimerCallback (TimerHandle_t xTimer)
 {
-      uint32_t grp = 0, i = sizeof(inputpin) / sizeof(input_signal_t);
-      do {
-          i--;
-          if(inputpin[i].debounce && inputpin[i].active) {
-              inputpin[i].active = false; //gpio_get_level(inputpin[i].pin) == (inputpin[i].invert ? 0 : 1);
-              grp |= inputpin[i].group;
-          }
-      } while(i);
+    uint32_t grp = 0, i = sizeof(inputpin) / sizeof(input_signal_t);
+    do {
+        i--;
+        if(inputpin[i].debounce && inputpin[i].active) {
+            inputpin[i].active = false; //gpio_get_level(inputpin[i].pin) == (inputpin[i].invert ? 0 : 1);
+            grp |= inputpin[i].group;
+        }
+    } while(i);
 
-//    printf("Debounce %d %d\n", grp, limitsGetState().value);
+    if(grp & PinGroup_Limit) {
+        portENTER_CRITICAL(&debounce_mux);
+        hal.limits.interrupt_callback(limitsGetState());
+        portEXIT_CRITICAL(&debounce_mux);
+    }
 
-      if(grp & PinGroup_Limit)
-          hal.limits.interrupt_callback(limitsGetState());
-
-      if(grp & PinGroup_Control)
-          hal.control.interrupt_callback(systemGetState());
+    if(grp & PinGroup_Control) {
+        portENTER_CRITICAL(&debounce_mux);
+        hal.control.interrupt_callback(systemGetState());
+        portEXIT_CRITICAL(&debounce_mux);
+    }
 }
 
 gpio_int_type_t map_intr_type (pin_irq_mode_t mode)
@@ -1896,7 +1900,7 @@ static bool driver_setup (settings_t *settings)
     gpio_isr_register(gpio_isr, NULL, (int)ESP_INTR_FLAG_IRAM, NULL);
 #endif
 
-#if VFD_SPINDLE != 1 && defined(SPINDLEPWMPIN)
+#ifdef DRIVER_SPINDLE
 
     /******************
     *  Spindle init  *
@@ -1920,7 +1924,7 @@ static bool driver_setup (settings_t *settings)
 
     /**/
 
-#endif
+#endif // DRIVER_SPINDLE
 
 #if SDCARD_ENABLE
 
@@ -2011,7 +2015,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "221020";
+    hal.driver_version = "221205";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
