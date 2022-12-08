@@ -35,6 +35,11 @@
 #if WEBUI_ENABLE
 #error "WebUI is not available in this setup!"
 #endif
+
+#ifndef PROBE_ENABLE
+#define PROBE_ENABLE   	1 // Probe input.
+#endif
+
 //
 #else
 //
@@ -120,7 +125,7 @@
 static const DRAM_ATTR float FZERO = 0.0f;
 
 #ifndef PROBE_ENABLE
-#define PROBE_ENABLE   	1 // Probe input.
+#define PROBE_ENABLE   	0 // No probe input.
 #endif
 #define PROBE_ISR   	0 // Catch probe state change by interrupt TODO: needs verification!
 
