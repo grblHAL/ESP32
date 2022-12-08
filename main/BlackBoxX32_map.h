@@ -56,7 +56,7 @@
  #if N_AUTO_SQUARED
   #define M3_LIMIT_PIN        GPIO_NUM_22
   #if PROBE_ENABLE
-   #WARNING "Probe input is not available when an auto-squared axis is enabled."
+   #warning "Probe input is not available when an auto-squared axis is enabled."
    #undef PROBE_ENABLE
    #define PROBE_ENABLE 0
   #endif
