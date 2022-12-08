@@ -119,12 +119,10 @@
 
 static const DRAM_ATTR float FZERO = 0.0f;
 
-#ifdef NOPROBE
-#define PROBE_ENABLE     0 // No probe input.
-#else
-#define PROBE_ENABLE     1 // Probe input.
+#ifndef PROBE_ENABLE
+#define PROBE_ENABLE   	1 // Probe input.
 #endif
-#define PROBE_ISR        0 // Catch probe state change by interrupt TODO: needs verification!
+#define PROBE_ISR   	0 // Catch probe state change by interrupt TODO: needs verification!
 
 // DO NOT change settings here!
 
@@ -132,7 +130,7 @@ static const DRAM_ATTR float FZERO = 0.0f;
 #define IOEXPAND_ENABLE 0 // I2C IO expander for some output signals.
 #endif
 
-#define IOEXPAND 0xFF   // Dummy pin number for I2C IO expander
+#define IOEXPAND 		0xFF // Dummy pin number for I2C IO expander
 
 // end configuration
 
