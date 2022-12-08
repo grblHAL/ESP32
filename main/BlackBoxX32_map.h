@@ -53,6 +53,14 @@
   #define M3_AVAILABLE
   #define M3_STEP_PIN         GPIO_NUM_33
   #define M3_DIRECTION_PIN    GPIO_NUM_32
+ #if N_AUTO_SQUARED
+  #define M3_LIMIT_PIN        GPIO_NUM_22
+  #if PROBE_ENABLE
+   #WARNING "Probe input is not available when an auto-squared axis is enabled."
+   #undef PROBE_ENABLE
+   #define PROBE_ENABLE 0
+  #endif
+ #endif
 #endif
 
 // Endstops
@@ -60,11 +68,8 @@
 #define Y_LIMIT_PIN           GPIO_NUM_34
 #define Z_LIMIT_PIN           GPIO_NUM_39
 
-// Can use the Probe Input for a 4th axes limit switch
-#if N_ABC_MOTORS > 0
-  #define M3_LIMIT_PIN        GPIO_NUM_22
-#endif
-
+// Define probe switch input pin.
+// NOTE: probe input is not available when an auto-squared axis is enabled.
 #if PROBE_ENABLE
   #define PROBE_PIN           GPIO_NUM_22
 #endif
@@ -83,8 +88,6 @@
 #if SAFETY_DOOR_ENABLE
   #define SAFETY_DOOR_PIN     GPIO_NUM_16
 #endif
-
-// Define probe switch input pin.
 
 
 #ifdef HAS_IOPORTS
