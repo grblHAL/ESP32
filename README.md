@@ -32,7 +32,7 @@ Then get the grblHAL driver code:
 git clone --recursive https://github.com/grblHAL/ESP32.git
 ```
 
-Go into the `ESP32` directory and modify settings in `grbl/config.h` and `CMakeLists.txt` as needed.
+Go into the `ESP32/main` directory and modify settings in `grbl/config.h` and `CMakeLists.txt` as needed.
 Pin assignments and board specific config is in `*_map.h` files for each individual board.
 
 Run `idf.py build` from the `ESP32` directory.
@@ -82,4 +82,4 @@ dns_server.c is Copyright (c) 2019 Tony Pottier - from his [ESP32 WiFi Manager](
 Snippets of code is extracted from Espressif ESP-IDF examples which are public domain.
 
 ---
-2022-10-14
+2022-12-26
