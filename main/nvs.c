@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2022 Terje Io
+  Copyright (c) 2018-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,8 +27,8 @@
 #include "nvs.h"
 #include "grbl/hal.h"
 
-#ifndef BUFFER_NVSDATA
-#error BUFFER_NVSDATA must be enabled to use flash for settings storage
+#if !NVSDATA_BUFFER_ENABLE
+#error NVSDATA_BUFFER_ENABLE must be enabled to use flash for settings storage
 #endif
 
 static const DRAM_ATTR char ESP_SPACE_CHAR = ' ';

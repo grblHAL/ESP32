@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2022 Terje Io
+  Copyright (c) 2018-2023 Terje Io
   Copyright (c) 2011-2015 Sungeun K. Jeon
   Copyright (c) 2009-2011 Simen Svale Skogsrud
 
@@ -35,11 +35,6 @@
 #if WEBUI_ENABLE
 #error "WebUI is not available in this setup!"
 #endif
-
-#ifndef PROBE_ENABLE
-#define PROBE_ENABLE   	1 // Probe input.
-#endif
-
 //
 #else
 //
@@ -124,10 +119,7 @@
 
 static const DRAM_ATTR float FZERO = 0.0f;
 
-#ifndef PROBE_ENABLE
-#define PROBE_ENABLE   	0 // No probe input.
-#endif
-#define PROBE_ISR   	0 // Catch probe state change by interrupt TODO: needs verification!
+#define PROBE_ISR 0 // Catch probe state change by interrupt TODO: needs verification!
 
 // DO NOT change settings here!
 
@@ -135,7 +127,7 @@ static const DRAM_ATTR float FZERO = 0.0f;
 #define IOEXPAND_ENABLE 0 // I2C IO expander for some output signals.
 #endif
 
-#define IOEXPAND 		0xFF // Dummy pin number for I2C IO expander
+#define IOEXPAND 0xFF   // Dummy pin number for I2C IO expander
 
 // end configuration
 

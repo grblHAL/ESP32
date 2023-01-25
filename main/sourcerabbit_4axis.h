@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2021 Terje Io
+  Copyright (c) 2021-2022 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,7 +25,12 @@
 #error "Axis configuration is not supported!"
 #endif
 
+#ifdef BOARD_SOURCERABBIT_4AXIS_12
+#define BOARD_NAME "SourceRabbit 4-axis CNC v1.2"
+#else
 #define BOARD_NAME "SourceRabbit 4-axis CNC"
+#endif
+#define BOARD_URL "https://www.sourcerabbit.com/Shop/pr-i-86-t-4-axis-cnc-motherboard.htm"
 
 // timer definitions
 #define STEP_TIMER_GROUP TIMER_GROUP_0
@@ -61,18 +66,21 @@
 #define Y_LIMIT_PIN         GPIO_NUM_39
 #define Z_LIMIT_PIN         GPIO_NUM_34
 
-
 // Define ganged axis or A axis step pulse and step direction output pins.
 #if N_ABC_MOTORS > 0
 #define M3_AVAILABLE
-#define M3_STEP_PIN         GPIO_NUM_33
-#define M3_DIRECTION_PIN    GPIO_NUM_12
+#define M3_STEP_PIN         GPIO_NUM_12
+#define M3_DIRECTION_PIN    GPIO_NUM_13
 #endif
 
 // Define spindle enable and spindle direction output pins.
 
-#define SPINDLE_ENABLE_PIN  GPIO_NUM_21
-#define SPINDLEPWMPIN       GPIO_NUM_2
+#ifdef BOARD_SOURCERABBIT_4AXIS_12
+#define SPINDLE_DIRECTION_PIN	GPIO_NUM_2
+#else
+#define SPINDLE_ENABLE_PIN  	GPIO_NUM_2
+#endif
+#define SPINDLEPWMPIN       	GPIO_NUM_21
 
 // Define flood and mist coolant enable output pins.
 
@@ -85,4 +93,14 @@
 // Define probe switch input pin.
 #if PROBE_ENABLE
 #define PROBE_PIN           GPIO_NUM_32
+#endif
+
+#ifdef BOARD_SOURCERABBIT_4AXIS_12
+#if SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_PIN     GPIO_NUM_5  // ATC Door
+#else
+#define AUXINPUT0_PIN       GPIO_NUM_5  // ATC Door
+#endif
+#define AUXOUTPUT0_PIN      GPIO_NUM_19 // ATC Lock
+#define AUXOUTPUT1_PIN      GPIO_NUM_18 // ATC Blow
 #endif
