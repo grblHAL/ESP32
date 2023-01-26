@@ -26,6 +26,7 @@
       { "id": "webui" },
       { "id": "wifi_networking" },
       { "id": "keypad" },
+      { "id": "macros" },
       { "id": "laser_cluster" },
       { "id": "laser_coolant" },
       { "id": "motors" }
