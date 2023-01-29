@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2022 Terje Io
+  Copyright (c) 2020-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #endif
 
 #if VFD_SPINDLE
-#error "CNC Boosterpack board does not have support for VFD spindle."
+#error "Generic map does not have support for VFD spindle."
 #endif
 
 // timer definitions
@@ -49,7 +49,7 @@
 #define Y_LIMIT_PIN             GPIO_NUM_4
 #define Z_LIMIT_PIN             GPIO_NUM_15
 
-#if VFD_SPINDLE != 1
+#if DRIVER_SPINDLE_ENABLE
 // Define spindle enable and spindle direction output pins.
 #define SPINDLE_ENABLE_PIN      GPIO_NUM_18
 #define SPINDLE_DIRECTION_PIN   GPIO_NUM_5

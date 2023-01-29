@@ -95,7 +95,7 @@
 #include "i2c.h"
 #endif
 
-#if (!VFD_SPINDLE || N_SPINDLE > 1) && defined(SPINDLE_ENABLE_PIN)
+#if DRIVER_SPINDLE_ENABLE && defined(SPINDLE_ENABLE_PIN)
 
 #define DRIVER_SPINDLE
 
@@ -124,11 +124,8 @@ static spindle_pwm_t spindle_pwm;
 
 static void spindle_set_speed (uint_fast16_t pwm_value);
 
-#endif
-
-#else
-#undef SPINDLE_RPM_CONTROLLED
-#endif
+#endif // DRIVER_SPINDLE
+#endif // DRIVER_SPINDLE_ENABLE
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

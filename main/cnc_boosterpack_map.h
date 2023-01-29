@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2022 Terje Io
+  Copyright (c) 2020-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@
 #define Y_LIMIT_PIN             GPIO_NUM_16
 #define Z_LIMIT_PIN             GPIO_NUM_32
 
-#if VFD_SPINDLE != 1
+#if DRIVER_SPINDLE_ENABLE
 // Define spindle enable and spindle direction output pins.
 #define SPINDLE_ENABLE_PIN      IOEXPAND
 #define SPINDLE_DIRECTION_PIN   IOEXPAND

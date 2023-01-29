@@ -60,8 +60,10 @@
 #endif
 
 // Define spindle enable and spindle direction output pins.
+#if DRIVER_SPINDLE_ENABLE && !MODBUS_ENABLE
 #define SPINDLE_ENABLE_PIN  GPIO_NUM_4
 #define SPINDLEPWMPIN       GPIO_NUM_25
+#endif
 
 // Define flood and mist coolant enable output pins.
 // Only one can be enabled!

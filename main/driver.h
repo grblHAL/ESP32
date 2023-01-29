@@ -40,15 +40,6 @@
 //
 // Process options from CMakeLists.txt
 //
-#ifdef MPG_MODE_ENABLE
-#undef MPG_MODE_ENABLE
-#define MPG_MODE_ENABLE 1
-#endif
-
-#ifdef KEYPAD_ENABLE
-#undef KEYPAD_ENABLE
-#define KEYPAD_ENABLE 1
-#endif
 
 #if WIFI_ENABLE || ETHERNET_ENABLE
 #if WEBUI_ENABLE
@@ -90,14 +81,7 @@
 
 #endif
 
-#ifdef RS485_DIR_ENABLE
-#undef RS485_DIR_ENABLE
-#if HUANYANG_ENABLE
-#define RS485_DIR_ENABLE 1
-#else
-#define RS485_DIR_ENABLE 0
-#endif
-#else
+#ifndef RS485_DIR_ENABLE
 #define RS485_DIR_ENABLE 0
 #endif
 

@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2022 Terje Io
+  Copyright (c) 2020-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@
 
 // Define spindle enable and spindle direction output pins.
 
-#if VFD_SPINDLE != 1
+#if DRIVER_SPINDLE_ENABLE && !MODBUS_ENABLE
 #define SPINDLE_ENABLE_PIN  GPIO_NUM_22
 #define SPINDLEPWMPIN       GPIO_NUM_2
 #endif
@@ -59,7 +59,7 @@
 // Define flood and mist coolant enable output pins.
 
 #define COOLANT_FLOOD_PIN   GPIO_NUM_25
-#if VFD_SPINDLE != 1
+#if DRIVER_SPINDLE_ENABLE
 #define COOLANT_MIST_PIN    GPIO_NUM_21
 #endif
 
@@ -86,7 +86,7 @@
 #define PIN_NUM_CS          GPIO_NUM_5
 #endif
 
-#if MODBUS_ENABLE
+#if MODBUS_ENABLE && !MODBUS_ENABLE
 #define UART2_RX_PIN            GPIO_NUM_22
 #define UART2_TX_PIN            GPIO_NUM_21
 #if RS485_DIR_ENABLE
