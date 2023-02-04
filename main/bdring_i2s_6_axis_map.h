@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020 Terje Io
+  Copyright (c) 2020-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -51,45 +51,44 @@
 
 #define X_STEP_PIN      2
 #define X_DIRECTION_PIN 1
-#define X_ENABLE_PIN   	0
+#define X_ENABLE_PIN    0
 #define X_LIMIT_PIN     GPIO_NUM_36
 
 #define Y_STEP_PIN      5
 #define Y_DIRECTION_PIN 4
-#define Y_ENABLE_PIN   	7
+#define Y_ENABLE_PIN    7
 #define Y_LIMIT_PIN     GPIO_NUM_39
 
 #define Z_STEP_PIN      10
 #define Z_DIRECTION_PIN 9
-#define Z_ENABLE_PIN   	8
+#define Z_ENABLE_PIN    8
 #define Z_LIMIT_PIN     GPIO_NUM_34
 
 // Define ganged axis or A axis step pulse and step direction output pins.
 #if N_ABC_MOTORS >= 1
 #define M3_AVAILABLE
-#define M3_STEP_PIN      	13
-#define M3_DIRECTION_PIN 	12
-#define M3_ENABLE_PIN   	15
-#define M3_LIMIT_PIN     	GPIO_NUM_35
+#define M3_STEP_PIN         13
+#define M3_DIRECTION_PIN    12
+#define M3_ENABLE_PIN       15
+#define M3_LIMIT_PIN        GPIO_NUM_35
 #endif
 
 // Define ganged axis or B axis step pulse and step direction output pins.
 #if N_ABC_MOTORS >= 2
 #define M4_AVAILABLE
-#define M4_STEP_PIN      	18
-#define M4_DIRECTION_		PIN 17
-#define M4_ENABLE_PIN   	16
-#define M4_LIMIT_PIN     	GPIO_NUM_32
+#define M4_STEP_PIN         18
+#define M4_DIRECTION_PIN    17
+#define M4_ENABLE_PIN       16
+#define M4_LIMIT_PIN        GPIO_NUM_32
 #endif
 
 // Define ganged axis or B axis step pulse and step direction output pins.
 #if N_ABC_MOTORS == 3
 #define M5_AVAILABLE
-#define M5_STEP_PIN      	21
-#define M5_DIRECTION_PIN 	20
-#define M5_ENABLE_PIN   	23
-#define M5_LIMIT_PIN     	GPIO_NUM_33
-
+#define M5_STEP_PIN         21
+#define M5_DIRECTION_PIN    20
+#define M5_ENABLE_PIN       23
+#define M5_LIMIT_PIN        GPIO_NUM_33
 #endif
 
 // Define spindle enable and spindle direction output pins.
