@@ -46,7 +46,7 @@
 #define Z_DIRECTION_PIN     GPIO_NUM_33
 
 // Define stepper driver enable/disable output pin(s).
-#define STEPPERS_ENABLE_PIN	GPIO_NUM_13
+#define STEPPERS_ENABLE_PIN GPIO_NUM_13
 
 // Define homing/hard limit switch input pins and limit interrupt vectors.
 #define X_LIMIT_PIN         GPIO_NUM_2

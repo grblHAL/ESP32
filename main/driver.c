@@ -120,6 +120,7 @@ static ledc_channel_config_t ledConfig = {
 
 static uint32_t pwm_max_value;
 static bool pwmEnabled = false;
+static spindle_id_t spindle_id = -1;
 static spindle_pwm_t spindle_pwm;
 
 static void spindle_set_speed (uint_fast16_t pwm_value);
@@ -1120,10 +1121,9 @@ IRAM_ATTR inline static void spindle_on (void)
 
 IRAM_ATTR inline static void spindle_dir (bool ccw)
 {
-    if(hal.spindle.cap.direction) {
 #if IOEXPAND_ENABLE
-        iopins.spindle_dir = (ccw ^ settings.spindle.invert.ccw) ? On : Off;
-        ioexpand_out(iopins);
+    iopins.spindle_dir = (ccw ^ settings.spindle.invert.ccw) ? On : Off;
+    ioexpand_out(iopins);
 #elif defined(SPINDLE_DIRECTION_PIN)
   #if I2S_SPINDLE
     DIGITAL_OUT(SPINDLE_DIRECTION_PIN, (ccw ^ settings.spindle.invert.ccw) ? 1 : 0);
@@ -1131,7 +1131,6 @@ IRAM_ATTR inline static void spindle_dir (bool ccw)
     gpio_set_level(SPINDLE_DIRECTION_PIN, (ccw ^ settings.spindle.invert.ccw) ? 1 : 0);
   #endif
 #endif
-    }
 }
 
 // Start or stop spindle
@@ -1215,11 +1214,14 @@ IRAM_ATTR static void spindleSetStateVariable (spindle_state_t state, float rpm)
     spindle_set_speed(state.on ? spindle_compute_pwm_value(&spindle_pwm, rpm, false) : spindle_pwm.off_value);
 }
 
-bool spindleConfig (void)
+bool spindleConfig (spindle_ptrs_t *spindle)
 {
-    if((hal.spindle.cap.variable = !settings.spindle.flags.pwm_disable && settings.spindle.rpm_max > settings.spindle.rpm_min)) {
+    if(spindle == NULL)
+        return false;
 
-        hal.spindle.set_state = spindleSetStateVariable;
+    if((spindle->cap.variable = !settings.spindle.flags.pwm_disable && settings.spindle.rpm_max > settings.spindle.rpm_min)) {
+
+        spindle->set_state = spindleSetStateVariable;
 
         if(ledTimerConfig.freq_hz != (uint32_t)settings.spindle.pwm_freq) {
             ledTimerConfig.freq_hz = (uint32_t)settings.spindle.pwm_freq;
@@ -1253,11 +1255,11 @@ bool spindleConfig (void)
 
     } else {
         if(pwmEnabled)
-            hal.spindle.set_state((spindle_state_t){0}, 0.0f);
-        hal.spindle.set_state = spindleSetState;
+            spindle->set_state((spindle_state_t){0}, 0.0f);
+        spindle->set_state = spindleSetState;
     }
 
-    spindle_update_caps(hal.spindle.cap.variable ? &spindle_pwm : NULL);
+    spindle_update_caps(spindle, spindle->cap.variable ? &spindle_pwm : NULL);
 
     return true;
 }
@@ -1271,7 +1273,7 @@ static spindle_state_t spindleGetState (void)
 
 #if IOEXPAND_ENABLE // TODO: read from expander?
     state.on = iopins.spindle_on;
-    state.ccw = hal.spindle.cap.direction && iopins.spindle_dir;
+    state.ccw = iopins.spindle_dir;
 #else
  #if defined(SPINDLE_ENABLE_PIN)
   #if I2S_SPINDLE
@@ -1461,13 +1463,16 @@ gpio_int_type_t map_intr_type (pin_irq_mode_t mode)
 }
 
 // Configures perhipherals when settings are initialized or changed
-static void settings_changed (settings_t *settings)
+static void settings_changed (settings_t *settings, settings_changed_flags_t changed)
 {
     if(IOInitDone) {
 
 #ifdef SPINDLEPWMPIN
-        if(hal.spindle.config == spindleConfig)
-            spindleConfig();
+        if(changed.spindle) {
+            spindleConfig(spindle_get_hal(spindle_id, SpindleHAL_Configured));
+            if(spindle_id == spindle_get_default())
+                spindle_select(spindle_id);
+        }
 #endif
 
 #if BLUETOOTH_ENABLE
@@ -1768,8 +1773,16 @@ static char *sdcard_mount (FATFS **fs)
             .intr_flags      = ESP_INTR_FLAG_IRAM
         };
 
+#if PIN_NUM_CLK == GPIO_NUM_14
+        if(spi_bus_initialize(SPI2_HOST, &bus_config, 1) != ESP_OK)
+            return NULL;
+#elif PIN_NUM_CLK == GPIO_NUM_18
+        if(spi_bus_initialize(SPI3_HOST, &bus_config, 1) != ESP_OK)
+            return NULL;
+#else
         if(spi_bus_initialize(SDSPI_DEFAULT_HOST, &bus_config, 1) != ESP_OK)
             return NULL;
+#endif
 
         bus_ok = true;
     }
@@ -1785,9 +1798,11 @@ static char *sdcard_mount (FATFS **fs)
             .max_files = 5,
             .allocation_unit_size = 16 * 1024
         };
-        sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-        sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
 
+        sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+//        host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
+
+        sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
         slot_config.gpio_cs = PIN_NUM_CS;
         slot_config.host_id = host.slot;
 
@@ -1966,7 +1981,7 @@ static bool driver_setup (settings_t *settings)
 
     IOInitDone = settings->version == 22;
 
-    hal.settings_changed(settings);
+    hal.settings_changed(settings, (settings_changed_flags_t){0});
     hal.stepper.go_idle(true);
 
 #if ETHERNET_ENABLE
@@ -2012,7 +2027,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "230125";
+    hal.driver_version = "230210";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2134,9 +2149,9 @@ bool driver_init (void)
     };
 
  #ifdef SPINDLEPWMPIN
-    spindle_register(&spindle, "PWM");
+    spindle_id = spindle_register(&spindle, "PWM");
  #else
-    spindle_register(&spindle, "Basic");
+    spindle_id = spindle_register(&spindle, "Basic");
  #endif
 
 #endif // DRIVER_SPINDLE

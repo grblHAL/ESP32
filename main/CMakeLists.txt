@@ -41,6 +41,7 @@ OPTION(FtpDaemon "Enable ftp daemon" OFF) # Requires SDcard On
 OPTION(WebDAV "Enable WebDAV protocol" OFF) # Requires SDcard On
 OPTION(mDNS "Enable mDNS protocol" OFF)
 OPTION(SSDP "Enable SSDP protocol" OFF)
+OPTION(MQTTclient "Enable MQTT client API" OFF) # For use by plugin code.
 OPTION(WebUI "WebUI services" OFF)
 OPTION(WebAuth "WebUI authentication" OFF)
 
@@ -87,6 +88,7 @@ set(SDCARD_SOURCE
 )
 set(KEYPAD_SOURCE
  keypad/keypad.c
+ keypad/macros.c
 )
 set(WEBUI_SOURCE
  webui/args.c
@@ -110,6 +112,7 @@ set(SPINDLE_SOURCE
  spindle/vfd/gs20.c
  spindle/vfd/h100.c
  spindle/vfd/huanyang.c
+ spindle/vfd/huanyang2.c
  spindle/vfd/modvfd.c
  spindle/vfd/spindle.c
  spindle/vfd/yl620.c
@@ -130,6 +133,7 @@ set(ETHERNET_SOURCE
 )
 set(NETWORKING_SOURCE
  wifi.c
+ mqtt.c
  dns_server.c
  networking/httpd.c
  networking/http_upload.c
@@ -228,7 +232,7 @@ endif()
 
 if(WiFi OR WIFI_ENABLE EQUAL 1 OR Ethernet OR ETHERNET_ENABLE EQUAL 1)
 list (APPEND SRCS ${NETWORKING_SOURCE})
-if((SDcard OR SDCARD_ENABLE GREATER_EQUAL 1) AND (FtpDaemon OR FTP_ENABLE EQUAL 1))
+if((SDcard OR WebUI OR SDCARD_ENABLE GREATER_EQUAL 1) AND (FtpDaemon OR FTP_ENABLE EQUAL 1))
 list (APPEND SRCS ${NETWORKING_FTP_SOURCE})
 endif()
 endif()
@@ -289,6 +293,8 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_LIMIT_SIGNALS_INVER
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_PROBE_SIGNAL_INVERT=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_ENABLE_SIGNALS_INVERT_MASK=0)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_STEPPER_IDLE_LOCK_TIME=255)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC MIN_FEED_RATE_OVERRIDE=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC MAX_FEED_RATE_OVERRIDE=999)
 elseif(BOARD_BDRING_V3P5)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC BOARD_BDRING_V3P5)
 elseif(BOARD_BDRING_V4)
@@ -368,10 +374,10 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC ETHERNET_ENABLE=1)
 endif()
 
 if(WiFi OR Ethernet)
-if(SDcard AND FtpDaemon)
+if((SDcard OR WebUI) AND FtpDaemon)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC FTP_ENABLE=1)
 endif()
-if(SDcard AND WebDAV)
+if((SDcard OR WebUI) AND WebDAV)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBDAV_ENABLE=1)
 endif()
 if(mDNS)
@@ -379,6 +385,9 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC MDNS_ENABLE=1)
 endif()
 if(SSDP)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC SSDP_ENABLE=1)
+endif()
+if(MQTTclient)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC MQTT_ENABLE=1)
 endif()
 endif()
 
@@ -504,6 +513,7 @@ unset(FtpDaemon CACHE)
 unset(WebDAV CACHE)
 unset(mDNS CACHE)
 unset(SSDP CACHE)
+unset(MQTTclient CACHE)
 unset(SoftAP CACHE)
 unset(Bluetooth CACHE)
 unset(Keypad CACHE)

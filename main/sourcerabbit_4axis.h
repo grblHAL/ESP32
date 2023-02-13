@@ -76,11 +76,11 @@
 // Define spindle enable and spindle direction output pins.
 
 #ifdef BOARD_SOURCERABBIT_4AXIS_12
-#define SPINDLE_DIRECTION_PIN	GPIO_NUM_2
+#define SPINDLE_DIRECTION_PIN   GPIO_NUM_2
 #else
-#define SPINDLE_ENABLE_PIN  	GPIO_NUM_2
+#define SPINDLE_ENABLE_PIN      GPIO_NUM_2
 #endif
-#define SPINDLEPWMPIN       	GPIO_NUM_21
+#define SPINDLEPWMPIN           GPIO_NUM_21
 
 // Define flood and mist coolant enable output pins.
 

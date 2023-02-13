@@ -37,7 +37,7 @@
 #define STEP_TIMER_INDEX TIMER_0
 
 // Stepper Driver Pins
-#define STEPPERS_ENABLE_PIN	  GPIO_NUM_17
+#define STEPPERS_ENABLE_PIN   GPIO_NUM_17
 
 #define X_STEP_PIN            GPIO_NUM_12
 #define X_DIRECTION_PIN       GPIO_NUM_14

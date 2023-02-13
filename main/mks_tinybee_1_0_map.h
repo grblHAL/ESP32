@@ -34,59 +34,59 @@
 #define STEP_TIMER_GROUP TIMER_GROUP_0
 #define STEP_TIMER_INDEX TIMER_0
 
-#define I2S_OUT_BCK     	GPIO_NUM_25
-#define I2S_OUT_WS      	GPIO_NUM_26
-#define I2S_OUT_DATA    	GPIO_NUM_27
+#define I2S_OUT_BCK         GPIO_NUM_25
+#define I2S_OUT_WS          GPIO_NUM_26
+#define I2S_OUT_DATA        GPIO_NUM_27
 
-#define X_STEP_PIN      	I2SO(1) 
-#define X_DIRECTION_PIN 	I2SO(2) 
-#define X_ENABLE_PIN   		I2SO(0) 
-#define X_LIMIT_PIN     	GPIO_NUM_33
+#define X_STEP_PIN          I2SO(1) 
+#define X_DIRECTION_PIN     I2SO(2) 
+#define X_ENABLE_PIN        I2SO(0) 
+#define X_LIMIT_PIN         GPIO_NUM_33
 
-#define Y_STEP_PIN      	I2SO(4)
-#define Y_DIRECTION_PIN 	I2SO(5)
-#define Y_ENABLE_PIN   		I2SO(3)
-#define Y_LIMIT_PIN     	GPIO_NUM_32
+#define Y_STEP_PIN          I2SO(4)
+#define Y_DIRECTION_PIN     I2SO(5)
+#define Y_ENABLE_PIN        I2SO(3)
+#define Y_LIMIT_PIN         GPIO_NUM_32
 
-#define Z_STEP_PIN      	I2SO(7)
-#define Z_DIRECTION_PIN 	I2SO(8)
-#define Z_ENABLE_PIN   		I2SO(6)
-#define Z_LIMIT_PIN     	GPIO_NUM_22
+#define Z_STEP_PIN          I2SO(7)
+#define Z_DIRECTION_PIN     I2SO(8)
+#define Z_ENABLE_PIN        I2SO(6)
+#define Z_LIMIT_PIN         GPIO_NUM_22
 
 #if N_ABC_MOTORS >= 1
-#define M3_AVAILABLE		// E0
-#define M3_STEP_PIN      	I2SO(10)
-#define M3_DIRECTION_PIN 	I2SO(11)
-#define M3_ENABLE_PIN   	I2SO(9)
+#define M3_AVAILABLE        // E0
+#define M3_STEP_PIN         I2SO(10)
+#define M3_DIRECTION_PIN    I2SO(11)
+#define M3_ENABLE_PIN       I2SO(9)
 #if SDCARD_ENABLE
-#define M4_LIMIT_PIN     	GPIO_NUM_12 // EXP2
+#define M4_LIMIT_PIN        GPIO_NUM_12 // EXP2
 #else
-#define M3_LIMIT_PIN     	GPIO_NUM_19 // EXP2
+#define M3_LIMIT_PIN        GPIO_NUM_19 // EXP2
 #endif
 #endif
 
 #if N_ABC_MOTORS >= 2
-#define M4_AVAILABLE		// E1
-#define M4_STEP_PIN      	I2SO(13)
-#define M4_DIRECTION_PIN	I2SO(14)
-#define M4_ENABLE_PIN   	I2SO(12)
+#define M4_AVAILABLE        // E1
+#define M4_STEP_PIN         I2SO(13)
+#define M4_DIRECTION_PIN    I2SO(14)
+#define M4_ENABLE_PIN       I2SO(12)
 #if SDCARD_ENABLE
-#define M4_LIMIT_PIN     	GPIO_NUM_14 // EXP2
+#define M4_LIMIT_PIN        GPIO_NUM_14 // EXP2
 #else
-#define M4_LIMIT_PIN     	GPIO_NUM_18 // EXP2
+#define M4_LIMIT_PIN        GPIO_NUM_18 // EXP2
 #endif
 #endif
 
 // Define spindle enable and spindle direction output pins.
 
-#define I2S_SPINDLE				1
+#define I2S_SPINDLE             1
 #define SPINDLEPWMPIN           GPIO_NUM_2
 #define SPINDLE_ENABLE_PIN      I2SO(17) // HE0
 #define SPINDLE_DIRECTION_PIN   I2SO(18) // HE1
 
 // Define flood and mist coolant enable output pins.
 
-#define I2S_COOLANT				1
+#define I2S_COOLANT             1
 #define COOLANT_FLOOD_PIN       I2SO(19) // FAN1
 #define COOLANT_MIST_PIN        I2SO(20) // FAN2
 
@@ -100,7 +100,7 @@
 
 // Define probe switch input pin.
 #if PROBE_ENABLE
-#define PROBE_PIN   			GPIO_NUM_35 // MT_DET
+#define PROBE_PIN               GPIO_NUM_35 // MT_DET
 #endif
 
 #if MODBUS_ENABLE
@@ -117,8 +117,8 @@
 #endif
 
 #if SDCARD_ENABLE
-#define PIN_NUM_MISO 			GPIO_NUM_19
-#define PIN_NUM_MOSI 			GPIO_NUM_23
-#define PIN_NUM_CLK 			GPIO_NUM_18
-#define PIN_NUM_CS 				GPIO_NUM_5
+#define PIN_NUM_MISO            GPIO_NUM_19
+#define PIN_NUM_MOSI            GPIO_NUM_23
+#define PIN_NUM_CLK             GPIO_NUM_18
+#define PIN_NUM_CS              GPIO_NUM_5
 #endif
