@@ -1,12 +1,10 @@
 //
 // enet.c - lwIP/FreeRTOS TCP/IP stream implementation
 //
-// v1.4 / 2022-07-22 / Io Engineering / Terje
-//
 
 /*
 
-Copyright (c) 2018-2021, Terje Io
+Copyright (c) 2018-2023, Terje Io
 Copyright (c) 2022, @Henrikastro
 All rights reserved.
 
@@ -46,22 +44,22 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <string.h>
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+#include "sdkconfig.h"
+#include "esp_system.h"
 #include "esp_netif.h"
 #include "esp_eth.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "driver/gpio.h"
-#include "sdkconfig.h"
 #include "driver/spi_master.h"
-#include "lwip/sockets.h"
 
-//#include "utils/locator.h" // comment in to enable TIs locator service
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+#include "lwip/sockets.h"
 
 #include "grbl/report.h"
 #include "grbl/nvs_buffer.h"
-
 #include "networking/networking.h"
 
 #define SYSTICK_INT_PRIORITY    0x80
@@ -90,20 +88,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
 static volatile bool linkUp = false;
-static uint32_t IPAddress = 0;
 static stream_type_t active_stream = StreamType_Null;
 static network_settings_t network, ethernet;
 static network_services_t services = {0}, allowed_services;
 static uint32_t nvs_address;
 static on_report_options_ptr on_report_options;
 static on_stream_changed_ptr on_stream_changed;
-static char netservices[30] = ""; // must be large enough to hold all service names
+static uint8_t mac_addr[6] = {0};
+static esp_netif_ip_info_t *ip_info = NULL;
+
+static char netservices[NETWORK_SERVICES_LEN] = "";
 
 static char *enet_ip_address (void)
 {
     static char ip[IPADDR_STRLEN_MAX];
 
-    ip4addr_ntoa_r((const ip_addr_t *)&IPAddress, ip, IPADDR_STRLEN_MAX);
+    sprintf(ip, IPSTR, IP2STR(&ip_info->ip));
+
+ //   ip4addr_ntoa_r((const ip_addr_t *)&ip_info->ip, ip, IPADDR_STRLEN_MAX);
 
     return ip;
 }
@@ -119,9 +121,16 @@ static void report_options (bool newopt)
             hal.stream.write(",FTP");
 #endif
     } else {
+
+        network_info_t *net = networking_get_info();
+
+        hal.stream.write("[MAC:");
+        hal.stream.write(net->mac);
+        hal.stream.write("]" ASCII_EOL);
+
         hal.stream.write("[IP:");
-        hal.stream.write(enet_ip_address());
-        hal.stream.write("]\r\n");
+        hal.stream.write(net->status.ip);
+        hal.stream.write("]" ASCII_EOL);
 
         if(active_stream == StreamType_Telnet || active_stream == StreamType_WebSocket) {
             hal.stream.write("[NETCON:");
@@ -129,6 +138,34 @@ static void report_options (bool newopt)
             hal.stream.write("]" ASCII_EOL);
         }
     }
+}
+
+network_info_t *networking_get_info (void)
+{
+    static network_info_t info;
+
+    memcpy(&info.status, &network, sizeof(network_settings_t));
+
+    sprintf(info.mac, MAC_FORMAT_STRING, mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+
+    if(ip_info)
+        strcpy(info.status.ip, enet_ip_address());
+
+    if(info.status.ip_mode == IpMode_DHCP) {
+        *info.status.gateway = '\0';
+        *info.status.mask = '\0';
+    }
+
+    info.is_ethernet = true;
+    info.link_up = linkUp;
+    info.mbps = 100;
+    info.status.services = services;
+
+#if MQTT_ENABLE
+    networking_make_mqtt_clientid(info.mac, info.mqtt_client_id);
+#endif
+
+    return &info;
 }
 
 static void lwIPHostTimerHandler (void *arg)
@@ -166,91 +203,103 @@ static void start_services (void)
 #endif
 #if HTTP_ENABLE
     if(network.services.http && !services.http)
-        services.http = httpdaemon_start(&network);
+        services.http = httpd_init(network.http_port);
 #endif
 #if TELNET_ENABLE || WEBSOCKET_ENABLE || FTP_ENABLE
     sys_timeout(STREAM_POLL_INTERVAL, lwIPHostTimerHandler, NULL);
 #endif
 }
-static const char *TAG = "eth_example";
 
 /** Event handler for Ethernet events */
-static void eth_event_handler(void *arg, esp_event_base_t event_base,
-                              int32_t event_id, void *event_data)
+static void eth_event_handler (void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
-    uint8_t mac_addr[6] = {0};
-    /* we can get the ethernet driver handle from event data */
-    esp_eth_handle_t eth_handle = *(esp_eth_handle_t *)event_data;
-
     switch (event_id) {
-    case ETHERNET_EVENT_CONNECTED:
-        esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, mac_addr);
-        ESP_LOGI(TAG, "Ethernet Link Up");
-        ESP_LOGI(TAG, "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",
-                 mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-        break;
-    case ETHERNET_EVENT_DISCONNECTED:
-        ESP_LOGI(TAG, "Ethernet Link Down");
-        break;
-    case ETHERNET_EVENT_START:
-        ESP_LOGI(TAG, "Ethernet Started");
-        break;
-    case ETHERNET_EVENT_STOP:
-        ESP_LOGI(TAG, "Ethernet Stopped");
-        break;
-    default:
-        break;
+
+        case ETHERNET_EVENT_CONNECTED:
+            linkUp = true;
+            esp_eth_ioctl(*(esp_eth_handle_t *)event_data, ETH_CMD_G_MAC_ADDR, mac_addr);
+            break;
+
+        case ETHERNET_EVENT_DISCONNECTED:
+            linkUp = false;
+            ip_info = NULL;
+            break;
+/*
+        case ETHERNET_EVENT_START:
+            break;
+
+        case ETHERNET_EVENT_STOP:
+            break;
+*/
+        default:
+            break;
     }
 }
 
 /** Event handler for IP_EVENT_ETH_GOT_IP */
-static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
-                                 int32_t event_id, void *event_data)
+static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
+    static esp_netif_ip_info_t info;
+
+    memcpy(&info, &((ip_event_got_ip_t *)event_data)->ip_info, sizeof(esp_netif_ip_info_t));
+    ip_info = &info;
+
     start_services();
 }
 
-const esp_netif_ip_info_t my_ap_ip = {
-        .ip = { .addr = ESP_IP4TOADDR( 192, 168, 1, 1) },
-        .gw = { .addr = ESP_IP4TOADDR( 192, 168, 1, 1) },
-        .netmask = { .addr = ESP_IP4TOADDR( 255, 255, 255, 0) },
+static inline void get_addr (esp_ip4_addr_t *addr, char *ip)
+{
+    memcpy(addr, ip, sizeof(esp_ip4_addr_t));
+}
 
-};
 bool enet_start (void)
 {
-    // Initialize TCP/IP network interface (should be called only once in application)
-    esp_netif_init();
-    // Create default event loop that running in background
+    if(esp_netif_init() != ESP_OK)
+        return false;
+
+    esp_netif_t *eth_netif;
+
+    memcpy(&network, &ethernet, sizeof(network_settings_t));
+
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-    const esp_netif_inherent_config_t eth_behav_cfg = {
+    if(network.ip_mode != IpMode_DHCP) {
+
+        esp_netif_ip_info_t static_ip;
+        get_addr(&static_ip.ip, network.ip);
+        get_addr(&static_ip.gw, network.gateway);
+        get_addr(&static_ip.netmask, network.mask);
+
+        const esp_netif_inherent_config_t eth_behav_cfg = {
             .get_ip_event = IP_EVENT_ETH_GOT_IP,
             .lost_ip_event = 0,
-            .flags = ESP_NETIF_DHCP_SERVER | ESP_NETIF_FLAG_AUTOUP,
-            .ip_info = (esp_netif_ip_info_t*)& my_ap_ip,
+            .flags = ESP_NETIF_DHCP_SERVER|ESP_NETIF_FLAG_AUTOUP,
+            .ip_info = &static_ip,
             .if_key = "ETH_DHCPS",
             .if_desc = "eth",
             .route_prio = 50
-    };
+        };
 
-    esp_netif_config_t eth_as_dhcps_cfg = { .base = &eth_behav_cfg, .stack = ESP_NETIF_NETSTACK_DEFAULT_ETH };
+        esp_netif_config_t eth_as_dhcps_cfg = {
+            .base = &eth_behav_cfg,
+            .stack = ESP_NETIF_NETSTACK_DEFAULT_ETH
+        };
+        eth_netif = esp_netif_new(&eth_as_dhcps_cfg);
 
-    esp_netif_t *eth_netif = esp_netif_new(&eth_as_dhcps_cfg);
+    } else {
+        esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH();
+        eth_netif = esp_netif_new(&cfg);
+    }
 
-    // Set handlers to process TCP/IP stuffs
-    esp_event_handler_register(ETH_EVENT, ETHERNET_EVENT_START, esp_netif_action_start, eth_netif);
-    esp_event_handler_register(ETH_EVENT, ETHERNET_EVENT_STOP, esp_netif_action_stop, eth_netif);
-
-    // Register user defined event handers
+    ESP_ERROR_CHECK(esp_eth_set_default_handlers(eth_netif));
     ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ETHERNET_EVENT_START, &got_ip_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
 
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
     phy_config.phy_addr = 1;
     phy_config.reset_gpio_num = -1;
 
-    //gpio_install_isr_service(0);
     spi_device_handle_t spi_handle = NULL;
     spi_bus_config_t buscfg = {
         .miso_io_num = INPUT_GPIO_MISO,
@@ -260,6 +309,7 @@ bool enet_start (void)
         .quadhd_io_num = -1,
     };
     ESP_ERROR_CHECK(spi_bus_initialize(1, &buscfg, 1));
+
     spi_device_interface_config_t devcfg = {
         .command_bits = 16,
         .address_bits = 8,
@@ -269,7 +319,7 @@ bool enet_start (void)
         .queue_size = 20
     };
     ESP_ERROR_CHECK(spi_bus_add_device(1, &devcfg, &spi_handle));
-    /* dm9051 ethernet driver is based on spi driver */
+
     eth_w5500_config_t w5500_config = ETH_W5500_DEFAULT_CONFIG(spi_handle);
     w5500_config.int_gpio_num = INPUT_GPIO_INTERRUPT;
     esp_eth_mac_t *mac = esp_eth_mac_new_w5500(&w5500_config, &mac_config);
@@ -278,6 +328,12 @@ bool enet_start (void)
     esp_eth_handle_t eth_handle = NULL;
     
     ESP_ERROR_CHECK(esp_eth_driver_install(&config, &eth_handle));
+
+    if(esp_read_mac(mac_addr, ESP_MAC_ETH) == ESP_OK)
+        esp_eth_ioctl(eth_handle, ETH_CMD_S_MAC_ADDR, mac_addr);
+    else
+        esp_eth_ioctl(eth_handle, ETH_CMD_S_MAC_ADDR, (uint8_t[]){ 0x02, 0x00, 0x00, 0x12, 0x34, 0x56 });
+
     /* attach Ethernet driver to TCP/IP stack */
     ESP_ERROR_CHECK(esp_netif_attach(eth_netif, esp_eth_new_netif_glue(eth_handle)));
     /* start Ethernet driver state machine */
@@ -298,20 +354,20 @@ static const setting_group_detail_t ethernet_groups [] = {
 };
 
 static const setting_detail_t ethernet_settings[] = {
-    { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, netservices, NULL, NULL, Setting_NonCoreFn, ethernet_set_services, ethernet_get_services, NULL, true },
-    { Setting_Hostname, Group_Networking, "Hostname", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, ethernet.hostname, NULL, NULL, true },
-    { Setting_IpMode, Group_Networking, "IP Mode", NULL, Format_RadioButtons, "Static,DHCP,AutoIP", NULL, NULL, Setting_NonCore, &ethernet.ip_mode, NULL, NULL, true },
-    { Setting_IpAddress, Group_Networking, "IP Address", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, NULL, true },
-    { Setting_Gateway, Group_Networking, "Gateway", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, NULL, true },
-    { Setting_NetMask, Group_Networking, "Netmask", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, NULL, true },
-    { Setting_TelnetPort, Group_Networking, "Telnet port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.telnet_port, NULL, NULL, true },
+    { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, netservices, NULL, NULL, Setting_NonCoreFn, ethernet_set_services, ethernet_get_services, NULL, { .reboot_required = On } },
+    { Setting_Hostname, Group_Networking, "Hostname", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, ethernet.hostname, NULL, NULL, { .reboot_required = On } },
+    { Setting_IpMode, Group_Networking, "IP Mode", NULL, Format_RadioButtons, "Static,DHCP,AutoIP", NULL, NULL, Setting_NonCore, &ethernet.ip_mode, NULL, NULL, { .reboot_required = On } },
+    { Setting_IpAddress, Group_Networking, "IP Address", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, NULL, { .reboot_required = On } },
+    { Setting_Gateway, Group_Networking, "Gateway", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, NULL, { .reboot_required = On } },
+    { Setting_NetMask, Group_Networking, "Netmask", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, NULL, { .reboot_required = On } },
+    { Setting_TelnetPort, Group_Networking, "Telnet port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.telnet_port, NULL, NULL, { .reboot_required = On } },
 #if FTP_ENABLE
-    { Setting_FtpPort, Group_Networking, "FTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.ftp_port, NULL, NULL, true },
+    { Setting_FtpPort, Group_Networking, "FTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.ftp_port, NULL, NULL, { .reboot_required = On } },
 #endif
 #if HTTP_ENABLE
-    { Setting_HttpPort, Group_Networking, "HTTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.http_port, NULL, NULL, true },
+    { Setting_HttpPort, Group_Networking, "HTTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.http_port, NULL, NULL, { .reboot_required = On } },
 #endif
-    { Setting_WebSocketPort, Group_Networking, "Websocket port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.websocket_port, NULL, NULL, true }
+    { Setting_WebSocketPort, Group_Networking, "Websocket port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.websocket_port, NULL, NULL, { .reboot_required = On } }
 };
 
 #ifndef NO_SETTINGS_DESCRIPTIONS
@@ -476,7 +532,6 @@ static void stream_changed (stream_type_t type)
 
 bool enet_init (void)
 {
-    //network.services.telnet = 1;
     if((nvs_address = nvs_alloc(sizeof(network_settings_t)))) {
 
         hal.driver_cap.ethernet = On;
