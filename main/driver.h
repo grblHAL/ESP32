@@ -42,34 +42,29 @@
 //
 
 #if WIFI_ENABLE || ETHERNET_ENABLE
-#if WEBUI_ENABLE
-#undef HTTP_ENABLE
-#define HTTP_ENABLE             1
-#else
-#define HTTP_ENABLE             0
-#endif
-#define TELNET_ENABLE           1
-#define WEBSOCKET_ENABLE        1
-#define NETWORK_TELNET_PORT     23
-#define NETWORK_FTP_PORT        21
-#define NETWORK_HTTP_PORT       80
-#define NETWORK_WEBSOCKET_PORT  81
+
+//#define TELNET_ENABLE           1
+//#define WEBSOCKET_ENABLE        1
+//#define NETWORK_TELNET_PORT     23
+//#define NETWORK_FTP_PORT        21
+//#define NETWORK_HTTP_PORT       80
+//#define NETWORK_WEBSOCKET_PORT  81
 
 // WiFi Station (STA) settings
-#define NETWORK_HOSTNAME    "Grbl"
-#define NETWORK_IPMODE      1 // 0 = static, 1 = DHCP, 2 = AutoIP
-#define NETWORK_IP          "192.168.5.1"
-#define NETWORK_GATEWAY     "192.168.5.1"
-#define NETWORK_MASK        "255.255.255.0"
+//#define NETWORK_HOSTNAME    "grblHAL"
+//#define NETWORK_IPMODE      1 // 0 = static, 1 = DHCP, 2 = AutoIP
+//#define NETWORK_IP          "192.168.5.1"
+//#define NETWORK_GATEWAY     "192.168.5.1"
+//#define NETWORK_MASK        "255.255.255.0"
 
 // WiFi Access Point (AP) settings
 #if WIFI_SOFTAP
-#define NETWORK_AP_HOSTNAME "GrblAP"
-#define NETWORK_AP_IP       "192.168.5.1"
-#define NETWORK_AP_GATEWAY  "192.168.5.1"
-#define NETWORK_AP_MASK     "255.255.255.0"
-#define WIFI_AP_SSID        "GRBL"
-#define WIFI_AP_PASSWORD    "GrblPassword" // Minimum 8 characters, or blank for open
+//#define NETWORK_AP_HOSTNAME "grblHAL_AP"
+//#define NETWORK_AP_IP       "192.168.5.1"
+//#define NETWORK_AP_GATEWAY  "192.168.5.1"
+//#define NETWORK_AP_MASK     "255.255.255.0"
+//#define WIFI_AP_SSID        "grblHAL_AP"
+//#define WIFI_AP_PASSWORD    "grblHALpwd" // Minimum 8 characters, or blank for open
 #define WIFI_MODE WiFiMode_AP; // OPTION: WiFiMode_APSTA
 #else
 #define WIFI_MODE WiFiMode_STA; // Do not change!
@@ -79,7 +74,7 @@
 #error "Cannot use static IP for station when soft AP is enabled!"
 #endif
 
-#endif
+#endif // WIFI_ENABLE || ETHERNET_ENABLE
 
 #ifndef RS485_DIR_ENABLE
 #define RS485_DIR_ENABLE 0
@@ -143,6 +138,7 @@ typedef struct
 
 typedef struct {
     uint8_t action;
+    uint_fast16_t address;
     void *params;
 } i2c_task_t;
 

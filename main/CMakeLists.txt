@@ -34,7 +34,7 @@ OPTION(I2SStepping "Use I2S Stepping" OFF)
 
 # Networking and WebUI plugin options
 OPTION(WiFi "Wifi + protocols" OFF)
-# OPTION(Ethernet "Ethernet + protocols" OFF) # to be completed
+OPTION(Ethernet "Ethernet + protocols" OFF) # NOTE: no board maps has support for this!
 OPTION(Bluetooth "Bluetooth" OFF)
 OPTION(SoftAP "Enable soft AP mode" OFF) # WiFi only
 OPTION(FtpDaemon "Enable ftp daemon" OFF) # Requires SDcard On
@@ -193,6 +193,7 @@ set(SRCS
  grbl/nvs_buffer.c
  grbl/gcode.c
  grbl/machine_limits.c
+ grbl/messages.c
  grbl/motion_control.c
  grbl/my_plugin.c
  grbl/nuts_bolts.c

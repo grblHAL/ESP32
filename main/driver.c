@@ -1606,7 +1606,9 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
                     pullup = true;
                     signal->invert = false;
                     config.intr_type = GPIO_INTR_ANYEDGE;
+  #if ETHERNET_ENABLE
                     gpio_isr_handler_add(signal->pin, gpio_i2c_strobe_isr, signal);
+  #endif
                     break;
 #endif
                 default:
@@ -2273,7 +2275,7 @@ IRAM_ATTR static void gpio_aux_isr (void *signal)
 #endif
 }
 
-#if MPG_MODE_ENABLE && ETHERNET_ENABLE
+#if MPG_MODE_ENABLE
 
 IRAM_ATTR static void gpio_mpg_isr (void *signal)
 {
@@ -2296,7 +2298,7 @@ IRAM_ATTR static void gpio_i2c_strobe_isr (void *signal)
 }
 #endif
 
-#else
+#else // ETHERNET_ENABLE
 
   //GPIO intr process
 IRAM_ATTR static void gpio_isr (void *arg)

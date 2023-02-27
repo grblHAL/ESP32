@@ -3,7 +3,7 @@
 
   Part of grblHAL driver for ESP32
 
-  Copyright (c) 2018-2022 Terje Io
+  Copyright (c) 2018-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,10 +27,6 @@
 #include "ioexpand.h"
 #endif
 
-#if KEYPAD_ENABLE == 1
-#include "keypad/keypad.h"
-#endif
-
 #if TRINAMIC_ENABLE && TRINAMIC_I2C
 #define I2C_ADR_I2CBRIDGE 0x47
 #endif
@@ -38,35 +34,35 @@
 QueueHandle_t i2cQueue = NULL;
 SemaphoreHandle_t i2cBusy = NULL;
 
-void I2CTask (void *queue)
+static void I2CTask (void *queue)
 {
     i2c_task_t task;
 
     while(xQueueReceive((QueueHandle_t)queue, &task, portMAX_DELAY) == pdPASS) {
 
-#if KEYPAD_ENABLE == 1
         if(task.action == 1) { // Read keypad character and add to input buffer
             if(i2cBusy != NULL && xSemaphoreTake(i2cBusy, 20 / portTICK_PERIOD_MS) == pdTRUE) {
                 char keycode;
                 i2c_cmd_handle_t cmd = i2c_cmd_link_create();
                 i2c_master_start(cmd);
-                i2c_master_write_byte(cmd, (KEYPAD_I2CADDR << 1) | I2C_MASTER_READ, true);
+                i2c_master_write_byte(cmd, (task.address << 1) | I2C_MASTER_READ, true);
                 i2c_master_read_byte(cmd, (uint8_t*)&keycode, I2C_MASTER_NACK);
                 i2c_master_stop(cmd);
                 if(i2c_master_cmd_begin(I2C_PORT, cmd, 1000 / portTICK_RATE_MS) == ESP_OK)
                     ((keycode_callback_ptr)task.params)(keycode);
                 i2c_cmd_link_delete(cmd);
+
                 xSemaphoreGive(i2cBusy);
             }
         }
-#endif
+
 #if IOEXPAND_ENABLE
         if(task.action == 2) { // Write to I/O expander (from ISR)
             if(i2cBusy != NULL && xSemaphoreTake(i2cBusy, 5 / portTICK_PERIOD_MS) == pdTRUE) {
 
                 i2c_cmd_handle_t cmd = i2c_cmd_link_create();
                 i2c_master_start(cmd);
-                i2c_master_write_byte(cmd, IOEX_ADDRESS|I2C_MASTER_WRITE, true);
+                i2c_master_write_byte(cmd, task.address|I2C_MASTER_WRITE, true);
                 i2c_master_write_byte(cmd, RW_OUTPUT, true);
                 i2c_master_write_byte(cmd, (uint8_t)((uint32_t)task.params & 0xFF), true);
                 i2c_master_stop(cmd);
@@ -128,6 +124,20 @@ void I2CInit (void)
     }
 }
 
+void i2c_get_keycode (uint_fast16_t i2cAddr, keycode_callback_ptr callback)
+{
+    static i2c_task_t i2c_task = {
+        .action = 1,
+        .params = NULL
+    };
+
+    i2c_task.address = i2cAddr;
+    i2c_task.params = callback;
+
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xQueueSendFromISR(i2cQueue, (void *)&i2c_task, &xHigherPriorityTaskWoken);
+}
+
 #if EEPROM_ENABLE
 
 nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
@@ -172,23 +182,6 @@ nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
 }
 
 #endif // EEPROM_ENABLE
-
-#if KEYPAD_ENABLE == 1
-
-void I2C_GetKeycode (uint32_t i2cAddr, keycode_callback_ptr callback)
-{
-    static i2c_task_t i2c_task = {
-        .action = 1,
-        .params = NULL
-    };
-
-    i2c_task.params = callback;
-
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xQueueSendFromISR(i2cQueue, (void *)&i2c_task, &xHigherPriorityTaskWoken);
-}
-
-#endif // KEYPAD_ENABLE == 1
 
 #if TRINAMIC_ENABLE && TRINAMIC_I2C
 
