@@ -50,28 +50,31 @@
 //#define NETWORK_HTTP_PORT       80
 //#define NETWORK_WEBSOCKET_PORT  81
 
+// Ethernet settings
+//#define NETWORK_HOSTNAME        "grblHAL"
+//#define NETWORK_IPMODE          1 // 0 = static, 1 = DHCP, 2 = AutoIP
+//#define NETWORK_IP              "192.168.5.1"
+//#define NETWORK_GATEWAY         "192.168.5.1"
+//#define NETWORK_MASK            "255.255.255.0"
+
 // WiFi Station (STA) settings
-//#define NETWORK_HOSTNAME    "grblHAL"
-//#define NETWORK_IPMODE      1 // 0 = static, 1 = DHCP, 2 = AutoIP
-//#define NETWORK_IP          "192.168.5.1"
-//#define NETWORK_GATEWAY     "192.168.5.1"
-//#define NETWORK_MASK        "255.255.255.0"
+//#define NETWORK_STA_HOSTNAME    "grblHAL"
+//#define NETWORK_STA_IPMODE      1 // 0 = static, 1 = DHCP, 2 = AutoIP
+//#define NETWORK_STA_IP          "192.168.5.1"
+//#define NETWORK_STA_GATEWAY     "192.168.5.1"
+//#define NETWORK_STA_MASK        "255.255.255.0"
 
 // WiFi Access Point (AP) settings
 #if WIFI_SOFTAP
-//#define NETWORK_AP_HOSTNAME "grblHAL_AP"
-//#define NETWORK_AP_IP       "192.168.5.1"
-//#define NETWORK_AP_GATEWAY  "192.168.5.1"
-//#define NETWORK_AP_MASK     "255.255.255.0"
-//#define WIFI_AP_SSID        "grblHAL_AP"
-//#define WIFI_AP_PASSWORD    "grblHALpwd" // Minimum 8 characters, or blank for open
+//#define NETWORK_AP_HOSTNAME     "grblHAL_AP"
+//#define NETWORK_AP_IP           "192.168.5.1"
+//#define NETWORK_AP_GATEWAY      "192.168.5.1"
+//#define NETWORK_AP_MASK         "255.255.255.0"
+//#define NETWORK_AP_SSID         "grblHAL_AP"
+//#define NETWORK_AP_PASSWORD     "grblHALpwd" // Minimum 8 characters, or blank for open
 #define WIFI_MODE WiFiMode_AP; // OPTION: WiFiMode_APSTA
 #else
 #define WIFI_MODE WiFiMode_STA; // Do not change!
-#endif
-
-#if NETWORK_IPMODE == 0 && WIFI_SOFTAP
-#error "Cannot use static IP for station when soft AP is enabled!"
 #endif
 
 #endif // WIFI_ENABLE || ETHERNET_ENABLE
@@ -95,6 +98,10 @@
 
 #include "grbl/hal.h"
 #include "grbl/driver_opts.h"
+
+#if WIFI_ENABLE && NETWORK_STA_IPMODE == 0 && WIFI_SOFTAP
+#error "Cannot use static IP for station when soft AP is enabled!"
+#endif
 
 static const DRAM_ATTR float FZERO = 0.0f;
 

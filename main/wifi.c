@@ -206,6 +206,8 @@ network_info_t *networking_get_info (void)
     return &info;
 }
 
+#if TELNET_ENABLE || WEBSOCKET_ENABLE || FTP_ENABLE
+
 static void lwIPHostTimerHandler (void *arg)
 {
     if(services.mask)
@@ -224,6 +226,8 @@ static void lwIPHostTimerHandler (void *arg)
         ftpd_poll();
 #endif
 }
+
+#endif
 
 static void start_services (void)
 {
@@ -457,8 +461,12 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
             break;
 
         case WIFI_EVENT_AP_STADISCONNECTED:
+#if TELNET_ENABLE
             telnetd_close_connections();
+#endif
+#if WEBSOCKET_ENABLE
             websocketd_close_connections();
+#endif
             wifi_ap_scan();
             protocol_enqueue_rt_command(msg_ap_disconnected);
             break;
@@ -470,8 +478,12 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
 
         case WIFI_EVENT_STA_DISCONNECTED:
             //stop_services();
+#if TELNET_ENABLE
             telnetd_close_connections();
+#endif
+#if WEBSOCKET_ENABLE
             websocketd_close_connections();
+#endif
             protocol_enqueue_rt_command(msg_sta_disconnected);
             memset(&wifi_sta_config, 0, sizeof(wifi_config_t));
             esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_sta_config);
@@ -1058,18 +1070,18 @@ static void wifi_settings_restore (void)
 
 // Station
 
-    strlcpy(wifi.sta.network.hostname, NETWORK_HOSTNAME, sizeof(wifi.sta.network.hostname));
+    strlcpy(wifi.sta.network.hostname, NETWORK_STA_HOSTNAME, sizeof(wifi.sta.network.hostname));
 
-    wifi.sta.network.ip_mode = (ip_mode_t)NETWORK_IPMODE;
+    wifi.sta.network.ip_mode = (ip_mode_t)NETWORK_STA_IPMODE;
 
-    if(inet_pton(AF_INET, NETWORK_IP, &addr) == 1)
+    if(inet_pton(AF_INET, NETWORK_STA_IP, &addr) == 1)
         set_addr(wifi.sta.network.ip, &addr);
 
-    if(inet_pton(AF_INET, NETWORK_GATEWAY, &addr) == 1)
+    if(inet_pton(AF_INET, NETWORK_STA_GATEWAY, &addr) == 1)
         set_addr(wifi.sta.network.gateway, &addr);
 
 #if NETWORK_IPMODE == 0
-    if(inet_pton(AF_INET, NETWORK_MASK, &addr) == 1)
+    if(inet_pton(AF_INET, NETWORK_STA_MASK, &addr) == 1)
         set_addr(wifi.sta.network.mask, &addr);
  #else
     if(inet_pton(AF_INET, "255.255.255.0", &addr) == 1)
@@ -1082,8 +1094,8 @@ static void wifi_settings_restore (void)
 
     wifi.ap.network.ip_mode = IpMode_Static;
     strlcpy(wifi.ap.network.hostname, NETWORK_AP_HOSTNAME, sizeof(wifi.ap.network.hostname));
-    strlcpy(wifi.ap.ssid, WIFI_AP_SSID, sizeof(wifi.ap.ssid));
-    strlcpy(wifi.ap.password, WIFI_AP_PASSWORD, sizeof(wifi.ap.password));
+    strlcpy(wifi.ap.ssid, NETWORK_AP_SSID, sizeof(wifi.ap.ssid));
+    strlcpy(wifi.ap.password, NETWORK_AP_PASSWORD, sizeof(wifi.ap.password));
 
     if(inet_pton(AF_INET, NETWORK_AP_IP, &addr) == 1)
         set_addr(wifi.ap.network.ip, &addr);
