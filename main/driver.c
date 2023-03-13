@@ -307,6 +307,12 @@ static output_signal_t outputpin[] =
 #ifdef AUXOUTPUT1_PIN
     { .id = Output_Aux1,          .pin = AUXOUTPUT1_PIN,        .group = PinGroup_AuxOutput },
 #endif
+#ifdef AUXOUTPUT2_PIN
+    { .id = Output_Aux2,          .pin = AUXOUTPUT2_PIN,        .group = PinGroup_AuxOutput },
+#endif
+#ifdef AUXOUTPUT3_PIN
+    { .id = Output_Aux3,          .pin = AUXOUTPUT3_PIN,        .group = PinGroup_AuxOutput },
+#endif
 };
 
 static bool IOInitDone = false, rtc_started = false;
@@ -2029,7 +2035,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "230210";
+    hal.driver_version = "230313";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;

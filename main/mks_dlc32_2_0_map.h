@@ -5,6 +5,7 @@
 
   Part of grblHAL
 
+  Copyright (c) 2023 Terje Io
   Copyright (c) 2022 Lucio Tarantino
 
   Grbl is free software: you can redistribute it and/or modify
@@ -29,6 +30,7 @@
 
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
+#define HAS_IOPORTS
 
 // timer definitions
 #define STEP_TIMER_GROUP TIMER_GROUP_0
@@ -82,7 +84,18 @@
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 
-// N/A
+#if !I2C_ENABLE
+#define FEED_HOLD_PIN       GPIO_NUM_0  // J2,3 (I2C_SDA)
+#define CYCLE_START_PIN     GPIO_NUM_4  // J2,4 (I2C_SCL)
+#endif
+
+#ifdef HAS_IOPORTS
+#define AUXINPUT0_PIN       GPIO_NUM_33 // EXP_1,8 (LCD_RS)
+#define AUXOUTPUT0_PIN      GPIO_NUM_25 // EXP_1,7 (LCD_CS_0)
+#define AUXOUTPUT1_PIN      GPIO_NUM_26 // EXP_1,5 (LCD_TOUCH_CS_0)
+#define AUXOUTPUT2_PIN      GPIO_NUM_27 // EXP_1,4 (LCD_RST_0)
+#define AUXOUTPUT3_PIN      GPIO_NUM_5  // EXP_1,3 (LCD_EN_0)
+#endif
 
 // Define probe switch input pin.
 #if PROBE_ENABLE
