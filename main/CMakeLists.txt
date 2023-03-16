@@ -79,6 +79,9 @@ OPTION(LASERCOOLANT "Compile with Laser coolant plugin support" OFF)
 # Keypad plugin options
 OPTION(Keypad "I2C Keypad" OFF)
 
+# Embroidery plugin options
+OPTION(Embroidery "Embroidery" OFF)
+
 # --- Do not change anything below unless you understand what you are doing ---
 
 set(SDCARD_SOURCE
@@ -176,6 +179,12 @@ set(TRINAMIC_UART_SOURCE
 set(LASER_SOURCE
  laser/coolant.c
  laser/lb_clusters.c
+)
+
+set (EMBROIDERY_SOURCE
+ embroidery/embroidery.c
+ embroidery/brother.c
+ embroidery/tajima.c
 )
 
 set(SRCS
@@ -280,6 +289,10 @@ endif()
 list (APPEND SRCS ${EEPROM_SOURCE})
 if(LBCLUSTER OR LASERCOOLANT OR LB_CLUSTERS_ENABLE EQUAL 1)
 list (APPEND SRCS ${LASER_SOURCE})
+endif()
+
+if(Embroidery OR EMBROIDERY_ENABLE EQUAL 1)
+list (APPEND SRCS ${EMBROIDERY_SOURCE})
 endif()
 
 idf_component_register(SRCS "${SRCS}" INCLUDE_DIRS ".")
@@ -435,6 +448,10 @@ if(MPGMode)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC MPG_MODE_ENABLE=1)
 endif()
 
+if(Embroidery)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC EMBROIDERY_ENABLE=1)
+endif()
+
 if(SPINDLE_ALL)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC VFD_ENABLE=-1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC N_SPINDLE=7)
@@ -531,6 +548,7 @@ unset(TMC5160 CACHE)
 unset(WebUI CACHE)
 unset(WebAuth CACHE)
 unset(MPGMode CACHE)
+unset(Embroidery CACHE)
 unset(SPINDLE_ALL CACHE)
 unset(SPINDLE_HUANYANG1 CACHE)
 unset(SPINDLE_HUANYANG2 CACHE)

@@ -29,7 +29,8 @@
       { "id": "macros" },
       { "id": "laser_cluster" },
       { "id": "laser_coolant" },
-      { "id": "motors" }
+      { "id": "motors" },
+      { "id": "embroidery" }
     ]
   },
   "symbols_networking": {
