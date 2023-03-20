@@ -1144,6 +1144,16 @@ static void wifi_settings_load (void)
 
     wifi.sta.network.services.mask &= allowed_services.mask;
     wifi.ap.network.services.mask &= allowed_services.mask;
+
+    if(wifi.sta.network.services.http &&
+        wifi.sta.network.services.websocket &&
+         wifi.sta.network.websocket_port == wifi.sta.network.http_port)
+        wifi.sta.network.websocket_port++;
+
+    if(wifi.ap.network.services.http &&
+        wifi.ap.network.services.websocket &&
+         wifi.ap.network.websocket_port == wifi.ap.network.http_port)
+        wifi.ap.network.websocket_port++;
 }
 
 static void stream_changed (stream_type_t type)

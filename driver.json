@@ -185,8 +185,8 @@
       "URL": "https://github.com/makerbase-mks/MKS-DLC32",
       "caps": {
         "axes": 3,
-        "digital_in": 0,
-        "digital_out": 0,
+        "digital_in": 1,
+        "digital_out": 4,
         "safety_door": 0,
         "serial_ports": 1,
         "eeprom": 0,
