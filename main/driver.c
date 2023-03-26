@@ -330,6 +330,8 @@ static axes_signals_t motors_1 = {AXES_BITMASK}, motors_2 = {AXES_BITMASK};
 #if USE_I2S_OUT
 static bool goIdlePending = false;
 static uint32_t i2s_step_length = I2S_OUT_USEC_PER_PULSE, i2s_step_samples = 1;
+static bool laser_mode = false;
+static on_spindle_selected_ptr on_spindle_selected;
 #endif
 
 #if IOEXPAND_ENABLE
@@ -958,13 +960,21 @@ static void i2s_set_streaming_mode (bool stream)
     }
 }
 
+static void onSpindleSelected (spindle_ptrs_t *spindle)
+{
+    i2s_set_streaming_mode(!(laser_mode = spindle->cap.laser));
+
+    if(on_spindle_selected)
+        on_spindle_selected(spindle);
+}
+
 #endif
 
 // Enable/disable limit pins interrupt
 static void limitsEnable (bool on, bool homing)
 {
 #if USE_I2S_OUT
-    i2s_set_streaming_mode(!homing);
+    i2s_set_streaming_mode(!(homing || laser_mode));
 #endif
 
     uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
@@ -1061,7 +1071,7 @@ inline IRAM_ATTR static control_signals_t systemGetState (void)
 static void probeConfigure(bool is_probe_away, bool probing)
 {
 #if USE_I2S_OUT
-    i2s_set_streaming_mode(!probing);
+    i2s_set_streaming_mode(!(probing || laser_mode));
 #endif
 
     probe.triggered = Off;
@@ -1266,6 +1276,11 @@ bool spindleConfig (spindle_ptrs_t *spindle)
     }
 
     spindle_update_caps(spindle, spindle->cap.variable ? &spindle_pwm : NULL);
+
+#if USE_I2S_OUT
+    if(spindle->id == spindle_get_default())
+        i2s_set_streaming_mode(!(laser_mode = spindle->cap.laser));
+#endif
 
     return true;
 }
@@ -1992,6 +2007,11 @@ static bool driver_setup (settings_t *settings)
     hal.settings_changed(settings, (settings_changed_flags_t){0});
     hal.stepper.go_idle(true);
 
+#if USE_I2S_OUT && defined(SPINDLEPWMPIN)
+    on_spindle_selected = grbl.on_spindle_selected;
+    grbl.on_spindle_selected = onSpindleSelected;
+#endif
+
 #if ETHERNET_ENABLE
     enet_start();
 #endif
@@ -2035,7 +2055,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "230313";
+    hal.driver_version = "230326";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
