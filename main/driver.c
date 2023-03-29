@@ -676,7 +676,7 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_outbits_1)
 {
     axes_signals_t step_outbits_2;
     step_outbits_2.mask = (step_outbits_1.mask & motors_2.mask) ^ settings.steppers.step_invert.mask;
-//    step_outbits_1.mask = (step_outbits_1.mask & motors_1.mask) ^ settings.steppers.step_invert.mask;
+    step_outbits_1.mask = (step_outbits_1.mask & motors_1.mask) ^ settings.steppers.step_invert.mask;
 
     if(step_outbits_1.x) {
         RMT.conf_ch[X_AXIS].conf1.mem_rd_rst = 1;
@@ -2055,7 +2055,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "230326";
+    hal.driver_version = "230329";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
