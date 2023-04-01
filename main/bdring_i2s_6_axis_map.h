@@ -99,11 +99,19 @@
 
 // Define flood and mist coolant enable output pins.
 
-#define COOLANT_MIST_PIN    GPIO_NUM_26
+#define COOLANT_MIST_PIN        GPIO_NUM_26
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 
 // N/A
+
+#if MODBUS_ENABLE
+#define UART2_RX_PIN            GPIO_NUM_15
+#define UART2_TX_PIN            GPIO_NUM_14
+#if RS485_DIR_ENABLE
+#define MODBUS_DIRECTION_PIN    GPIO_NUM_13
+#endif
+#endif
 
 // Define probe switch input pin.
 #if PROBE_ENABLE

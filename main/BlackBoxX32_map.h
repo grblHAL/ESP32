@@ -31,6 +31,9 @@
 #define BOARD_NAME "BlackBox X32"
 #define BOARD_URL "https://docs.openbuilds.com/doku.php?id=docs:blackbox-x32:start"
 #define HAS_IOPORTS
+#if N_AUTO_SQUARED || N_AXIS > 3
+#define HAS_BOARD_INIT
+#endif
 
 // timer definitions
 #define STEP_TIMER_GROUP TIMER_GROUP_0
@@ -54,11 +57,13 @@
   #define M3_STEP_PIN         GPIO_NUM_33
   #define M3_DIRECTION_PIN    GPIO_NUM_32
  #if N_AUTO_SQUARED
-  #define M3_LIMIT_PIN        GPIO_NUM_22
-  #if PROBE_ENABLE
-   #warning "Probe input is not available when an auto-squared axis is enabled."
-   #undef PROBE_ENABLE
-   #define PROBE_ENABLE 0
+// add limit pin definitions to stop compiler complaints (from preprocessor).
+  #if X_AUTO_SQUARE
+   #define M3_LIMIT_PIN       GPIO_NUM_35 // Same as X limit, switched to Z by board code during homing.
+  #elif Y_AUTO_SQUARE
+   #define M3_LIMIT_PIN       GPIO_NUM_34 // Same as Y limit, switched to Z by board code during homing.
+  #else
+   #define M3_LIMIT_PIN       GPIO_NUM_39 // Same as Z limit, switched to X by board code during homing.
   #endif
  #endif
 #endif
@@ -88,7 +93,6 @@
 #if SAFETY_DOOR_ENABLE
   #define SAFETY_DOOR_PIN     GPIO_NUM_16
 #endif
-
 
 #ifdef HAS_IOPORTS
 #define AUXINPUT0_PIN         GPIO_NUM_0 // Mode button on front panel

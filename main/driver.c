@@ -2055,7 +2055,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "230329";
+    hal.driver_version = "230331";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2184,7 +2184,7 @@ bool driver_init (void)
 
 #endif // DRIVER_SPINDLE
 
-  // driver capabilities, used for announcing and negotiating (with Grbl) driver functionality
+  // driver capabilities, used for announcing and negotiating (with the core) driver functionality
 
   #if IOEXPAND_ENABLE || defined(COOLANT_MIST_PIN)
     hal.driver_cap.mist_control = On;
@@ -2198,6 +2198,7 @@ bool driver_init (void)
 #ifdef SAFETY_DOOR_PIN
     hal.signals_cap.safety_door_ajar = On;
 #endif
+    hal.limits_cap = get_limits_cap();
 #if MPG_MODE_ENABLE
     hal.driver_cap.mpg_mode = stream_mpg_register(serial2Init(115200), true, NULL);
 #endif

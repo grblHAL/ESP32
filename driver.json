@@ -19,6 +19,7 @@
     "sdcard": 1,
     "pio_board": "esp32dev",
     "plugins": [
+      { "id": "bluetooth" },
       { "id": "spindle" },
       { "id": "modbus" },
       { "id": "eeprom" },
@@ -78,14 +79,13 @@
         "axes": 6,
         "digital_in": 0,
         "digital_out": 0,
+        "serial_ports": 1,
         "eeprom": 0,
         "fram": 0,
         "i2c": 0,
         "sdcard": 0,
         "trinamic_spi_cs": 1,
-        "trinamic_spi_chain": 1,
-        "trinamic_uart_n": 1,
-        "trinamic_uart_addr": 0
+        "trinamic_spi_chain": 1
       }
     },
     {
