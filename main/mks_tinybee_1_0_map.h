@@ -27,8 +27,6 @@
 
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
-#define I2S_SPINDLE
-#define I2S_COOLANT
 
 // timer definitions
 #define STEP_TIMER_GROUP TIMER_GROUP_0
@@ -79,14 +77,12 @@
 
 // Define spindle enable and spindle direction output pins.
 
-#define I2S_SPINDLE             1
 #define SPINDLEPWMPIN           GPIO_NUM_2
 #define SPINDLE_ENABLE_PIN      I2SO(17) // HE0
 #define SPINDLE_DIRECTION_PIN   I2SO(18) // HE1
 
 // Define flood and mist coolant enable output pins.
 
-#define I2S_COOLANT             1
 #define COOLANT_FLOOD_PIN       I2SO(19) // FAN1
 #define COOLANT_MIST_PIN        I2SO(20) // FAN2
 

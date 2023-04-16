@@ -509,42 +509,76 @@ static void stepperEnable (axes_signals_t enable)
     enable.mask ^= settings.steppers.enable_invert.mask;
 
 #if !TRINAMIC_MOTOR_ENABLE
-#if IOEXPAND_ENABLE // TODO: read from expander?
+  #if IOEXPAND_ENABLE // TODO: read from expander?
     iopins.stepper_enable_x = enable.x;
     iopins.stepper_enable_y = enable.y;
     iopins.stepper_enable_z = enable.z;
     ioexpand_out(iopins);
-#elif defined(STEPPERS_ENABLE_PIN)
-    DIGITAL_OUT(STEPPERS_ENABLE_PIN, enable.x);
-#else
-  #ifdef X_ENABLE_PIN
-    DIGITAL_OUT(X_ENABLE_PIN, enable.x);
+  #elif I2S_STEPPER_ENA
+    #if defined(STEPPERS_ENABLE_PIN)
+        DIGITAL_OUT(STEPPERS_ENABLE_PIN, enable.x);
+    #else
+      #ifdef X_ENABLE_PIN
+        DIGITAL_OUT(X_ENABLE_PIN, enable.x);
+      #endif
+      #ifdef Y_ENABLE_PIN
+        DIGITAL_OUT(Y_ENABLE_PIN, enable.y);
+      #endif
+      #ifdef Z_ENABLE_PIN
+        DIGITAL_OUT(Z_ENABLE_PIN, enable.z);
+      #endif
+      #ifdef A_ENABLE_PIN
+        DIGITAL_OUT(A_ENABLE_PIN, enable.a);
+      #endif
+      #ifdef B_ENABLE_PIN
+        DIGITAL_OUT(B_ENABLE_PIN, enable.b);
+      #endif
+      #ifdef C_ENABLE_PIN
+        DIGITAL_OUT(C_ENABLE_PIN, enable.c);
+      #endif
+      #ifdef X2_ENABLE_PIN
+        DIGITAL_OUT(X2_ENABLE_PIN, enable.x);
+      #endif
+      #ifdef Y2_ENABLE_PIN
+        DIGITAL_OUT(Y2_ENABLE_PIN, enable.y);
+      #endif
+      #ifdef Z2_ENABLE_PIN
+        DIGITAL_OUT(Z2_ENABLE_PIN, enable.z);
+      #endif
+    #endif
+  #else
+    #if defined(STEPPERS_ENABLE_PIN)
+        gpio_set_level(STEPPERS_ENABLE_PIN, enable.x);
+    #else
+      #ifdef X_ENABLE_PIN
+        gpio_set_level(X_ENABLE_PIN, enable.x);
+      #endif
+      #ifdef Y_ENABLE_PIN
+        gpio_set_level(Y_ENABLE_PIN, enable.y);
+      #endif
+      #ifdef Z_ENABLE_PIN
+        gpio_set_level(Z_ENABLE_PIN, enable.z);
+      #endif
+      #ifdef A_ENABLE_PIN
+        gpio_set_level(A_ENABLE_PIN, enable.a);
+      #endif
+      #ifdef B_ENABLE_PIN
+        gpio_set_level(B_ENABLE_PIN, enable.b);
+      #endif
+      #ifdef C_ENABLE_PIN
+        gpio_set_level(C_ENABLE_PIN, enable.c);
+      #endif
+      #ifdef X2_ENABLE_PIN
+        gpio_set_level(X2_ENABLE_PIN, enable.x);
+      #endif
+      #ifdef Y2_ENABLE_PIN
+        gpio_set_level(Y2_ENABLE_PIN, enable.y);
+      #endif
+      #ifdef Z2_ENABLE_PIN
+        gpio_set_level(Z2_ENABLE_PIN, enable.z);
+      #endif
+    #endif
   #endif
-  #ifdef Y_ENABLE_PIN
-    DIGITAL_OUT(Y_ENABLE_PIN, enable.y); 
-  #endif
-  #ifdef Z_ENABLE_PIN
-    DIGITAL_OUT(Z_ENABLE_PIN, enable.z);
-  #endif
-  #ifdef A_ENABLE_PIN
-    DIGITAL_OUT(A_ENABLE_PIN, enable.a);
-  #endif
-  #ifdef B_ENABLE_PIN
-    DIGITAL_OUT(B_ENABLE_PIN, enable.b);
-  #endif
-  #ifdef C_ENABLE_PIN
-    DIGITAL_OUT(C_ENABLE_PIN, enable.c);
-  #endif
-  #ifdef X2_ENABLE_PIN
-    DIGITAL_OUT(X2_ENABLE_PIN, enable.x);
-  #endif
-  #ifdef Y2_ENABLE_PIN
-    DIGITAL_OUT(Y2_ENABLE_PIN, enable.y);
-  #endif
-  #ifdef Z2_ENABLE_PIN
-    DIGITAL_OUT(Z2_ENABLE_PIN, enable.z);
-  #endif
-#endif
 #endif
 }
 
@@ -2055,7 +2089,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "230331";
+    hal.driver_version = "230416";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;

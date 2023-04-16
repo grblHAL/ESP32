@@ -210,16 +210,23 @@ typedef struct {
 
 #ifndef I2S_SPINDLE
 #define I2S_SPINDLE USE_I2S_OUT
-#else
+#elif !USE_I2S_OUT
 #undef I2S_SPINDLE
-#define I2S_SPINDLE 1
+#define I2S_SPINDLE 0
 #endif
 
 #ifndef I2S_COOLANT
 #define I2S_COOLANT USE_I2S_OUT
-#else
+#elif !USE_I2S_OUT
 #undef I2S_COOLANT
-#define I2S_COOLANT 1
+#define I2S_COOLANT 0
+#endif
+
+#ifndef I2S_STEPPER_ENA
+#define I2S_STEPPER_ENA USE_I2S_OUT
+#elif !USE_I2S_OUT
+#undef I2S_STEPPER_ENA
+#define I2S_STEPPER_ENA 0
 #endif
 
 #ifdef I2C_PORT
