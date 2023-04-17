@@ -94,6 +94,8 @@
 
 #if I2C_STROBE_ENABLE
 #define I2C_STROBE_PIN          GPIO_NUM_33
+#else
+#define AUXINPUT0_PIN           GPIO_NUM_33
 #endif
 
 #if MODBUS_ENABLE
