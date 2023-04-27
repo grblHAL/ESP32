@@ -82,6 +82,9 @@ OPTION(Keypad "I2C Keypad" OFF)
 # Embroidery plugin options
 OPTION(Embroidery "Embroidery" OFF)
 
+# Add my_plugin.c to compilation, add my_plugin.c to the main folder first
+OPTION(AddMyPlugin "Add my_plugin.c" ON)
+
 # --- Do not change anything below unless you understand what you are doing ---
 
 set(SDCARD_SOURCE
@@ -181,12 +184,59 @@ set(LASER_SOURCE
  laser/lb_clusters.c
 )
 
-set (EMBROIDERY_SOURCE
+set(EMBROIDERY_SOURCE
  embroidery/embroidery.c
  embroidery/brother.c
  embroidery/tajima.c
 )
 
+if(AddMyPlugin)
+set(SRCS
+ main.c
+ driver.c
+ nvs.c
+ esp32-hal-uart.c
+ ioports.c
+ i2c.c
+ ioexpand.c
+ i2s_out.c
+ BlackBoxX32.c
+ networking/strutils.c
+ grbl/grbllib.c
+ grbl/coolant_control.c
+ grbl/nvs_buffer.c
+ grbl/gcode.c
+ grbl/machine_limits.c
+ grbl/messages.c
+ grbl/motion_control.c
+ my_plugin.c
+ grbl/nuts_bolts.c
+ grbl/override.c
+ grbl/planner.c
+ grbl/protocol.c
+ grbl/report.c
+ grbl/settings.c
+ grbl/sleep.c
+ grbl/spindle_control.c
+ grbl/state_machine.c
+ grbl/stream.c
+ grbl/stepper.c
+ grbl/system.c
+ grbl/tool_change.c
+ grbl/alarms.c
+ grbl/errors.c
+ grbl/ngc_expr.c
+ grbl/ngc_params.c
+ grbl/regex.c
+ grbl/ioports.c
+ grbl/corexy.c
+ grbl/vfs.c
+ littlefs_hal.c
+ littlefs/lfs.c
+ littlefs/lfs_util.c
+ sdcard/fs_littlefs.c
+)
+else()
 set(SRCS
  main.c
  driver.c
@@ -232,6 +282,7 @@ set(SRCS
  littlefs/lfs_util.c
  sdcard/fs_littlefs.c
 )
+endif()
 
 if(Wifi OR WIFI_ENABLE EQUAL 1)
 list (APPEND SRCS ${WIFI_SOURCE})
@@ -550,6 +601,7 @@ unset(WebUI CACHE)
 unset(WebAuth CACHE)
 unset(MPGMode CACHE)
 unset(Embroidery CACHE)
+unset(AddMyPlugin CACHE)
 unset(SPINDLE_ALL CACHE)
 unset(SPINDLE_HUANYANG1 CACHE)
 unset(SPINDLE_HUANYANG2 CACHE)

@@ -100,7 +100,7 @@ static io_stream_properties_t serial[] = {
       .flags.can_set_baud = On,
       .claim = serialInit
     },
-#ifdef SERIAL2_ENABLE
+#if SERIAL2_ENABLE
     {
       .type = StreamType_Serial,
       .instance = 1,
@@ -656,6 +656,7 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
 {
     static const io_stream_t stream = {
         .type = StreamType_Serial,
+        .instance = 1,
         .state.connected = true,
         .read = serial2Read,
         .write = serial2WriteS,

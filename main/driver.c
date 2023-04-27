@@ -213,28 +213,26 @@ static input_signal_t inputpin[] = {
 
 static output_signal_t outputpin[] =
 {
-#if !USE_I2S_OUT
-    { .id = Output_StepX,         .pin = X_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
-    { .id = Output_StepY,         .pin = Y_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
-    { .id = Output_StepZ,         .pin = Z_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
-  #ifdef A_STEP_PIN
-    { .id = Output_StepA,         .pin = A_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
-  #endif
-  #ifdef B_STEP_PIN
-    { .id = Output_StepB,         .pin = B_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
-  #endif
-  #ifdef C_STEP_PIN
-    { .id = Output_StepC,         .pin = C_STEP_PIN,            .group = PinGroup_StepperStep,   .mode = Pin_RMT },
-  #endif
-  #ifdef X2_STEP_PIN
-    { .id = Output_StepX_2,       .pin = X2_STEP_PIN,           .group = PinGroup_StepperStep,   .mode = Pin_RMT },
-  #endif
-  #ifdef Y2_STEP_PIN
-    { .id = Output_StepY_2,       .pin = Y2_STEP_PIN,           .group = PinGroup_StepperStep,   .mode = Pin_RMT },
-  #endif
-  #ifdef Z2_STEP_PIN
-    { .id = Output_StepZ_2,       .pin = Z2_STEP_PIN,           .group = PinGroup_StepperStep,   .mode = Pin_RMT },
-  #endif
+    { .id = Output_StepX,         .pin = X_STEP_PIN,            .group = PinGroup_StepperStep },
+    { .id = Output_StepY,         .pin = Y_STEP_PIN,            .group = PinGroup_StepperStep },
+    { .id = Output_StepZ,         .pin = Z_STEP_PIN,            .group = PinGroup_StepperStep },
+#ifdef A_STEP_PIN
+    { .id = Output_StepA,         .pin = A_STEP_PIN,            .group = PinGroup_StepperStep },
+#endif
+#ifdef B_STEP_PIN
+    { .id = Output_StepB,         .pin = B_STEP_PIN,            .group = PinGroup_StepperStep },
+#endif
+#ifdef C_STEP_PIN
+    { .id = Output_StepC,         .pin = C_STEP_PIN,            .group = PinGroup_StepperStep },
+#endif
+#ifdef X2_STEP_PIN
+    { .id = Output_StepX_2,       .pin = X2_STEP_PIN,           .group = PinGroup_StepperStep },
+#endif
+#ifdef Y2_STEP_PIN
+    { .id = Output_StepY_2,       .pin = Y2_STEP_PIN,           .group = PinGroup_StepperStep },
+#endif
+#ifdef Z2_STEP_PIN
+    { .id = Output_StepZ_2,       .pin = Z2_STEP_PIN,           .group = PinGroup_StepperStep },
 #endif
 #if defined(STEPPERS_ENABLE_PIN) && STEPPERS_ENABLE_PIN != IOEXPAND
     { .id = Output_StepperEnable, .pin = STEPPERS_ENABLE_PIN,   .group = PinGroup_StepperEnable },
@@ -514,68 +512,76 @@ static void stepperEnable (axes_signals_t enable)
     iopins.stepper_enable_y = enable.y;
     iopins.stepper_enable_z = enable.z;
     ioexpand_out(iopins);
-  #elif I2S_STEPPER_ENA
-    #if defined(STEPPERS_ENABLE_PIN)
-        DIGITAL_OUT(STEPPERS_ENABLE_PIN, enable.x);
-    #else
-      #ifdef X_ENABLE_PIN
-        DIGITAL_OUT(X_ENABLE_PIN, enable.x);
-      #endif
-      #ifdef Y_ENABLE_PIN
-        DIGITAL_OUT(Y_ENABLE_PIN, enable.y);
-      #endif
-      #ifdef Z_ENABLE_PIN
-        DIGITAL_OUT(Z_ENABLE_PIN, enable.z);
-      #endif
-      #ifdef A_ENABLE_PIN
-        DIGITAL_OUT(A_ENABLE_PIN, enable.a);
-      #endif
-      #ifdef B_ENABLE_PIN
-        DIGITAL_OUT(B_ENABLE_PIN, enable.b);
-      #endif
-      #ifdef C_ENABLE_PIN
-        DIGITAL_OUT(C_ENABLE_PIN, enable.c);
-      #endif
-      #ifdef X2_ENABLE_PIN
-        DIGITAL_OUT(X2_ENABLE_PIN, enable.x);
-      #endif
-      #ifdef Y2_ENABLE_PIN
-        DIGITAL_OUT(Y2_ENABLE_PIN, enable.y);
-      #endif
-      #ifdef Z2_ENABLE_PIN
-        DIGITAL_OUT(Z2_ENABLE_PIN, enable.z);
-      #endif
-    #endif
   #else
     #if defined(STEPPERS_ENABLE_PIN)
+      #if STEPPERS_ENABLE_PIN >= I2S_OUT_PIN_BASE
+        DIGITAL_OUT(STEPPERS_ENABLE_PIN, enable.x);
+      #else
         gpio_set_level(STEPPERS_ENABLE_PIN, enable.x);
+      #endif
     #else
       #ifdef X_ENABLE_PIN
-        gpio_set_level(X_ENABLE_PIN, enable.x);
+        #if X_ENABLE_PIN >= I2S_OUT_PIN_BASE
+            DIGITAL_OUT(X_ENABLE_PIN, enable.x);
+        #else
+            gpio_set_level(X_ENABLE_PIN, enable.x);
+        #endif
       #endif
       #ifdef Y_ENABLE_PIN
-        gpio_set_level(Y_ENABLE_PIN, enable.y);
+        #if Y_ENABLE_PIN >= I2S_OUT_PIN_BASE
+            DIGITAL_OUT(Y_ENABLE_PIN, enable.y);
+        #else
+            gpio_set_level(Y_ENABLE_PIN, enable.y);
+        #endif
       #endif
       #ifdef Z_ENABLE_PIN
-        gpio_set_level(Z_ENABLE_PIN, enable.z);
+        #if Z_ENABLE_PIN >= I2S_OUT_PIN_BASE
+            DIGITAL_OUT(Z_ENABLE_PIN, enable.z);
+        #else
+            gpio_set_level(Z_ENABLE_PIN, enable.z);
+        #endif
       #endif
       #ifdef A_ENABLE_PIN
-        gpio_set_level(A_ENABLE_PIN, enable.a);
+        #if A_ENABLE_PIN >= I2S_OUT_PIN_BASE
+            DIGITAL_OUT(A_ENABLE_PIN, enable.a);
+        #else
+            gpio_set_level(A_ENABLE_PIN, enable.a);
+        #endif
       #endif
       #ifdef B_ENABLE_PIN
-        gpio_set_level(B_ENABLE_PIN, enable.b);
+        #if B_ENABLE_PIN >= I2S_OUT_PIN_BASE
+            DIGITAL_OUT(B_ENABLE_PIN, enable.b);
+        #else
+            gpio_set_level(B_ENABLE_PIN, enable.b);
+        #endif
       #endif
       #ifdef C_ENABLE_PIN
-        gpio_set_level(C_ENABLE_PIN, enable.c);
+        #if C_ENABLE_PIN >= I2S_OUT_PIN_BASE
+            DIGITAL_OUT(C_ENABLE_PIN, enable.c);
+        #else
+            gpio_set_level(C_ENABLE_PIN, enable.c);
+        #endif
       #endif
       #ifdef X2_ENABLE_PIN
-        gpio_set_level(X2_ENABLE_PIN, enable.x);
+        #if X2_ENABLE_PIN >= I2S_OUT_PIN_BASE
+            DIGITAL_OUT(X2_ENABLE_PIN, enable.x);
+        #else
+            gpio_set_level(X2_ENABLE_PIN, enable.x);
+        #endif
       #endif
       #ifdef Y2_ENABLE_PIN
-        gpio_set_level(Y2_ENABLE_PIN, enable.y);
+        #if Y2_ENABLE_PIN >= I2S_OUT_PIN_BASE
+            DIGITAL_OUT(Y2_ENABLE_PIN, enable.y);
+        #else
+            gpio_set_level(Y2_ENABLE_PIN, enable.y);
+        #endif
       #endif
       #ifdef Z2_ENABLE_PIN
-        gpio_set_level(Z2_ENABLE_PIN, enable.z);
+        #if Z2_ENABLE_PIN >= I2S_OUT_PIN_BASE
+            DIGITAL_OUT(Z2_ENABLE_PIN, enable.z);
+        #else
+            gpio_set_level(Z2_ENABLE_PIN, enable.z);
+        #endif
       #endif
     #endif
   #endif
@@ -613,28 +619,64 @@ IRAM_ATTR static void stepperCyclesPerTick (uint32_t cycles_per_tick)
 inline IRAM_ATTR static void set_dir_outputs (axes_signals_t dir_outbits)
 {
     dir_outbits.value ^= settings.steppers.dir_invert.mask;
+#if X_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(X_DIRECTION_PIN, dir_outbits.x);
+#else
+    gpio_set_level(X_DIRECTION_PIN, dir_outbits.x);
+#endif
+#if Y_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(Y_DIRECTION_PIN, dir_outbits.y);
+#else
+    gpio_set_level(Y_DIRECTION_PIN, dir_outbits.y);
+#endif
+#if Z_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(Z_DIRECTION_PIN, dir_outbits.z);
+#else
+    gpio_set_level(Z_DIRECTION_PIN, dir_outbits.z);
+#endif
 #ifdef A_AXIS
+  #if A_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(A_DIRECTION_PIN, dir_outbits.a);
+  #else
+    gpio_set_level(A_DIRECTION_PIN, dir_outbits.a);
+  #endif
 #endif
 #ifdef B_AXIS
+  #if B_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(B_DIRECTION_PIN, dir_outbits.b);
+  #else
+    gpio_set_level(B_DIRECTION_PIN, dir_outbits.b);
+  #endif
 #endif
 #ifdef C_AXIS
+  #if C_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(C_DIRECTION_PIN, dir_outbits.c);
+  #else
+    gpio_set_level(C_DIRECTION_PIN, dir_outbits.c);
+  #endif
 #endif
 #ifdef GANGING_ENABLED
     dir_outbits.mask ^= settings.steppers.ganged_dir_invert.mask;
   #ifdef X2_DIRECTION_PIN
+   #if X2_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(X2_DIRECTION_PIN, dir_outbits.x);
+   #else
+    gpio_set_level(X2_DIRECTION_PIN, dir_outbits.x);
+   #endif
   #endif
   #ifdef Y2_DIRECTION_PIN
+   #if Y2_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(Y2_DIRECTION_PIN, dir_outbits.y);
+   #else
+    gpio_set_level(Y2_DIRECTION_PIN, dir_outbits.y);
+   #endif
   #endif
   #ifdef Z2_DIRECTION_PIN
+   #if Z2_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(Z2_DIRECTION_PIN, dir_outbits.z);
+   #else
+    gpio_set_level(Z2_DIRECTION_PIN, dir_outbits.z);
+   #endif
   #endif
 #endif
 }
@@ -1147,7 +1189,7 @@ IRAM_ATTR inline static void spindle_off (void)
     iopins.spindle_on = settings.spindle.invert.on ? On : Off;
     ioexpand_out(iopins);
 #elif defined(SPINDLE_ENABLE_PIN)
-  #if I2S_SPINDLE
+  #if SPINDLE_ENABLE_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(SPINDLE_ENABLE_PIN, settings.spindle.invert.on ? 1 : 0);
   #else
     gpio_set_level(SPINDLE_ENABLE_PIN, settings.spindle.invert.on ? 1 : 0);
@@ -1161,7 +1203,7 @@ IRAM_ATTR inline static void spindle_on (void)
     iopins.spindle_on = settings.spindle.invert.on ? Off : On;
     ioexpand_out(iopins);
 #elif defined(SPINDLE_ENABLE_PIN)
-  #if I2S_SPINDLE
+  #if SPINDLE_ENABLE_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(SPINDLE_ENABLE_PIN, settings.spindle.invert.on ? 0 : 1);
   #else
     gpio_set_level(SPINDLE_ENABLE_PIN, settings.spindle.invert.on ? 0 : 1);
@@ -1175,7 +1217,7 @@ IRAM_ATTR inline static void spindle_dir (bool ccw)
     iopins.spindle_dir = (ccw ^ settings.spindle.invert.ccw) ? On : Off;
     ioexpand_out(iopins);
 #elif defined(SPINDLE_DIRECTION_PIN)
-  #if I2S_SPINDLE
+  #if SPINDLE_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(SPINDLE_DIRECTION_PIN, (ccw ^ settings.spindle.invert.ccw) ? 1 : 0);
   #else
     gpio_set_level(SPINDLE_DIRECTION_PIN, (ccw ^ settings.spindle.invert.ccw) ? 1 : 0);
@@ -1331,14 +1373,14 @@ static spindle_state_t spindleGetState (void)
     state.ccw = iopins.spindle_dir;
 #else
  #if defined(SPINDLE_ENABLE_PIN)
-  #if I2S_SPINDLE
+  #if SPINDLE_ENABLE_PIN >= I2S_OUT_PIN_BASE
     state.on = DIGITAL_IN(SPINDLE_ENABLE_PIN) != 0;
   #else
     state.on = gpio_get_level(SPINDLE_ENABLE_PIN) != 0;
   #endif
  #endif
  #if defined(SPINDLE_DIRECTION_PIN)
-  #if I2S_SPINDLE
+  #if SPINDLE_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     state.ccw = DIGITAL_IN(SPINDLE_DIRECTION_PIN) != 0;
   #else
     state.ccw = gpio_get_level(SPINDLE_DIRECTION_PIN) != 0;
@@ -1368,14 +1410,14 @@ IRAM_ATTR static void coolantSetState (coolant_state_t mode)
     ioexpand_out(iopins);
 #else
  #ifdef COOLANT_FLOOD_PIN
-  #if I2S_COOLANT
+  #if COOLANT_FLOOD_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(COOLANT_FLOOD_PIN, mode.flood ? 1 : 0);
   #else
     gpio_set_level(COOLANT_FLOOD_PIN, mode.flood ? 1 : 0);
   #endif
  #endif
  #ifdef COOLANT_MIST_PIN
-  #if I2S_COOLANT
+  #if COOLANT_MIST_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(COOLANT_MIST_PIN, mode.mist ? 1 : 0);
   #else
     gpio_set_level(COOLANT_MIST_PIN, mode.mist ? 1 : 0);
@@ -1387,24 +1429,24 @@ IRAM_ATTR static void coolantSetState (coolant_state_t mode)
 // Returns coolant state in a coolant_state_t variable
 static coolant_state_t coolantGetState (void)
 {
-    coolant_state_t state = {0};
+    coolant_state_t state = {settings.coolant_invert.mask};
 
 #if IOEXPAND_ENABLE // TODO: read from expander?
     state.flood = iopins.flood_on;
     state.mist = iopins.mist_on;
 #else
  #ifdef COOLANT_FLOOD_PIN
-  #if I2S_COOLANT
+  #if COOLANT_FLOOD_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_IN(COOLANT_FLOOD_PIN);
   #else
     state.flood = gpio_get_level(COOLANT_FLOOD_PIN);
   #endif
  #endif
  #ifdef COOLANT_MIST_PIN
-  #if I2S_COOLANT
-    state.mist  = DIGITAL_IN(COOLANT_MIST_PIN);
+  #if COOLANT_MIST_PIN >= I2S_OUT_PIN_BASE
+    state.mist = DIGITAL_IN(COOLANT_MIST_PIN);
   #else
-    state.mist  = gpio_get_level(COOLANT_MIST_PIN);
+    state.mist = gpio_get_level(COOLANT_MIST_PIN);
   #endif
  #endif
 #endif
@@ -1917,13 +1959,20 @@ static bool driver_setup (settings_t *settings)
     idx = sizeof(outputpin) / sizeof(output_signal_t);
     do {
         idx--;
-        if(outputpin[idx].mode == Pin_GPIO && outputpin[idx].id != Output_SdCardCS)
+        if(outputpin[idx].id == Output_SdCardCS)
+            continue;
+#if USE_I2S_OUT
+        else if(outputpin[idx].pin >= I2S_OUT_PIN_BASE)
+            outputpin[idx].mode = Pin_I2S;
+#endif
+        else if((outputpin[idx].mode = outputpin[idx].group == PinGroup_StepperStep ? Pin_RMT : Pin_GPIO) == Pin_GPIO)
             mask |= (1ULL << outputpin[idx].pin);
+
     } while(idx);
 
     gpio_config_t gpioConfig = {
         .pin_bit_mask = mask,
-        .mode = GPIO_MODE_OUTPUT,
+        .mode = GPIO_MODE_INPUT_OUTPUT,
         .pull_up_en = GPIO_PULLUP_DISABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE
@@ -1934,8 +1983,14 @@ static bool driver_setup (settings_t *settings)
     idx = sizeof(outputpin) / sizeof(output_signal_t);
     do {
         idx--;
-        if(outputpin[idx].group == PinGroup_MotorChipSelect || outputpin[idx].group == PinGroup_MotorUART)
-            DIGITAL_OUT(outputpin[idx].pin, 1);
+        if(outputpin[idx].group == PinGroup_MotorChipSelect || outputpin[idx].group == PinGroup_MotorUART) {
+#if USE_I2S_OUT
+            if(outputpin[idx].mode == Pin_I2S)
+                DIGITAL_OUT(outputpin[idx].pin, 1);
+            else
+#endif
+            gpio_set_level(outputpin[idx].pin, 1);
+        }
     } while(idx);
 
 #if MPG_MODE_ENABLE
@@ -2089,7 +2144,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "230416";
+    hal.driver_version = "230418";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;

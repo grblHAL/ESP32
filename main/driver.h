@@ -197,38 +197,6 @@ typedef struct {
 #define I2C_ENABLE 0
 #endif
 
-#ifdef USE_I2S_OUT
-#undef USE_I2S_OUT
-#define USE_I2S_OUT 1
-#define DIGITAL_IN(pin) i2s_out_state(pin)
-#define DIGITAL_OUT(pin, state) i2s_out_write(pin, state)
-#else
-#define USE_I2S_OUT 0
-#define DIGITAL_IN(pin) gpio_get_level(pin)
-#define DIGITAL_OUT(pin, state) gpio_set_level(pin, state)
-#endif
-
-#ifndef I2S_SPINDLE
-#define I2S_SPINDLE USE_I2S_OUT
-#elif !USE_I2S_OUT
-#undef I2S_SPINDLE
-#define I2S_SPINDLE 0
-#endif
-
-#ifndef I2S_COOLANT
-#define I2S_COOLANT USE_I2S_OUT
-#elif !USE_I2S_OUT
-#undef I2S_COOLANT
-#define I2S_COOLANT 0
-#endif
-
-#ifndef I2S_STEPPER_ENA
-#define I2S_STEPPER_ENA USE_I2S_OUT
-#elif !USE_I2S_OUT
-#undef I2S_STEPPER_ENA
-#define I2S_STEPPER_ENA 0
-#endif
-
 #ifdef I2C_PORT
 extern QueueHandle_t i2cQueue;
 extern SemaphoreHandle_t i2cBusy;
@@ -236,8 +204,10 @@ extern SemaphoreHandle_t i2cBusy;
 #error "I2C port not available!"
 #endif
 
-#if MPG_MODE_ENABLE || MODBUS_ENABLE || TRINAMIC_UART_ENABLE
+#if MPG_MODE_ENABLE || MODBUS_ENABLE || TRINAMIC_UART_ENABLE || defined(DEBUGOUT)
 #define SERIAL2_ENABLE 1
+#else
+#define SERIAL2_ENABLE 0
 #endif
 
 #if MPG_MODE_ENABLE
@@ -247,6 +217,21 @@ extern SemaphoreHandle_t i2cBusy;
   #ifndef UART2_RX_PIN
   #error "UART2_RX_PIN must be defined when MPG mode is enabled!"
   #endif
+#endif
+
+#ifndef I2S_OUT_PIN_BASE
+#define I2S_OUT_PIN_BASE 64
+#endif
+
+#ifdef USE_I2S_OUT
+#undef USE_I2S_OUT
+#define USE_I2S_OUT 1
+#define DIGITAL_IN(pin) i2s_out_state(pin - I2S_OUT_PIN_BASE)
+#define DIGITAL_OUT(pin, state) i2s_out_write(pin - I2S_OUT_PIN_BASE, state)
+#else
+#define USE_I2S_OUT 0
+#define DIGITAL_IN(pin) gpio_get_level(pin)
+#define DIGITAL_OUT(pin, state) gpio_set_level(pin, state)
 #endif
 
 typedef enum
