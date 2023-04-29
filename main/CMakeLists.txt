@@ -83,7 +83,7 @@ OPTION(Keypad "I2C Keypad" OFF)
 OPTION(Embroidery "Embroidery" OFF)
 
 # Add my_plugin.c to compilation, add my_plugin.c to the main folder first
-OPTION(AddMyPlugin "Add my_plugin.c" ON)
+OPTION(AddMyPlugin "Add my_plugin.c" OFF)
 
 # --- Do not change anything below unless you understand what you are doing ---
 
