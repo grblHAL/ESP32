@@ -1236,11 +1236,6 @@ IRAM_ATTR static void spindleSetState (spindle_state_t state, float rpm)
     }
 }
 
-IRAM_ATTR static void spindleOff (void)
-{
-    spindle_off();
-}
-
 #ifdef SPINDLEPWMPIN
 
 // Variable spindle control functions
@@ -1283,6 +1278,11 @@ static uint_fast16_t spindleGetPWM (float rpm)
 }
 
 // Start or stop spindle, variable version
+
+IRAM_ATTR static void spindleOff (void)
+{
+    spindle_set_speed(spindle_pwm.off_value);
+}
 
 IRAM_ATTR void __attribute__ ((noinline)) _setSpeed (spindle_state_t state, float rpm)
 {
@@ -2144,7 +2144,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "230418";
+    hal.driver_version = "230501";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2262,7 +2262,11 @@ bool driver_init (void)
  #endif
         .set_state = spindleSetState,
         .get_state = spindleGetState,
+#ifdef SPINDLEPWMPIN
         .esp32_off = spindleOff
+#else
+        .esp32_off = spindle_off
+#endif
     };
 
  #ifdef SPINDLEPWMPIN

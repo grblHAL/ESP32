@@ -52,7 +52,7 @@ Once flashing is complete, your CNC controller is ready to be configured and use
 If you're familiar with [Docker](https://docker.io), you can use it to build grblHAL in a self-contained environment without installing the complete toolchain on your system:
 
 - prepare and configure the codebase as described above
-- build with `docker run -it --rm -v $(pwd):/grbl -w /grbl/drivers/ESP32 espressif/idf:release-v4.3 idf.py build`
+- build with `docker run -it --rm -v $(pwd):/grbl -w /grbl espressif/idf:release-v4.3 idf.py build`
 - flash with `docker run -it --rm -v $(pwd):/grbl --privileged -v /dev:/dev -w /grbl/drivers/ESP32 espressif/idf:release-v4.3 idf.py -p /dev/ttyUSB0 flash`
 
 ### Building with user defined plugin
@@ -82,4 +82,4 @@ dns_server.c is Copyright (c) 2019 Tony Pottier - from his [ESP32 WiFi Manager](
 Snippets of code is extracted from Espressif ESP-IDF examples which are public domain.
 
 ---
-2022-12-26
+2023-04-29
