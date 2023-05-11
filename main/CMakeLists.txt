@@ -91,6 +91,7 @@ set(SDCARD_SOURCE
  sdcard/sdcard.c
  sdcard/ymodem.c
  sdcard/fs_fatfs.c
+ sdcard/macros.c
 )
 set(KEYPAD_SOURCE
  keypad/keypad.c
@@ -470,7 +471,7 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC BLUETOOTH_ENABLE=1)
 endif()
 
 if(WebUI)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_ENABLE=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBUI_ENABLE=3)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC STDIO_FS)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC HTTP_ENABLE=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC LWIP_HTTPD_CUSTOM_FILES=0)

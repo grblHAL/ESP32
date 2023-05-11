@@ -90,7 +90,6 @@ static char client_mac[18];
 
 static bt_tx_buffer_t txbuffer;
 static stream_rx_buffer_t rxbuffer = {0};
-static stream_rx_buffer_t rxbackup;
 static nvs_address_t nvs_address;
 static on_report_options_ptr on_report_options;
 static enqueue_realtime_command_ptr enqueue_realtime_command = protocol_enqueue_realtime_command;
@@ -117,12 +116,6 @@ uint16_t BTStreamRXFree (void)
     uint16_t head = rxbuffer.head, tail = rxbuffer.tail;
 
     return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
-}
-
-// "dummy" version of serialGetC
-static int16_t BTStreamGetNull (void)
-{
-    return -1;
 }
 
 int16_t BTStreamGetC (void)
@@ -242,20 +235,6 @@ static void report_bt_MAC (bool newopt)
     }
 }
 
-bool BTStreamSuspendInput (bool suspend)
-{
-    BT_MUTEX_LOCK();
-
-    if(suspend)
-        hal.stream.read = BTStreamGetNull;
-    else if(rxbuffer.backup)
-        memcpy(&rxbuffer, &rxbackup, sizeof(stream_rx_buffer_t));
-
-    BT_MUTEX_UNLOCK();
-
-    return rxbuffer.tail != rxbuffer.head;
-}
-
 static void flush_tx_queue (void)
 {
     if(uxQueueMessagesWaiting(tx_queue)) {
@@ -335,15 +314,7 @@ static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
                 c = (char)*data++;
                 // discard input if MPG has taken over...
                 if(hal.stream.type != StreamType_MPG) {
-
-                    if(c == CMD_TOOL_ACK && !rxbuffer.backup) {
-
-                        memcpy(&rxbackup, &rxbuffer, sizeof(stream_rx_buffer_t));
-                        rxbuffer.backup = true;
-                        rxbuffer.tail = rxbuffer.head;
-                        hal.stream.read = BTStreamGetC; // restore normal input
-
-                    } else if(!enqueue_realtime_command(c)) {
+                    if(!enqueue_realtime_command(c)) {
 
                         uint32_t bptr = (rxbuffer.head + 1) & (RX_BUFFER_SIZE - 1);  // Get next head pointer
 
@@ -469,7 +440,7 @@ static void pollTX (void * arg)
     }
 }
 
-bool bluetooth_start (void)
+bool bluetooth_start_local (void)
 {
     client_mac[0] = '\0';
 
@@ -566,7 +537,7 @@ bool bluetooth_start (void)
     return is_up;
 }
 
-bool bluetooth_disable (void)
+bool bluetooth_disable_local (void)
 {
     if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED) {
 
@@ -674,7 +645,7 @@ static setting_details_t setting_details = {
     .restore = bluetooth_settings_restore
 };
 
-bool bluetooth_init (void)
+bool bluetooth_init_local (void)
 {
     if((nvs_address = nvs_alloc(sizeof(bluetooth_settings_t)))) {
 

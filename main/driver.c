@@ -1281,6 +1281,7 @@ static uint_fast16_t spindleGetPWM (float rpm)
 
 IRAM_ATTR static void spindleOff (void)
 {
+    spindle_off();
     spindle_set_speed(spindle_pwm.off_value);
 }
 
@@ -1575,7 +1576,7 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
 #if BLUETOOTH_ENABLE
         static bool bluetooth_ok = false;
         if(!bluetooth_ok)
-            bluetooth_ok = bluetooth_start();
+            bluetooth_ok = bluetooth_start_local();
         // else report error?
 #endif
 
@@ -2144,7 +2145,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "230501";
+    hal.driver_version = "230511";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2342,7 +2343,7 @@ bool driver_init (void)
 #endif
 
 #if BLUETOOTH_ENABLE
-    bluetooth_init();
+    bluetooth_init_local();
 #endif
 
 #if LITTLEFS_ENABLE

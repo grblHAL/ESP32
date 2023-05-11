@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2021 Terje Io
+  Copyright (c) 2018-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,8 +26,8 @@
 
 #include "grbl/grbl.h"
 
-bool bluetooth_init (void);
-bool bluetooth_start (void);
+bool bluetooth_init_local (void);
+bool bluetooth_start_local (void);
 char *bluetooth_get_device_mac (void);
 char *bluetooth_get_client_mac (void);
 
