@@ -1,8 +1,6 @@
 {
   "caps": {
     "axes": 6,
-    "ethernet": 1,
-    "wifi": 1,
     "usb_cdc": 0,
     "uart": 1,
     "serial_ports": 1,
@@ -17,6 +15,9 @@
     "estop": 1,
     "mpg_mode": 1,
     "sdcard": 1,
+    "wifi": 1,
+    "ethernet": 0,
+    "bluetooth": 1,
     "pio_board": "esp32dev",
     "plugins": [
       { "id": "bluetooth" },
@@ -25,7 +26,7 @@
       { "id": "eeprom" },
       { "id": "sdcard" },
       { "id": "webui" },
-      { "id": "wifi_networking" },
+      { "id": "networking" },
       { "id": "keypad" },
       { "id": "macros" },
       { "id": "laser_cluster" },
