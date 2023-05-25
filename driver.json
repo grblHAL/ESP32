@@ -27,6 +27,7 @@
       { "id": "sdcard" },
       { "id": "webui" },
       { "id": "networking" },
+      { "id", "wifi_networking" },
       { "id": "keypad" },
       { "id": "macros" },
       { "id": "laser_cluster" },
