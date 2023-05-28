@@ -7,7 +7,7 @@ OPTION(BOARD_BLACKBOX_X32 "Compile for BlackBox X32" OFF)
 OPTION(BOARD_BDRING_V3P5 "Compile for v3.5 3-axis board" OFF)
 OPTION(BOARD_BDRING_V4 "Compile for bdring v4 3-axis board" OFF)
 OPTION(BOARD_BDRING_I2S6A "Compile for bdring 6-axis I2S board - untested!" OFF)
-OPTION(BOARD_CNC_BOOSTERPACK "Compile for CNC BoosterPack" OFF)
+OPTION(BOARD_CNC_BOOSTERPACK "Compile for CNC BoosterPack" ON)
 OPTION(BOARD_ESPDUINO32 "Compile for ESPDUINO-32 Wemos D1 R32" OFF)
 OPTION(BOARD_SOURCERABBIT_4AXIS "Compile for SourceRabbit 4-axis board" OFF)
 OPTION(BOARD_PROTONEER_3XX "Compile for Protoneer v3.xx boards" OFF)
@@ -33,16 +33,16 @@ OPTION(I2SStepping "Use I2S Stepping" OFF)
 # The following plugin options are supported:
 
 # Networking and WebUI plugin options
-OPTION(WiFi "Wifi + protocols" OFF)
+OPTION(WiFi "Wifi + protocols" ON)
 OPTION(Ethernet "Ethernet + protocols" OFF) # NOTE: no board maps has support for this!
 OPTION(Bluetooth "Bluetooth" OFF)
 OPTION(SoftAP "Enable soft AP mode" OFF) # WiFi only
 OPTION(FtpDaemon "Enable ftp daemon" OFF) # Requires SDcard On
 OPTION(WebDAV "Enable WebDAV protocol" OFF) # Requires SDcard On
 OPTION(mDNS "Enable mDNS protocol" OFF)
-OPTION(SSDP "Enable SSDP protocol" OFF)
+OPTION(SSDP "Enable SSDP protocol" ON)
 OPTION(MQTTclient "Enable MQTT client API" OFF) # For use by plugin code.
-OPTION(WebUI "WebUI services" OFF)
+OPTION(WebUI "WebUI services" ON)
 OPTION(WebAuth "WebUI authentication" OFF)
 
 # SD Card plugin options
@@ -228,6 +228,7 @@ set(SRCS
  grbl/errors.c
  grbl/ngc_expr.c
  grbl/ngc_params.c
+ grbl/ngc_flowctrl.c
  grbl/regex.c
  grbl/ioports.c
  grbl/corexy.c
