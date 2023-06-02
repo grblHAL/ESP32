@@ -57,7 +57,7 @@
 #define M3_DIRECTION_PIN    I2SO(11)
 #define M3_ENABLE_PIN       I2SO(9)
 #if SDCARD_ENABLE
-#define M4_LIMIT_PIN        GPIO_NUM_12 // EXP2
+#define M3_LIMIT_PIN        GPIO_NUM_12 // EXP2
 #else
 #define M3_LIMIT_PIN        GPIO_NUM_19 // EXP2
 #endif

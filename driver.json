@@ -114,10 +114,10 @@
     {
       "name": "MKS Tinybee V1.0",
       "symbol": "BOARD_MKS_TINYBEE_V1",
-      "URL": "",
+      "URL": "https://github.com/makerbase-mks/MKS-TinyBee",
       "MAP": "main/mks_tinybee_1_0_map.h",
       "caps": {
-        "axes": 3,
+        "axes": 5,
         "digital_in": 0,
         "digital_out": 0,
         "serial_ports": 2,
