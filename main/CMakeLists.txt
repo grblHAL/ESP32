@@ -112,7 +112,7 @@ set(BLUETOOTH_SOURCE
  bluetooth.c
 )
 set(MODBUS_SOURCE
- spindle/modbus
+ spindle/modbus_rtu
 )
 set(SPINDLE_SOURCE
  spindle/select.c
@@ -209,6 +209,7 @@ set(SRCS
  grbl/gcode.c
  grbl/machine_limits.c
  grbl/messages.c
+ grbl/modbus.c
  grbl/motion_control.c
  my_plugin.c
  grbl/nuts_bolts.c
@@ -256,6 +257,7 @@ set(SRCS
  grbl/gcode.c
  grbl/machine_limits.c
  grbl/messages.c
+ grbl/modbus.c
  grbl/motion_control.c
  grbl/my_plugin.c
  grbl/nuts_bolts.c

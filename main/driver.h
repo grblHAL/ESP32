@@ -131,10 +131,6 @@ static const DRAM_ATTR float FZERO = 0.0f;
 #include "trinamic/common.h"
 #endif
 
-#if MODBUS_ENABLE
-#include "spindle/modbus.h"
-#endif
-
 // TODO: move to wifi.c!
 typedef struct
 {
