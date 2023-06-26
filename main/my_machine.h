@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2022 Terje Io
+  Copyright (c) 2020-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -72,8 +72,8 @@
 #define NETWORK_AP_IP       "192.168.5.1"
 #define NETWORK_AP_GATEWAY  "192.168.5.1"
 #define NETWORK_AP_MASK     "255.255.255.0"
-#define WIFI_AP_SSID        "grblHAL"
-#define WIFI_AP_PASSWORD    "GrblPassword" // Minimum 8 characters, or blank for open
+#define NETWORK_AP_SSID     "grblHAL"
+#define NETWORK_AP_PASSWORD "GrblPassword" // Minimum 8 characters, or blank for open
 #define WIFI_MODE WiFiMode_AP; // OPTION: WiFiMode_APSTA
 #else
 #define WIFI_SOFTAP 0

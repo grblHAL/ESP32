@@ -82,6 +82,9 @@ OPTION(Keypad "I2C Keypad" OFF)
 # Embroidery plugin options
 OPTION(Embroidery "Embroidery" OFF)
 
+# Add NGC expression support
+OPTION(NGCExpr "Add NGC expression support" OFF)
+
 # Add my_plugin.c to compilation, add my_plugin.c to the main folder first
 OPTION(AddMyPlugin "Add my_plugin.c" OFF)
 
@@ -277,6 +280,7 @@ set(SRCS
  grbl/errors.c
  grbl/ngc_expr.c
  grbl/ngc_params.c
+ grbl/ngc_flowctrl.c
  grbl/regex.c
  grbl/ioports.c
  grbl/corexy.c
@@ -504,6 +508,10 @@ if(MPGMode)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC MPG_MODE_ENABLE=1)
 endif()
 
+if(NGCExpr)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC NGC_EXPRESSIONS_ENABLE=1)
+endif()
+
 if(Embroidery)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC EMBROIDERY_ENABLE=1)
 endif()
@@ -604,6 +612,7 @@ unset(TMC5160 CACHE)
 unset(WebUI CACHE)
 unset(WebAuth CACHE)
 unset(MPGMode CACHE)
+unset(NGCExpr CACHE)
 unset(Embroidery CACHE)
 unset(AddMyPlugin CACHE)
 unset(SPINDLE_ALL CACHE)
