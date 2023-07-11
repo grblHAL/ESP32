@@ -124,7 +124,7 @@
         "eeprom": 0,
         "fram": 0,
         "i2c": 0,
-        "sdcard": 0
+        "sdcard": 1
       }
     },
     {
