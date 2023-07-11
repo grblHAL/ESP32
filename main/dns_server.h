@@ -110,7 +110,7 @@ typedef struct __attribute__((__packed__)) dns_answer_t{
 }dns_answer_t;
 
 //void dns_server(void *pvParameters);
-void dns_server_start(esp_netif_t *netif);
+bool dns_server_start(esp_netif_t *netif);
 void dns_server_stop();
 
 #ifdef __cplusplus

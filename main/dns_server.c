@@ -60,10 +60,10 @@ static int socket_fd;
 static void dns_server(void *pvParameters);
 
 //void dns_server_start ()
-void dns_server_start (esp_netif_t *netif)
+bool dns_server_start (esp_netif_t *netif)
 {
     esp_netif_get_ip_info(netif, &ip);
-    xTaskCreate(dns_server, "dns_server", 3072, NULL, WIFI_MANAGER_TASK_PRIORITY-1, &task_dns_server);
+    return xTaskCreate(dns_server, "dns_server", 3072, NULL, WIFI_MANAGER_TASK_PRIORITY-1, &task_dns_server) == pdPASS;
 }
 
 void dns_server_stop ()

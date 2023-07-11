@@ -229,7 +229,7 @@ static void lwIPHostTimerHandler (void *arg)
 
 #endif
 
-static void start_services (void)
+static void start_services (bool start_ssdp)
 {
 #if TELNET_ENABLE
     if(network.services.telnet && !services.telnet)
@@ -249,16 +249,15 @@ static void start_services (void)
 #if HTTP_ENABLE
     if(network.services.http && !services.http) {
         services.http = httpd_init(network.http_port);
-//        services.http = httpdaemon_start(&network);
   #if WEBDAV_ENABLE
         if(network.services.webdav && !services.webdav)
             services.webdav = webdav_init();
   #endif
-  #if SSDP_ENABLE
-        if(network.services.ssdp && !services.ssdp)
-            services.ssdp = ssdp_init(network.http_port);
-  #endif
     }
+  #if SSDP_ENABLE
+    if(start_ssdp && services.http && !services.ssdp)
+        services.ssdp = ssdp_init(network.http_port);
+  #endif
 #endif
 
 #if MDNS_ENABLE
@@ -405,7 +404,7 @@ static void ip_event_handler (void *arg, esp_event_base_t event_base, int32_t ev
             ap_list.ap_selected = wifi_sta_config.sta.ssid;
             memcpy(&ap_list.ip_addr, &((ip_event_got_ip_t *)event_data)->ip_info.ip, sizeof(ip4_addr_t));
             strcpy(ap_list.ap_status, "Connected");
-            start_services();
+            start_services(network.services.ssdp);
             if(services.dns) {
                 services.dns = Off;
                 dns_server_stop();
@@ -430,10 +429,9 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
 
         case WIFI_EVENT_AP_START:
             protocol_enqueue_rt_command(msg_ap_ready);
-            start_services();
             if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT) {
-                dns_server_start(sta_netif);
-                services.dns = On;
+                start_services(false);
+                services.dns = dns_server_start(sta_netif);
 //                protocol_enqueue_rt_command(wifi_ap_scan);
             }
             break;
@@ -445,19 +443,19 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
 */
         case WIFI_EVENT_AP_STACONNECTED:
             protocol_enqueue_rt_command(msg_ap_connected);
-            if((xEventGroupGetBits(wifi_event_group) & APSTA_BIT) && !(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT)) {
-                /* // screws up dns?
-                if(!(xEventGroupGetBits(wifi_event_group) & SCANNING_BIT)) {
-                  //  ap_list.ap_selected = NULL;
-                  //  wifi_ap_scan();
+            if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT) {
+                if(!(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT)) {
+                    /* // screws up dns?
+                    if(!(xEventGroupGetBits(wifi_event_group) & SCANNING_BIT)) {
+                      //  ap_list.ap_selected = NULL;
+                      //  wifi_ap_scan();
+                    }
+                    */
+                    if(!services.dns)
+                        services.dns = dns_server_start(sta_netif);
                 }
-                */
-                if(!services.dns) {
-                    dns_server_start(sta_netif);
-                    services.dns = On;
-                }
-
-            }
+            } else
+                start_services(network.services.ssdp);
             break;
 
         case WIFI_EVENT_AP_STADISCONNECTED:
@@ -467,7 +465,11 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
 #if WEBSOCKET_ENABLE
             websocketd_close_connections();
 #endif
-            wifi_ap_scan();
+            if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT)
+                wifi_ap_scan();
+            else if(!(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT))
+                ssdp_stop();
+
             protocol_enqueue_rt_command(msg_ap_disconnected);
             break;
                 
@@ -488,10 +490,8 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
             memset(&wifi_sta_config, 0, sizeof(wifi_config_t));
             esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_sta_config);
             if((xEventGroupGetBits(wifi_event_group) & APSTA_BIT) && !(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT)) {
-                if(!services.dns) {
-                    dns_server_start(sta_netif);
-                    services.dns = On;
-                }
+                if(!services.dns)
+                    services.dns = dns_server_start(sta_netif);
 //                ap_list.ap_selected = NULL;
 //                wifi_ap_scan();
             }
