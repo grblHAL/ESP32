@@ -467,9 +467,10 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
 #endif
             if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT)
                 wifi_ap_scan();
+#if SSDP_ENABLE
             else if(!(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT))
                 ssdp_stop();
-
+#endif
             protocol_enqueue_rt_command(msg_ap_disconnected);
             break;
                 
