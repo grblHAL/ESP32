@@ -125,7 +125,14 @@ static spindle_pwm_t spindle_pwm;
 
 static void spindle_set_speed (uint_fast16_t pwm_value);
 
-#endif // DRIVER_SPINDLE
+#endif // SPINDLEPWMPIN
+
+#else
+
+#if defined(SPINDLEPWMPIN)
+#undef SPINDLEPWMPIN
+#endif
+
 #endif // DRIVER_SPINDLE_ENABLE
 
 #include "freertos/FreeRTOS.h"
@@ -238,13 +245,13 @@ static output_signal_t outputpin[] =
     { .id = Output_StepperEnable, .pin = STEPPERS_ENABLE_PIN,   .group = PinGroup_StepperEnable },
 #endif
 #ifdef DRIVER_SPINDLE
-#if defined(SPINDLE_ENABLE_PIN) && SPINDLE_ENABLE_PIN != IOEXPAND
+  #if defined(SPINDLE_ENABLE_PIN) && SPINDLE_ENABLE_PIN != IOEXPAND
     { .id = Output_SpindleOn,     .pin = SPINDLE_ENABLE_PIN,    .group = PinGroup_SpindleControl },
-#endif
-#if defined(SPINDLE_DIRECTION_PIN) && SPINDLE_DIRECTION_PIN != IOEXPAND
+  #endif
+  #if defined(SPINDLE_DIRECTION_PIN) && SPINDLE_DIRECTION_PIN != IOEXPAND
     { .id = Output_SpindleDir,    .pin = SPINDLE_DIRECTION_PIN, .group = PinGroup_SpindleControl },
-#endif
-#endif
+  #endif
+#endif // DRIVER_SPINDLE
 #if defined(COOLANT_FLOOD_PIN) && COOLANT_FLOOD_PIN != IOEXPAND
     { .id = Output_CoolantFlood,  .pin = COOLANT_FLOOD_PIN,     .group = PinGroup_Coolant },
 #endif
@@ -329,8 +336,10 @@ static axes_signals_t motors_1 = {AXES_BITMASK}, motors_2 = {AXES_BITMASK};
 static bool goIdlePending = false;
 static uint32_t i2s_step_length = I2S_OUT_USEC_PER_PULSE, i2s_step_samples = 1;
 static bool laser_mode = false;
+#ifdef DRIVER_SPINDLE
 static on_spindle_selected_ptr on_spindle_selected;
 #endif
+#endif // USE_I2S_OUT
 
 #if IOEXPAND_ENABLE
 static ioexpand_t iopins = {0};
@@ -597,7 +606,7 @@ static void stepperWakeUp (void)
     timer_set_counter_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 0x00000000ULL);
 //  timer_set_alarm_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 5000ULL);
     TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_high = 0;
-    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = 5000UL;
+    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = hal.f_step_timer / 500; // ~2ms delay to allow drivers time to wake up.
 
     timer_start(STEP_TIMER_GROUP, STEP_TIMER_INDEX);
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.alarm_en = TIMER_ALARM_EN;
@@ -1014,7 +1023,7 @@ static void i2s_set_streaming_mode (bool stream)
 {
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.enable = 0;
 
-    if(!stream && hal.stepper.wake_up == I2S_stepperWakeUp &&  i2s_out_get_pulser_status() == STEPPING) {
+    if(!stream && hal.stepper.wake_up == I2S_stepperWakeUp && i2s_out_get_pulser_status() == STEPPING) {
        i2s_out_set_passthrough();
        i2s_out_delay();
     }
@@ -1036,6 +1045,8 @@ static void i2s_set_streaming_mode (bool stream)
     }
 }
 
+#ifdef DRIVER_SPINDLE
+
 static void onSpindleSelected (spindle_ptrs_t *spindle)
 {
     i2s_set_streaming_mode(!(laser_mode = spindle->cap.laser));
@@ -1045,6 +1056,8 @@ static void onSpindleSelected (spindle_ptrs_t *spindle)
 }
 
 #endif
+
+#endif // USE_I2S_OUT
 
 // Enable/disable limit pins interrupt
 static void limitsEnable (bool on, bool homing)
@@ -2145,7 +2158,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "230511";
+    hal.driver_version = "230808";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
