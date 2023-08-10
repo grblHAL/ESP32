@@ -79,7 +79,7 @@
     {
       "name": "BDRING 6-axis I2S",
       "symbol": "BOARD_BDRING_I2S6A",
-      "URL": "",
+      "URL": "https://github.com/bdring/6-Pack_CNC_Controller",
       "MAP": "main/bdring_i2s_6_axis_map.h",
       "caps": {
         "axes": 6,
@@ -176,9 +176,9 @@
       }
     },
     {
-      "name": "x-Pro v5",
+      "name": "xPro v5",
       "symbol": "BOARD_XPRO_V5",
-      "URL": "",
+      "URL": "https://www.spark-concepts.com/cnc-xpro-v5/",
       "MAP": "main/xPro_v5_map.h",
       "caps": {
         "axes": 3,
