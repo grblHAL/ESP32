@@ -12,7 +12,7 @@
     "digital_out": 2,
     "probe": 1,
     "safety_door": 1,
-    "estop": 1,
+    "estop": 0,
     "mpg_mode": 1,
     "sdcard": 1,
     "wifi": 1,
