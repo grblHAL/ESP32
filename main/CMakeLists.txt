@@ -235,8 +235,11 @@ set(SRCS
  grbl/ngc_flowctrl.c
  grbl/regex.c
  grbl/ioports.c
- grbl/corexy.c
  grbl/vfs.c
+ grbl/kinematics/corexy.c
+ grbl/kinematics/wall_plotter.c
+ grbl/kinematics/delta.c
+ grbl/kinematics/polar.c
  littlefs_hal.c
  littlefs/lfs.c
  littlefs/lfs_util.c
@@ -283,8 +286,11 @@ set(SRCS
  grbl/ngc_flowctrl.c
  grbl/regex.c
  grbl/ioports.c
- grbl/corexy.c
  grbl/vfs.c
+ grbl/kinematics/corexy.c
+ grbl/kinematics/wall_plotter.c
+ grbl/kinematics/delta.c
+ grbl/kinematics/polar.c
  littlefs_hal.c
  littlefs/lfs.c
  littlefs/lfs_util.c
