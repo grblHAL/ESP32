@@ -1166,7 +1166,7 @@ static void stream_changed (stream_type_t type)
         on_stream_changed(type);
 }
 
-bool wifi_init (void)
+bool wifi_init(void)
 {
     if((nvs_address = nvs_alloc(sizeof(wifi_settings_t)))) {
 
