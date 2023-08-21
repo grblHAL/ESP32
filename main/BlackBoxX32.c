@@ -79,12 +79,12 @@ static void onHomingRateSet (axes_signals_t axes, float rate, homing_mode_t mode
         on_homing_rate_set(axes, rate, mode);
 }
 
-static void onHomingCompleted (void)
+static void onHomingCompleted (bool success)
 {
     homing.mask = 0;
 
     if(on_homing_completed)
-        on_homing_completed();
+        on_homing_completed(success);
 }
 
 void board_init (void)
