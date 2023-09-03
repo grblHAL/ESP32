@@ -1060,27 +1060,36 @@ static void onSpindleSelected (spindle_ptrs_t *spindle)
 #endif // USE_I2S_OUT
 
 // Enable/disable limit pins interrupt
-static void limitsEnable (bool on, bool homing)
+static void limitsEnable (bool on, axes_signals_t homing_cycle)
 {
 #if USE_I2S_OUT
-    i2s_set_streaming_mode(!(homing || laser_mode));
+    i2s_set_streaming_mode(!(homing_cycle.mask || laser_mode));
 #endif
 
+    bool disable = !on;
     uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
+    axes_signals_t pin;
+    limit_signals_t homing_source = xbar_get_homing_source_from_cycle(homing_cycle);
+
     do {
-        if(inputpin[--i].group == PinGroup_Limit) {
+        i--;
+        if(inputpin[i].group & (PinGroup_Limit|PinGroup_LimitMax)) {
+            if(on && homing_cycle.mask) {
+                pin = xbar_fn_to_axismask(inputpin[i].id);
+                disable = inputpin[i].group == PinGroup_Limit ? (pin.mask & homing_source.min.mask) : (pin.mask & homing_source.max.mask);
+            }
             gpio_set_intr_type(inputpin[i].pin, on ? map_intr_type(inputpin[i].irq_mode) : GPIO_INTR_DISABLE);
-            if(on)
-                gpio_intr_enable(inputpin[i].pin);
-            else
+            if(disable)
                 gpio_intr_disable(inputpin[i].pin);
+            else
+                gpio_intr_enable(inputpin[i].pin);
         }
     } while(i);
 }
 
 // Returns limit state as an axes_signals_t variable.
 // Each bitfield bit indicates an axis limit, where triggered is 1 and not triggered is 0.
-inline IRAM_ATTR static limit_signals_t limitsGetState()
+inline IRAM_ATTR static limit_signals_t limitsGetState (void)
 {
     limit_signals_t signals = {0};
 #ifdef DUAL_LIMIT_SWITCHES
@@ -1532,7 +1541,7 @@ void debounceTimerCallback (TimerHandle_t xTimer)
         }
     } while(i);
 
-    if(grp & PinGroup_Limit) {
+    if(grp & (PinGroup_Limit|PinGroup_LimitMax)) {
         portENTER_CRITICAL(&debounce_mux);
         hal.limits.interrupt_callback(limitsGetState());
         portEXIT_CRITICAL(&debounce_mux);
@@ -1730,10 +1739,11 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
 
                 case PinGroup_Control:
                 case PinGroup_Limit:
+                case PinGroup_LimitMax:
                     signal->irq_mode = signal->invert ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                     signal->debounce = hal.driver_cap.software_debounce;
 #if ETHERNET_ENABLE
-                    gpio_isr_handler_add(signal->pin, signal->group == PinGroup_Limit ? gpio_limit_isr : gpio_control_isr, signal);
+                    gpio_isr_handler_add(signal->pin, (signal->group & (PinGroup_Limit|PinGroup_LimitMax)) ? gpio_limit_isr : gpio_control_isr, signal);
 #endif
                     break;
 
@@ -1757,7 +1767,7 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
                 config.mode = GPIO_MODE_INPUT;
                 config.pull_up_en = pullup && signal->pin < 34 ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
                 config.pull_down_en = pullup || signal->pin >= 34 ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE;
-                config.intr_type = signal->group == PinGroup_Limit ? GPIO_INTR_DISABLE : map_intr_type(signal->irq_mode);
+                config.intr_type = (signal->group & (PinGroup_Limit|PinGroup_LimitMax)) ? GPIO_INTR_DISABLE : map_intr_type(signal->irq_mode);
 
                 signal->offset = config.pin_bit_mask > (1ULL << 31) ? 1 : 0;
                 signal->mask = signal->offset == 0 ? (uint32_t)config.pin_bit_mask : (uint32_t)(config.pin_bit_mask >> 32);
@@ -2158,7 +2168,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "230808";
+    hal.driver_version = "230828";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2306,6 +2316,7 @@ bool driver_init (void)
     hal.signals_cap.safety_door_ajar = On;
 #endif
     hal.limits_cap = get_limits_cap();
+    hal.home_cap = get_home_cap();
 #if MPG_MODE_ENABLE
     hal.driver_cap.mpg_mode = stream_mpg_register(serial2Init(115200), true, NULL);
 #endif
@@ -2469,7 +2480,7 @@ IRAM_ATTR static void gpio_isr (void *arg)
         xTimerStartFromISR(debounceTimer, &xHigherPriorityTaskWoken);
     }
 
-    if(grp & PinGroup_Limit)
+    if(grp & (PinGroup_Limit|PinGroup_LimitMax))
         hal.limits.interrupt_callback(limitsGetState());
 
     if(grp & PinGroup_Control)

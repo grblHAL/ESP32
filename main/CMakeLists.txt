@@ -208,6 +208,7 @@ set(SRCS
  networking/strutils.c
  grbl/grbllib.c
  grbl/coolant_control.c
+ grbl/crossbar.c
  grbl/nvs_buffer.c
  grbl/gcode.c
  grbl/machine_limits.c
@@ -259,6 +260,7 @@ set(SRCS
  networking/strutils.c
  grbl/grbllib.c
  grbl/coolant_control.c
+ grbl/crossbar.c
  grbl/nvs_buffer.c
  grbl/gcode.c
  grbl/machine_limits.c
