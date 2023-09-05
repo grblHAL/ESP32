@@ -111,7 +111,7 @@
 #define PIN_NUM_CS            GPIO_NUM_5
 // #endif
 
-#if MODBUS_ENABLE
+#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
 #error BlackBox X32 does not support Modbus
 #endif
 

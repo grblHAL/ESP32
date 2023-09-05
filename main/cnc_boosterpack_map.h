@@ -27,6 +27,8 @@
 #define BOARD_NAME "CNC BoosterPack"
 #define BOARD_URL "https://github.com/terjeio/CNC_Boosterpack"
 
+#define HAS_IOPORTS
+
 #if TRINAMIC_ENABLE
 #ifdef TRINAMIC_MIXED_DRIVERS
 #undef TRINAMIC_MIXED_DRIVERS
@@ -98,7 +100,7 @@
 #define AUXINPUT0_PIN           GPIO_NUM_33
 #endif
 
-#if MODBUS_ENABLE
+#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
 #define UART2_RX_PIN            GPIO_NUM_33
 #define UART2_TX_PIN            GPIO_NUM_25
 #if RS485_DIR_ENABLE

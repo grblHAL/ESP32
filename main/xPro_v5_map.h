@@ -60,7 +60,7 @@
 #endif
 
 // Define spindle enable and spindle direction output pins.
-#if DRIVER_SPINDLE_ENABLE && !MODBUS_ENABLE
+#if DRIVER_SPINDLE_ENABLE && !(MODBUS_ENABLE & MODBUS_RTU_ENABLED)
 #define SPINDLE_ENABLE_PIN  GPIO_NUM_4
 #define SPINDLEPWMPIN       GPIO_NUM_25
 #endif
@@ -98,7 +98,7 @@
 #define PIN_NUM_CS          GPIO_NUM_5
 #endif
 
-#if MODBUS_ENABLE
+#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
 #define UART2_RX_PIN        GPIO_NUM_25
 #define UART2_TX_PIN        GPIO_NUM_4
 #endif
