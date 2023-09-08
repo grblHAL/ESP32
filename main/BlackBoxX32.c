@@ -29,6 +29,15 @@ static axes_signals_t homing = {0};
 static on_homing_rate_set_ptr on_homing_rate_set;
 static limits_get_state_ptr limits_get_state;
 static on_homing_completed_ptr on_homing_completed;
+static limits_enable_ptr limits_enable;
+
+static void limitsEnable (bool on, axes_signals_t homing_cycle)
+{
+    if(homing_cycle.mask)
+        on = false;
+
+    limits_enable(on, homing_cycle);
+}
 
 static limit_signals_t limitsGetState (void)
 {
@@ -79,16 +88,19 @@ static void onHomingRateSet (axes_signals_t axes, float rate, homing_mode_t mode
         on_homing_rate_set(axes, rate, mode);
 }
 
-static void onHomingCompleted (void)
+static void onHomingCompleted (bool success)
 {
     homing.mask = 0;
 
     if(on_homing_completed)
-        on_homing_completed();
+        on_homing_completed(success);
 }
 
 void board_init (void)
 {
+    limits_enable = hal.limits.enable;
+    hal.limits.enable = limitsEnable;
+
     limits_get_state = hal.limits.get_state;
     hal.limits.get_state = limitsGetState;
 

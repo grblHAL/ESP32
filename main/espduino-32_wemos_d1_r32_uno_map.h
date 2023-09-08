@@ -69,7 +69,7 @@
 #endif
 
 // Define flood enable output pin.
-#if !MODBUS_ENABLE
+#if !(MODBUS_ENABLE & MODBUS_RTU_ENABLED)
 #define COOLANT_FLOOD_PIN   GPIO_NUM_32
 #endif
 
@@ -83,11 +83,12 @@
 #define PROBE_PIN           GPIO_NUM_39
 #endif
 
-#if MODBUS_ENABLE
+#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
 #define UART2_RX_PIN            GPIO_NUM_33
 #define UART2_TX_PIN            GPIO_NUM_32
+#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_15
-#define MODBUS_BAUD             19200
+#endif
 #endif
 
 #if SDCARD_ENABLE

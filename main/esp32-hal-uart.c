@@ -452,7 +452,7 @@ static void IRAM_ATTR _uart2_isr (void *arg)
     uart2->dev->int_clr.frm_err = 1;
     uart2->dev->int_clr.rxfifo_tout = 1;
 
-#if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
+#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
     if(uart2->dev->int_st.tx_done) {
     //    uart2->dev->int_clr.tx_done = 1;
         uart2->dev->int_ena.tx_done = 0;
@@ -531,14 +531,14 @@ void static serial2Write (const char *s, uint16_t length)
 {
     char *ptr = (char *)s;
 
-#if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
+#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
     gpio_set_level(MODBUS_DIRECTION_PIN, true);
 #endif
 
     while(length--)
         serial2PutC(*ptr++);
 
-#if MODBUS_ENABLE && defined(MODBUS_DIRECTION_PIN)
+#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
     uart2->dev->int_clr.tx_done = 1;
     uart2->dev->int_ena.tx_done = 1;
 #endif

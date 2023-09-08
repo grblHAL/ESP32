@@ -92,10 +92,12 @@
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 #if SAFETY_DOOR_ENABLE
   #define SAFETY_DOOR_PIN     GPIO_NUM_16
+#elif defined(HAS_IOPORTS)
+  #define AUXINPUT1_PIN       GPIO_NUM_16
 #endif
 
 #ifdef HAS_IOPORTS
-#define AUXINPUT0_PIN         GPIO_NUM_0 // Mode button on front panel
+  #define AUXINPUT0_PIN       GPIO_NUM_0 // Mode button on front panel
 #endif
 
 // Pin mapping when using SPI mode.
@@ -109,7 +111,7 @@
 #define PIN_NUM_CS            GPIO_NUM_5
 // #endif
 
-#if MODBUS_ENABLE
+#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
 #error BlackBox X32 does not support Modbus
 #endif
 

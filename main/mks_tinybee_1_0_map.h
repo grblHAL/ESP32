@@ -99,10 +99,10 @@
 #define PROBE_PIN               GPIO_NUM_35 // MT_DET
 #endif
 
-#if MODBUS_ENABLE
+#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
 #define UART2_RX_PIN            GPIO_NUM_16 // EXP_1
 #define UART2_TX_PIN            GPIO_NUM_17 // EXP_1
-#if RS485_DIR_ENABLE
+#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_13 // EXP_1
 #endif
 #endif
