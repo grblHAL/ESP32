@@ -229,6 +229,16 @@ static void lwIPHostTimerHandler (void *arg)
 
 #endif
 
+static void msg_mdns_active (sys_state_t state)
+{
+    char buf[80];
+
+    sprintf(buf, "[MSG:mDNS ACTIVE, Hostname=%s]" ASCII_EOL, network.hostname);
+
+    hal.stream.write_all(buf);
+}
+
+
 static void start_services (bool start_ssdp)
 {
 #if TELNET_ENABLE
@@ -283,8 +293,10 @@ static void start_services (bool start_ssdp)
                 mdns_service_add(NULL, "_ftp", "_tcp", network.ftp_port, &(mdns_txt_item_t){ .key = "path", .value = "/" }, 1);
             if(services.websocket)
                 mdns_service_add(NULL, "_websocket", "_tcp", network.websocket_port, NULL, 0);
-            if(services.telnet)
+            if(services.telnet) {
                 mdns_service_add(NULL, "_telnet", "_tcp", network.telnet_port, NULL, 0);
+                protocol_enqueue_rt_command(msg_mdns_active);
+            }
         }
     }
 #endif
