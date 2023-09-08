@@ -171,6 +171,8 @@ typedef struct {
   #include "mks_tinybee_1_0_map.h"
 #elif defined(BOARD_BLACKBOX_X32)
   #include "BlackBoxX32_map.h"
+#elif defined(BOARD_CNC3040)
+  #include "cnc3040_map.h"
 #elif defined(BOARD_MY_MACHINE)
   #include "my_machine_map.h"
 #else // default board - NOTE: NOT FINAL VERSION!
@@ -200,7 +202,7 @@ extern SemaphoreHandle_t i2cBusy;
 #error "I2C port not available!"
 #endif
 
-#if MPG_MODE_ENABLE || (MODBUS_ENABLE & MODBUS_RTU_ENABLED) || TRINAMIC_UART_ENABLE || defined(DEBUGOUT)
+#if MPG_MODE_ENABLE || (MODBUS_ENABLE & MODBUS_RTU_ENABLED) || TRINAMIC_UART_ENABLE || defined(DEBUGOUT) || KEYPAD_ENABLE == 2
 #define SERIAL2_ENABLE 1
 #else
 #define SERIAL2_ENABLE 0
