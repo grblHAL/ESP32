@@ -2374,7 +2374,13 @@ bool driver_init (void)
     fs_littlefs_mount("/littlefs", esp32_littlefs_hal());
 #endif
 
+#if KEYPAD_ENABLE == 2
+    stream_open_instance(KEYPAD_STREAM, 115200, keypad_enqueue_keycode);
+#endif
+
+
 #include "grbl/plugins_init.h"
+
 
     // no need to move version check before init - compiler will fail any mismatch for existing entries
     return hal.version == 10;
