@@ -226,7 +226,7 @@
     },
     {
       "name": "CNC BoosterPack",
-      "symbol": "BOARD_CNC_BOOSTERPACK",
+      "symbol": "BOARD_CNC3040",
       "URL": "https://github.com/terjeio/CNC_Boosterpack",
       "MAP": "main/boosterpack_map.h",
       "caps": {
@@ -237,6 +237,26 @@
         "eeprom": 1,
         "fram": 1,
         "i2c": 1
+      }
+    },
+    {
+      "name": "CNC 3040",
+      "symbol": "BOARD_CNC_BOOSTERPACK",
+      "URL": "https://github.com/shaise/grblHAL_CNC3040",
+      "MAP": "main/cnc3040_map.h",
+      "caps": {
+        "axes": 4,
+        "serial_ports": 2,
+        "eeprom": 1,
+        "digital_in": 0,
+        "digital_out": 0,
+        "probe": 1,
+        "safety_door": 1,
+        "mpg_mode": 0,
+        "sdcard": 0,
+        "wifi": 1,
+        "fram": 1,
+        "i2c": 0
       }
     }
   ]
