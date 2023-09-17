@@ -226,7 +226,7 @@
     },
     {
       "name": "CNC BoosterPack",
-      "symbol": "BOARD_CNC3040",
+      "symbol": "BOARD_CNC_BOOSTERPACK",
       "URL": "https://github.com/terjeio/CNC_Boosterpack",
       "MAP": "main/boosterpack_map.h",
       "caps": {
@@ -241,7 +241,7 @@
     },
     {
       "name": "CNC 3040",
-      "symbol": "BOARD_CNC_BOOSTERPACK",
+      "symbol": "BOARD_CNC3040",
       "URL": "https://github.com/shaise/grblHAL_CNC3040",
       "MAP": "main/cnc3040_map.h",
       "caps": {
