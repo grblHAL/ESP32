@@ -71,6 +71,26 @@ static esp_netif_t *sta_netif = NULL, *ap_netif = NULL;
 static on_report_options_ptr on_report_options;
 static on_stream_changed_ptr on_stream_changed;
 static char netservices[NETWORK_SERVICES_LEN] = "";
+static char *country_codes[] = {
+    "01", "AT", "AU", "BE", "BG", "BR", "CA", "CH", "CN", "CY", "CZ", "DE", "DK",
+    "EE", "ES", "FI", "FR", "GB", "GR", "HK", "HR", "HU", "IE", "IN", "IS", "IT",
+    "JP", "KR", "LI", "LT", "LU", "LV", "MT", "MX", "NL", "NO", "NZ", "PL", "PT",
+    "RO", "SE", "SI", "SK", "TW", "US", ""
+};
+
+static bool validate_country_code (char *country_id)
+{
+    uint_fast8_t idx = 0;
+
+    if(*country_id) while(*country_codes[idx]) {
+        if(!strcmp(country_id, country_codes[idx]))
+            return true;
+        idx++;
+    }
+
+    return false;
+}
+
 #if MQTT_ENABLE
 
 static bool mqtt_connected = false;
@@ -639,6 +659,7 @@ bool wifi_start (void)
 
     if(currentMode != settingToMode(wifi.mode) && (wifi.mode == WiFiMode_AP || wifi.mode == WiFiMode_APSTA)) {
 
+        char country[4];
         wifi_config_t wifi_config;
 
         if(ap_netif == NULL)
@@ -660,7 +681,7 @@ bool wifi_start (void)
         if(strlcpy((char *)wifi_config.ap.ssid, wifi.ap.ssid, sizeof(wifi_config.ap.ssid)) >= sizeof(wifi_config.ap.ssid))
             return false;
 
-        if (*wifi.ap.password == '\0')
+        if(*wifi.ap.password == '\0')
             wifi_config.ap.authmode = WIFI_AUTH_OPEN;
         else if(strlcpy((char *)wifi_config.ap.password, wifi.ap.password, sizeof(wifi_config.ap.password)) < sizeof(wifi_config.ap.password))
             wifi_config.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
@@ -668,6 +689,10 @@ bool wifi_start (void)
             return false;
 
         wifi_config.ap.max_connection = 1;
+        wifi_config.ap.channel = wifi.ap.channel;
+
+        if(esp_wifi_get_country_code(country) == ESP_OK && strcmp(country, wifi.ap.country))
+            esp_wifi_set_country_code(wifi.ap.country, true);
 
         if(esp_wifi_set_mode(settingToMode(wifi.mode)) != ESP_OK)
             return false;
@@ -701,6 +726,9 @@ bool wifi_start (void)
             if(strlcpy((char *)wifi_sta_config.sta.password, wifi.sta.password, sizeof(wifi_sta_config.sta.password)) >= sizeof(wifi_sta_config.sta.password))
                 return false;
         }
+
+        if((wifi_sta_config.sta.bssid_set = !networking_ismemnull(wifi.ap.bssid, sizeof(bssid_t))))
+            memcpy(wifi_sta_config.sta.bssid, wifi.ap.bssid, sizeof(bssid_t));
 
         if(esp_wifi_set_mode(settingToMode(wifi.mode)) != ESP_OK)
             return false;
@@ -772,6 +800,62 @@ static char *wifi_get_ip (setting_id_t setting);
 static void wifi_settings_restore (void);
 static void wifi_settings_load (void);
 
+static status_code_t wifi_set_bssid (setting_id_t setting, char *value)
+{
+    if(*value) {
+
+        uint32_t bssid[6];
+        if(sscanf(value,"%2X:%2X:%2X:%2X:%2X:%2X", &bssid[5], &bssid[4], &bssid[3],
+                                                    &bssid[2], &bssid[1], &bssid[0]) == 6) {
+
+            char c = LCAPS(value[strlen(value) - 1]);
+            if(!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')))
+                return Status_InvalidStatement;
+
+            uint_fast8_t idx;
+            for(idx = 0; idx < 6; idx++)
+                wifi.ap.bssid[idx] = bssid[idx];
+        } else
+            return Status_InvalidStatement;
+    } else
+        memset(wifi.ap.bssid, 0, sizeof(bssid_t));
+
+    return Status_OK;
+}
+
+static char *wifi_get_bssid (setting_id_t setting)
+{
+    static char bssid[18];
+
+    if(networking_ismemnull(wifi.ap.bssid, sizeof(bssid_t)))
+        *bssid = '\0';
+    else
+        sprintf(bssid, MAC_FORMAT_STRING, wifi.ap.bssid[5], wifi.ap.bssid[4], wifi.ap.bssid[3],
+                                           wifi.ap.bssid[2], wifi.ap.bssid[1], wifi.ap.bssid[0]);
+    return bssid;
+}
+
+#if WIFI_SOFTAP
+
+static status_code_t wifi_set_country (setting_id_t setting, char *value)
+{
+    status_code_t status;
+
+    strcaps(value);
+
+    if((status = validate_country_code(value) ? Status_OK : Status_GcodeValueOutOfRange) == Status_OK)
+        strcpy(wifi.ap.country, value);
+
+    return status;
+}
+
+static char *wifi_get_country (setting_id_t setting)
+{
+    return wifi.ap.country;
+}
+
+#endif
+
 static const setting_group_detail_t ethernet_groups [] = {
     { Group_Root, Group_Networking, "Networking" },
     { Group_Networking, Group_Networking_Wifi, "WiFi" }
@@ -780,6 +864,7 @@ static const setting_group_detail_t ethernet_groups [] = {
 static const setting_detail_t ethernet_settings[] = {
     { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, netservices, NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL, { .reboot_required = On } },
     { Setting_WiFi_STA_SSID, Group_Networking_Wifi, "WiFi Station (STA) SSID", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.sta.ssid, NULL, NULL },
+    { Setting_Wifi_AP_BSSID, Group_Networking_Wifi, "WiFi Access Point (AP) BSSID", NULL, Format_String, "x(17)", "17", "17", Setting_NonCoreFn, wifi_set_bssid, wifi_get_bssid, NULL, { .allow_null = On, .reboot_required = On } },
     { Setting_WiFi_STA_Password, Group_Networking_Wifi, "WiFi Station (STA) Password", NULL, Format_Password, "x(32)", "8", "32", Setting_NonCore, &wifi.sta.password, NULL, NULL, { .allow_null = On } },
     { Setting_Hostname3, Group_Networking, "Hostname", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.sta.network.hostname, NULL, NULL, { .reboot_required = On } },
 /*    { Setting_IpMode, Group_Networking, "IP Mode", NULL, Format_RadioButtons, "Static,DHCP,AutoIP", NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL, false }, */
@@ -790,6 +875,8 @@ static const setting_detail_t ethernet_settings[] = {
     { Setting_WifiMode, Group_Networking_Wifi, "WiFi Mode", NULL, Format_RadioButtons, "Off,Station,Access Point,Access Point/Station", NULL, NULL, Setting_NonCore, &wifi.mode, NULL, NULL },
     { Setting_WiFi_AP_SSID, Group_Networking_Wifi, "WiFi Access Point (AP) SSID", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.ap.ssid, NULL, NULL },
     { Setting_WiFi_AP_Password, Group_Networking_Wifi, "WiFi Access Point (AP) Password", NULL, Format_Password, "x(32)", "8", "32", Setting_NonCore, &wifi.ap.password, NULL, NULL, { .allow_null = On } },
+    { Setting_Wifi_AP_Country, Group_Networking_Wifi, "WiFi Country Code", NULL, Format_String, "x(2)", "2", "2", Setting_NonCoreFn, wifi_set_country, wifi_get_country, NULL, { .allow_null = On, .reboot_required = On } },
+    { Setting_Wifi_AP_Channel, Group_Networking_Wifi, "WiFi Channel (AP)", NULL, Format_Int8, "#0", "1", "13", Setting_NonCore, &wifi.ap.channel, NULL, NULL, { .reboot_required = On } },
     { Setting_Hostname2, Group_Networking, "Hostname (AP)", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.ap.network.hostname, NULL, NULL, { .reboot_required = On } },
     { Setting_IpAddress2, Group_Networking, "IP Address (AP)", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
     { Setting_Gateway2, Group_Networking, "Gateway (AP)", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
@@ -822,6 +909,7 @@ static const setting_detail_t ethernet_settings[] = {
 static const setting_descr_t ethernet_settings_descr[] = {
     { Setting_NetworkServices, "Network services to enable." },
     { Setting_WiFi_STA_SSID, "WiFi Station (STA) SSID." },
+    { Setting_Wifi_AP_BSSID, "Optional WiFi Access Point BSSID (MAC) to connect to, colon delimited values." },
     { Setting_WiFi_STA_Password, "WiFi Station (STA) Password." },
     { Setting_Hostname3, "Network hostname." },
 //    { Setting_IpMode, "IP Mode." },
@@ -832,6 +920,9 @@ static const setting_descr_t ethernet_settings_descr[] = {
     { Setting_WifiMode, "WiFi Mode." },
     { Setting_WiFi_AP_SSID, "WiFi Access Point (AP) SSID." },
     { Setting_WiFi_AP_Password, "WiFi Access Point (AP) Password." },
+    { Setting_Wifi_AP_Country, "ISO3166 country code, controls availability of channels 12-14.\\n"
+                               "Set to ""01"" for generic worldwide channels." },
+    { Setting_Wifi_AP_Channel, "WiFi Access Point (AP) channel to use.\\n May be overridden when connecting to an Access Point as station or by country setting." },
     { Setting_Hostname2, "Network hostname." },
     { Setting_IpAddress2, "Static IP address." },
     { Setting_Gateway2, "Static gateway address." },
@@ -1142,6 +1233,12 @@ static void wifi_settings_load (void)
 {
     if(hal.nvs.memcpy_from_nvs((uint8_t *)&wifi, nvs_address, sizeof(wifi_settings_t), true) != NVS_TransferResult_OK)
         wifi_settings_restore();
+
+    if(wifi.ap.channel == 0 || wifi.ap.channel > 13)
+        wifi.ap.channel = 1;
+
+    if(!validate_country_code(wifi.ap.country))
+        strcpy(wifi.ap.country, country_codes[0]);
 
     wifi.sta.network.services.mask &= allowed_services.mask;
     wifi.ap.network.services.mask &= allowed_services.mask;
