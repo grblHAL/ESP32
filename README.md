@@ -4,6 +4,8 @@ __Important:__
 If enabling ftp upload to the SD card then _ffconf.h_ in the ESP SDK has to be edited, `#define FF_FS_RPATH` must be changed to 2 or you will get a compiler error.  
 _ffconf.h_ is located in the subfolder _esp-idf\components\fatfs\src_ in the ESP32 SDK installation. The ESP32 SDK is typically installed in the user folder.
 
+This driver can be built with the [Web Builder](http://svn.io-engineering.com:8080/?driver?driver=ESP32).
+
 ### How to build using ESP-IDF v4.3:
 
 While this manual briefly describes basic build process on Linux OS, you can find more details
@@ -82,4 +84,5 @@ dns_server.c is Copyright (c) 2019 Tony Pottier - from his [ESP32 WiFi Manager](
 Snippets of code is extracted from Espressif ESP-IDF examples which are public domain.
 
 ---
-2023-04-29
+2023-09-20
+

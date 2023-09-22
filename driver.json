@@ -47,33 +47,19 @@
   },
   "boards": [
     {
-      "name": "BDRING v3.5",
-      "symbol": "BOARD_BDRING_V3P5",
-      "URL": "",
-      "MAP": "main/bdring_v3.5_map.h",
+      "name": "BlackBox X32",
+      "symbol": "BOARD_BLACKBOX_X32",
+      "URL": "https://docs.openbuilds.com/doku.php?id=docs:blackbox-x32:start",
+      "MAP": "main/BlackBoxX32_map.h",
       "caps": {
-        "axes": 3,
+        "axes": 4,
         "digital_in": 0,
         "digital_out": 0,
-        "serial_ports": 1,
+        "safety_door": 1,
         "eeprom": 0,
         "fram": 0,
-        "i2c": 0
-      }
-    },
-    {
-      "name": "BDRING v4",
-      "symbol": "BOARD_BDRING_V4",
-      "URL": "",
-      "MAP": "main/bdring_v4_map.h",
-      "caps": {
-        "axes": 3,
-        "digital_in": 0,
-        "digital_out": 0,
-        "serial_ports": 2,
-        "eeprom": 0,
-        "fram": 0,
-        "i2c": 0
+        "i2c": 0,
+        "sdcard": 1
       }
     },
     {
@@ -92,7 +78,7 @@
         "sdcard": 0,
         "trinamic_spi_cs": 1,
         "trinamic_spi_chain": 1,
-        "trinamic_uart_n": 1,
+        "trinamic_uart_n": 0,
         "trinamic_uart_addr": 0
       }
     },
@@ -209,37 +195,6 @@
       }
     },
     {
-      "name": "BlackBox X32",
-      "symbol": "BOARD_BLACKBOX_X32",
-      "URL": "https://docs.openbuilds.com/doku.php?id=docs:blackbox-x32:start",
-      "MAP": "main/BlackBoxX32_map.h",
-      "caps": {
-        "axes": 4,
-        "digital_in": 0,
-        "digital_out": 0,
-        "safety_door": 1,
-        "eeprom": 0,
-        "fram": 0,
-        "i2c": 0,
-        "sdcard": 1
-      }
-    },
-    {
-      "name": "CNC BoosterPack",
-      "symbol": "BOARD_CNC_BOOSTERPACK",
-      "URL": "https://github.com/terjeio/CNC_Boosterpack",
-      "MAP": "main/boosterpack_map.h",
-      "caps": {
-        "axes": 3,
-        "digital_in": 0,
-        "digital_out": 0,
-        "serial_ports": 2,
-        "eeprom": 1,
-        "fram": 1,
-        "i2c": 1
-      }
-    },
-    {
       "name": "CNC 3040",
       "symbol": "BOARD_CNC3040",
       "URL": "https://github.com/shaise/grblHAL_CNC3040",
@@ -257,6 +212,51 @@
         "wifi": 1,
         "fram": 1,
         "i2c": 0
+      }
+    },
+    {
+      "name": "BDRING v3.5",
+      "symbol": "BOARD_BDRING_V3P5",
+      "URL": "",
+      "MAP": "main/bdring_v3.5_map.h",
+      "caps": {
+        "axes": 3,
+        "digital_in": 0,
+        "digital_out": 0,
+        "serial_ports": 1,
+        "eeprom": 0,
+        "fram": 0,
+        "i2c": 0
+      }
+    },
+    {
+      "name": "BDRING v4",
+      "symbol": "BOARD_BDRING_V4",
+      "URL": "",
+      "MAP": "main/bdring_v4_map.h",
+      "caps": {
+        "axes": 3,
+        "digital_in": 0,
+        "digital_out": 0,
+        "serial_ports": 2,
+        "eeprom": 0,
+        "fram": 0,
+        "i2c": 0
+      }
+    },
+    {
+      "name": "CNC BoosterPack",
+      "symbol": "BOARD_CNC_BOOSTERPACK",
+      "URL": "https://github.com/terjeio/CNC_Boosterpack",
+      "MAP": "main/boosterpack_map.h",
+      "caps": {
+        "axes": 3,
+        "digital_in": 0,
+        "digital_out": 0,
+        "serial_ports": 2,
+        "eeprom": 1,
+        "fram": 1,
+        "i2c": 1
       }
     }
   ]
