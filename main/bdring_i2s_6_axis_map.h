@@ -21,10 +21,6 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#if VFD_SPINDLE
-#error "Board BOARD_BDRING_I2S6A does not have support for VFD spindle."
-#endif
-
 #define BOARD_NAME "BDRING 6-axis I2S"
 
 #define USE_I2S_OUT
@@ -34,17 +30,18 @@
 #define STEP_TIMER_GROUP TIMER_GROUP_0
 #define STEP_TIMER_INDEX TIMER_0
 
-#if SDCARD_ENABLE
+#if SDCARD_ENABLE || TRINAMIC_SPI_ENABLE
 
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
-// Note that a pull-up on CS line is required in SD mode.
 #define PIN_NUM_MISO            19
 #define PIN_NUM_MOSI            23
 #define PIN_NUM_CLK             18
+#if SDCARD_ENABLE
+// Note that a pull-up on CS line is required in SD mode.
 #define PIN_NUM_CS              5
-
 #endif // SDCARD_ENABLE
+#endif // SDCARD_ENABLE || TRINAMIC_SPI_ENABLE
 
 #define I2S_OUT_BCK             GPIO_NUM_22
 #define I2S_OUT_WS              GPIO_NUM_17
@@ -105,6 +102,10 @@
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 
 // N/A
+
+#if TRINAMIC_SPI_ENABLE
+#define MOTOR_CS_PIN            I2SO(3)
+#endif
 
 #if MODBUS_ENABLE & MODBUS_RTU_ENABLED
 #define UART2_RX_PIN            GPIO_NUM_15
