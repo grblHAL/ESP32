@@ -1,5 +1,5 @@
 // Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
-// Copyright 2018 Terje Io : Modifications for grbl
+// Copyright 2018-2023 Terje Io : Modifications for grbl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,11 +56,6 @@ extern "C" {
 #define DEBUG_PRINT(string) uartWriteS(string)
 
 void serialRegisterStreams (void);
-const io_stream_t *serialInit (uint32_t baud_rate);
-
-#if SERIAL2_ENABLE
-const io_stream_t *serial2Init (uint32_t baud_rate);
-#endif
 
 #ifdef __cplusplus
 }

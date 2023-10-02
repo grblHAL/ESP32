@@ -79,7 +79,7 @@
 #include "sdcard/fs_littlefs.h"
 #endif
 
-#if KEYPAD_ENABLE
+#if KEYPAD_ENABLE == 2
 #include "keypad/keypad.h"
 #endif
 
@@ -203,11 +203,11 @@ static input_signal_t inputpin[] = {
 #ifdef C_LIMIT_PIN
     { .id = Input_LimitC,       .pin = C_LIMIT_PIN,       .group = PinGroup_Limit },
 #endif
-#if MPG_MODE_ENABLE
+#if MPG_MODE == 1
     { .id = Input_ModeSelect,   .pin = MPG_ENABLE_PIN,    .group = PinGroup_MPG },
 #endif
 #ifdef I2C_STROBE_PIN
-    { .id = Input_KeypadStrobe, .pin = I2C_STROBE_PIN,    .group = PinGroup_Keypad },
+    { .id = Input_I2CStrobe,    .pin = I2C_STROBE_PIN,    .group = PinGroup_Keypad },
 #endif
 // Aux input pins must be consecutive in this array
 #ifdef AUXINPUT0_PIN
@@ -218,8 +218,7 @@ static input_signal_t inputpin[] = {
 #endif
 };
 
-static output_signal_t outputpin[] =
-{
+static output_signal_t outputpin[] = {
     { .id = Output_StepX,         .pin = X_STEP_PIN,            .group = PinGroup_StepperStep },
     { .id = Output_StepY,         .pin = Y_STEP_PIN,            .group = PinGroup_StepperStep },
     { .id = Output_StepZ,         .pin = Z_STEP_PIN,            .group = PinGroup_StepperStep },
@@ -366,7 +365,7 @@ static bool irq_claim (irq_type_t irq, uint_fast8_t id, irq_callback_ptr handler
 static void gpio_limit_isr (void *signal);
 static void gpio_control_isr (void *signal);
 static void gpio_aux_isr (void *signal);
-#if MPG_MODE_ENABLE
+#if MPG_MODE == 1
 static void gpio_mpg_isr (void *signal);
 #endif
 #if I2C_STROBE_ENABLE
@@ -1515,7 +1514,7 @@ static void disable_irq (void)
     portENTER_CRITICAL(&mux);
 }
 
-#if MPG_MODE_ENABLE
+#if MPG_MODE == 1
 
 static void modeChange(sys_state_t state)
 {
@@ -1711,7 +1710,7 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
                     signal->invert = limit_fei.c;
                     break;
 #endif
-#if MPG_MODE_ENABLE
+#if MPG_MODE == 1
                 case Input_ModeSelect:
                     pullup = true;
                     signal->invert = false;
@@ -1722,7 +1721,7 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
                     break;
 #endif
 #if I2C_STROBE_ENABLE
-                case Input_KeypadStrobe:
+                case Input_I2CStrobe:
                     pullup = true;
                     signal->invert = false;
                     config.intr_type = GPIO_INTR_ANYEDGE;
@@ -1779,12 +1778,6 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
                 signal->active = signal->debounce && gpio_get_level(signal->pin) == (signal->invert ? 0 : 1);
             }
         } while(i);
-
-#if MPG_MODE_ENABLE
-        if(hal.driver_cap.mpg_mode)
-            // Delay mode enable a bit so grbl can finish startup and MPG controller can check ready status
-            protocol_enqueue_rt_command(modeEnable);
-#endif
     }
 }
 
@@ -2017,7 +2010,7 @@ static bool driver_setup (settings_t *settings)
         }
     } while(idx);
 
-#if MPG_MODE_ENABLE
+#if MPG_MODE == 1
 
     /************************
      *  MPG mode (pre)init  *
@@ -2028,7 +2021,6 @@ static bool driver_setup (settings_t *settings)
     gpio_config(&gpioConfig);
     gpio_set_level(MPG_ENABLE_PIN, 0);
 
-    serial2Init(BAUD_RATE);
 #endif
 
    /****************************
@@ -2168,7 +2160,7 @@ bool driver_init (void)
     rtc_clk_cpu_freq_get_config(&cpu);
 
     hal.info = "ESP32";
-    hal.driver_version = "230828";
+    hal.driver_version = "230927";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2240,7 +2232,9 @@ bool driver_init (void)
     hal.rtc.get_datetime = get_rtc_time;
     hal.rtc.set_datetime = set_rtc_time;
 
-    stream_connect(serialInit(BAUD_RATE));
+    serialRegisterStreams();
+    if(!stream_connect_instance(SERIAL_STREAM, BAUD_RATE))
+        while(true); // Cannot boot if no communication channel is available!
 
 #if I2C_ENABLE
     I2CInit();
@@ -2317,9 +2311,6 @@ bool driver_init (void)
 #endif
     hal.limits_cap = get_limits_cap();
     hal.home_cap = get_home_cap();
-#if MPG_MODE_ENABLE
-    hal.driver_cap.mpg_mode = stream_mpg_register(serial2Init(115200), true, NULL);
-#endif
 
 #ifdef HAS_IOPORTS
 
@@ -2352,10 +2343,22 @@ bool driver_init (void)
 
 #endif
 
-    serialRegisterStreams();
-
 #ifdef HAS_BOARD_INIT
     board_init();
+#endif
+
+#if MPG_MODE == 1
+  #if KEYPAD_ENABLE == 2
+    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), true, keypad_enqueue_keycode)))
+        protocol_enqueue_rt_command(modeEnable);
+  #else
+    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), true, NULL)))
+        protocol_enqueue_rt_command(modeEnable);
+  #endif
+#elif MPG_MODE == 2
+    hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), true, keypad_enqueue_keycode);
+#elif KEYPAD_ENABLE == 2
+    stream_open_instance(KEYPAD_STREAM, 115200, keypad_enqueue_keycode);
 #endif
 
 #if WIFI_ENABLE
@@ -2374,13 +2377,7 @@ bool driver_init (void)
     fs_littlefs_mount("/littlefs", esp32_littlefs_hal());
 #endif
 
-#if KEYPAD_ENABLE == 2
-    stream_open_instance(KEYPAD_STREAM, 115200, keypad_enqueue_keycode);
-#endif
-
-
 #include "grbl/plugins_init.h"
-
 
     // no need to move version check before init - compiler will fail any mismatch for existing entries
     return hal.version == 10;
@@ -2426,7 +2423,7 @@ IRAM_ATTR static void gpio_aux_isr (void *signal)
 #endif
 }
 
-#if MPG_MODE_ENABLE
+#if MPG_MODE == 1
 
 IRAM_ATTR static void gpio_mpg_isr (void *signal)
 {
@@ -2492,7 +2489,7 @@ IRAM_ATTR static void gpio_isr (void *arg)
     if(grp & PinGroup_Control)
         hal.control.interrupt_callback(systemGetState());
 
-#if MPG_MODE_ENABLE
+#if MPG_MODE == 1
 
     static bool mpg_mutex = false;
 

@@ -202,13 +202,58 @@ extern SemaphoreHandle_t i2cBusy;
 #error "I2C port not available!"
 #endif
 
-#if MPG_MODE_ENABLE || (MODBUS_ENABLE & MODBUS_RTU_ENABLED) || TRINAMIC_UART_ENABLE || defined(DEBUGOUT) || KEYPAD_ENABLE == 2
+#if USB_SERIAL_CDC
+#define SP0 1
+#else
+#define SP0 0
+#endif
+
+#ifdef UART2_RX_PIN
+#define SP1 1
+#else
+#define SP1 0
+#endif
+
+#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
+#define MODBUS_TEST 1
+#else
+#define MODBUS_TEST 0
+#endif
+
+#if TRINAMIC_UART_ENABLE
+#define TRINAMIC_TEST 1
+#else
+#define TRINAMIC_TEST 0
+#endif
+
+#if MPG_ENABLE
+#define MPG_TEST 1
+#else
+#define MPG_TEST 0
+#endif
+
+#if KEYPAD_ENABLE == 2 && MPG_ENABLE == 0
+#define KEYPAD_TEST 1
+#else
+#define KEYPAD_TEST 0
+#endif
+
+#if (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST) > (SP0 + SP1)
+#error "Too many options that requires a serial port are enabled!"
+#elif (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST)
 #define SERIAL2_ENABLE 1
 #else
 #define SERIAL2_ENABLE 0
 #endif
 
-#if MPG_MODE_ENABLE
+#undef SP0
+#undef SP1
+#undef MODBUS_TEST
+#undef KEYPAD_TEST
+#undef MPG_TEST
+#undef TRINAMIC_TEST
+
+#if MPG_MODE == 1
   #ifndef MPG_ENABLE_PIN
   #error "MPG_ENABLE_PIN must be defined when MPG mode is enabled!"
   #endif

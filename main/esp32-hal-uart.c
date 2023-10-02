@@ -1,5 +1,5 @@
 // Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
-// Copyright 2018-2021 Terje Io : Modifications for grbl
+// Copyright 2018-2023 Terje Io : Modifications for grblHAL
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -83,11 +83,13 @@ static const DRAM_ATTR uint16_t RX_BUFFER_SIZE_MASK = RX_BUFFER_SIZE - 1;
 static uart_t *uart1 = NULL;
 static stream_rx_buffer_t rxbuffer = {0};
 static enqueue_realtime_command_ptr enqueue_realtime_command = protocol_enqueue_realtime_command;
+static const io_stream_t *serialInit (uint32_t baud_rate);
 
 #if SERIAL2_ENABLE
 static uart_t *uart2 = NULL;
 static stream_rx_buffer_t rxbuffer2 = {0};
 static enqueue_realtime_command_ptr enqueue_realtime_command2 = protocol_enqueue_realtime_command;
+static const io_stream_t *serial2Init (uint32_t baud_rate);
 #endif
 
 static io_stream_properties_t serial[] = {
@@ -108,14 +110,14 @@ static io_stream_properties_t serial[] = {
       .flags.claimed = Off,
       .flags.connected = On,
       .flags.can_set_baud = On,
-#ifdef UART2_TX_PIN
+  #ifdef UART2_TX_PIN
       .flags.modbus_ready = On,
-#else
+  #else
       .flags.rx_only = On,
-#endif
+  #endif
       .claim = serial2Init
     }
-#endif
+#endif // SERIAL2_ENABLE
 };
 
 void serialRegisterStreams (void)
@@ -124,6 +126,51 @@ void serialRegisterStreams (void)
         .n_streams = sizeof(serial) / sizeof(io_stream_properties_t),
         .streams = serial,
     };
+
+    static const periph_pin_t tx0 = {
+        .function = Output_TX,
+        .group = PinGroup_UART,
+        .pin = 35,
+        .mode = { .mask = PINMODE_OUTPUT },
+        .description = "Primary UART"
+    };
+
+    static const periph_pin_t rx0 = {
+        .function = Input_RX,
+        .group = PinGroup_UART,
+        .pin = 34,
+        .mode = { .mask = PINMODE_NONE },
+        .description = "Primary UART"
+    };
+
+    hal.periph_port.register_pin(&rx0);
+    hal.periph_port.register_pin(&tx0);
+
+#if SERIAL2_ENABLE
+
+  #ifdef UART2_TX_PIN
+    static const periph_pin_t tx1 = {
+        .function = Output_TX,
+        .group = PinGroup_UART2,
+        .pin = UART2_TX_PIN,
+        .mode = { .mask = PINMODE_OUTPUT },
+        .description = "Secondary UART"
+    };
+
+    hal.periph_port.register_pin(&tx1);
+  #endif
+
+    static const periph_pin_t rx1 = {
+        .function = Input_RX,
+        .group = PinGroup_UART2,
+        .pin = UART2_RX_PIN,
+        .mode = { .mask = PINMODE_NONE },
+        .description = "Secondary UART"
+    };
+
+    hal.periph_port.register_pin(&rx1);
+
+#endif // SERIAL2_ENABLE
 
     stream_register_streams(&streams);
 }
@@ -386,7 +433,7 @@ static enqueue_realtime_command_ptr serialSetRtHandler (enqueue_realtime_command
     return prev;
 }
 
-const io_stream_t *serialInit (uint32_t baud_rate)
+static const io_stream_t *serialInit (uint32_t baud_rate)
 {
     static const io_stream_t stream = {
         .type = StreamType_Serial,
@@ -419,25 +466,6 @@ const io_stream_t *serialInit (uint32_t baud_rate)
 
     serialFlush();
     uartEnableInterrupt(uart1, _uart1_isr, true);
-    
-    static const periph_pin_t tx = {
-        .function = Output_TX,
-        .group = PinGroup_UART,
-        .pin = 35,
-        .mode = { .mask = PINMODE_OUTPUT },
-        .description = "Primary UART"
-    };
-
-    static const periph_pin_t rx = {
-        .function = Input_RX,
-        .group = PinGroup_UART,
-        .pin = 34,
-        .mode = { .mask = PINMODE_NONE },
-        .description = "Primary UART"
-    };
-
-    hal.periph_port.register_pin(&rx);
-    hal.periph_port.register_pin(&tx);
 
     return &stream;
 }
@@ -625,13 +653,6 @@ IRAM_ATTR static bool serial2Disable (bool disable)
 
 static bool serial2SetBaudRate (uint32_t baud_rate)
 {
-    static bool init_ok = false;
-
-    if(!init_ok) {
-        serial2Init(baud_rate);
-        init_ok = true;
-    }
-
     uartSetBaudRate(uart2, baud_rate);
 
     return true;
@@ -652,7 +673,7 @@ static enqueue_realtime_command_ptr serial2SetRtHandler (enqueue_realtime_comman
     return prev;
 }
 
-const io_stream_t *serial2Init (uint32_t baud_rate)
+static const io_stream_t *serial2Init (uint32_t baud_rate)
 {
     static const io_stream_t stream = {
         .type = StreamType_Serial,
@@ -687,31 +708,11 @@ const io_stream_t *serial2Init (uint32_t baud_rate)
     serial2Flush();
 #ifdef UART2_TX_PIN
     uartEnableInterrupt(uart2, _uart2_isr, true);
-
-    static const periph_pin_t tx = {
-        .function = Output_TX,
-        .group = PinGroup_UART2,
-        .pin = UART2_TX_PIN,
-        .mode = { .mask = PINMODE_OUTPUT },
-        .description = "Secondary UART"
-    };
-
-    hal.periph_port.register_pin(&tx);
 #else
     uartEnableInterrupt(uart2, _uart2_isr, false);
 #endif
 
-    static const periph_pin_t rx = {
-        .function = Input_RX,
-        .group = PinGroup_UART2,
-        .pin = UART2_RX_PIN,
-        .mode = { .mask = PINMODE_NONE },
-        .description = "Secondary UART"
-    };
-
-    hal.periph_port.register_pin(&rx);
-
     return &stream;
 }
 
-#endif
+#endif // SERIAL2_ENABLE

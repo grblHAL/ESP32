@@ -107,7 +107,7 @@
 #endif
 #endif
 
-#if MPG_MODE_ENABLE
+#if MPG_MODE == 1
 #define UART2_RX_PIN            GPIO_NUM_16 // EXP_1
 #define MPG_ENABLE_PIN          GPIO_NUM_13 // EXP_1
 #endif
