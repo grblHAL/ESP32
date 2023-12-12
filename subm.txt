@@ -1,0 +1,53 @@
+git commit -am 'updated readme'
+git commit -am 'updated board definitions for Web Builder'
+git commit -am 'Fixed step pins handling for PIO steps out for N_AXIS > 3 or ganged axes'
+git commit -am 'Fix for regression, issue #114'
+git push
+
+git add 
+
+git commit -am 'Updated changelog'
+git push
+
+git commit -am 'Updated readme'
+git push
+
+git commit -am 'Updated Web Builder definitions'
+git push
+
+git commit -am 'Added Mach 3 USB breakout board'
+git push
+
+git submodule add https://github.com/grblHAL/Plugin_embroidery grblHAL_Teensy4/src/embroidery
+git commit 'added submodule'
+
+git submodule add https://github.com/grblHAL/lwip lwip
+git submodule add https://github.com/grblHAL/Plugin_networking networking
+git commit -am 'added networking submodules'
+
+git submodule add https://github.com/grblHAL/Plugin_encoder encoder
+git commit -am 'added encoder submodule'
+
+git submodule add https://github.com/grblHAL/Plugin_fans/ fans
+git commit -am 'added fans submodule'
+
+git submodule add https://github.com/grblHAL/Plugin_plasma/ plasma
+git commit -am 'added plasma submodule'
+
+git submodule add https://github.com/grblHAL/Plugins_Bluetooth/ src/bluetooth
+git commit -am 'added bluetooth submodule'
+
+
+git commit -am 'updated for core changes'
+
+git commit -am 'fixed regression'
+git commit -am 'updated for core changes, directories renamed for Web Builder'
+
+git reset --hard
+
+git commit -am 'fixed typo...'
+git push
+
+git add -A
+git commit -am 'Release 2.0.43'
+git push

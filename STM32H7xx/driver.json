@@ -1,0 +1,121 @@
+{
+  "caps":
+  {
+    "axes": 8,
+    "usb_cdc": 1,
+    "uart": 1,
+    "serial_ports": 2,
+    "eeprom": 1,
+    "ganged_axes": 1,
+    "auto_square": 1,
+    "digital_in": 7,
+    "digital_out": 4,
+    "safety_door": 1,
+    "estop": 1,
+    "mpg_mode": 1,
+    "sdcard": 1,
+    "hc05", 1,
+    "ethernet": 0,
+    "plugins": [
+      { "id": "spindle" },
+      { "id": "modbus" },
+      { "id": "motors" },
+      { "id": "eeprom" },
+      { "id": "sdcard" },
+      { "id": "webui" },
+      { "id": "networking" },
+      { "id": "keypad" },
+      { "id": "plasma" },
+      { "id": "laser_ppi" },
+      { "id": "laser_cluster" },
+      { "id": "laser_coolant" },
+      { "id": "fans" },
+      { "id": "openpnp" },
+      { "id": "bluetooth" }
+    ]
+  },
+  "symbols": {
+    "USE_HAL_DRIVER": "",
+    "STM32H743xx": "",
+    "BLOCK_BUFFER_DYNAMIC": ""
+  },
+  "symbols_networking": {
+    "ETH_TX_DESC_CNT": 12,
+    "TCP_MSS": 1460,
+    "TCP_SND_BUF": 5840,
+    "MEMP_NUM_PBUF": 48,
+    "MEMP_NUM_TCP_PCB": 16,
+    "PBUF_POOL_SIZE": 48,
+    "LWIP_NUM_NETIF_CLIENT_DATA": 2,
+    "LWIP_HTTPD_CUSTOM_FILES": 0,
+    "MEM_SIZE": 32768,
+    "LWIP_IGMP": 1,
+    "LWIP_NETIF_STATUS_CALLBACK": 1,
+    "LWIP_HTTPD_DYNAMIC_HEADERS": 1,
+    "LWIP_HTTPD_DYNAMIC_FILE_READ": 1,
+    "LWIP_HTTPD_SUPPORT_V09": 0,
+    "LWIP_HTTPD_SUPPORT_11_KEEPALIVE": 1,
+    "LWIP_HTTPD_CGI_ADV": 1,
+    "LWIP_HTTPD_SUPPORT_POST": 1,
+    "LWIP_HTTPD_SUPPORT_WEBDAV": 1
+  },
+  "boards": [
+    {
+      "name": "grblHAL reference map",
+      "symbol": "BOARD_REFERENCE",
+      "URL": "",
+      "caps": {
+        "axes": 8,
+        "digital_in": 3,
+        "digital_out": 4,
+        "ethernet": 1,
+        "pio_board": "nucleo_h743zi",
+        "ldscript": "STM32H743ZITX_FLASH.ld"
+      },
+      "symbols" : {
+        "NUCLEO_H743": "",
+        "HSE_VALUE": 8000000,
+        "RTC_ENABLE": 1
+      }
+    },
+    {
+      "name": "WeAct Mini H743",
+      "symbol": "BOARD_WEACT_MINI_H743",
+      "URL": "",
+      "caps": {
+        "axes": 3,
+        "digital_in": 0,
+        "digital_out": 0,
+        "eeprom": 0,
+        "fram": 0,
+        "i2c": 0,
+        "safety_door": 0,
+        "pio_board": "weact_mini_h743vitx",
+        "ldscript": "STM32H743ZITX_FLASH.ld"
+      },
+      "symbols" : {
+        "HSE_VALUE": 25000000,
+        "RTC_ENABLE": 1
+      }
+    },
+    {
+      "name": "BTT SKR 3",
+      "symbol": "BOARD_BTT_SKR_30",
+      "URL": "",
+      "caps": {
+        "axes": 5,
+        "digital_in": 0,
+        "digital_out": 0,
+        "eeprom": 0,
+        "fram": 0,
+        "i2c": 0,
+        "safety_door": 0,
+        "pio_board": "btt_skr_30",
+        "ldscript": "STM32H743ZITX_FLASH.ld"
+      },
+      "symbols" : {
+        "HSE_VALUE": 25000000
+      }
+    }
+  ]
+}

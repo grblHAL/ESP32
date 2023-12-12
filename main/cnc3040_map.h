@@ -72,10 +72,19 @@
 #define M3_DIRECTION_PIN    GPIO_NUM_4
 #endif
 
-// Define spindle enable and spindle direction output pins.
+// Define driver spindle pins
 
+#if DRIVER_SPINDLE_PWM_ENABLE
+#define SPINDLE_PWM_PIN         GPIO_NUM_21
+#else
+#define AUXOUTPUT0_PIN          GPIO_NUM_21
+#endif
+
+#if DRIVER_SPINDLE_ENABLE
 #define SPINDLE_ENABLE_PIN      GPIO_NUM_2
-#define SPINDLEPWMPIN           GPIO_NUM_21
+#else
+#define AUXOUTPUT1_PIN          GPIO_NUM_2
+#endif
 
 // Define flood and mist coolant enable output pins.
 

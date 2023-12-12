@@ -92,6 +92,7 @@
 #include "driver/rmt.h"
 #include "driver/i2c.h"
 #include "hal/gpio_types.h"
+#include "esp_log.h"
 
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
@@ -171,6 +172,12 @@ typedef struct {
   #include "mks_tinybee_1_0_map.h"
 #elif defined(BOARD_BLACKBOX_X32)
   #include "BlackBoxX32_map.h"
+#elif defined(BOARD_ROOTCNC_V2)
+  #include "root_cnc_v2_map.h"
+#elif defined(BOARD_ROOTCNC_V3)
+  #include "root_cnc_v3_map.h"
+#elif defined(BOARD_BLOX)
+  #include "blox_map.h"
 #elif defined(BOARD_CNC3040)
   #include "cnc3040_map.h"
 #elif defined(BOARD_MY_MACHINE)
@@ -186,6 +193,12 @@ typedef struct {
 
 #if IOEXPAND_ENABLE == 0 && ((DIRECTION_MASK|STEPPERS_DISABLE_MASK|SPINDLE_MASK|COOLANT_MASK) & 0xC00000000ULL)
 #error "Pins 34 - 39 are input only!"
+#endif
+
+#if DRIVER_SPINDLE_PWM_ENABLE && !defined(SPINDLE_PWM_PIN)
+#warning "PWM spindle is not supported by board map!"
+#undef DRIVER_SPINDLE_PWM_ENABLE
+#define DRIVER_SPINDLE_PWM_ENABLE 0
 #endif
 
 #if IOEXPAND_ENABLE || EEPROM_ENABLE || KEYPAD_ENABLE == 1 || I2C_STROBE_ENABLE || (TRINAMIC_ENABLE && TRINAMIC_I2C)
@@ -318,10 +331,8 @@ typedef struct {
 } pin_group_pins_t;
 
 gpio_int_type_t map_intr_type (pin_irq_mode_t mode);
-#ifdef HAS_IOPORTS
 void ioports_init(pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_outputs);
 void ioports_event (input_signal_t *input);
-#endif
 
 #ifdef HAS_BOARD_INIT
 void board_init (void);

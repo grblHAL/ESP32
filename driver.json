@@ -4,6 +4,8 @@
     "usb_cdc": 0,
     "uart": 1,
     "serial_ports": 1,
+    "spindle_pwm": 1,
+    "spindle_dir": 1,
     "eeprom": 1,
     "ganged_axes": 1,
     "auto_square": 1,
@@ -89,6 +91,7 @@
       "URL": "",
       "caps": {
         "axes": 3,
+        "spindle_dir": 0,
         "digital_in": 0,
         "digital_out": 0,
         "safety_door": 0,
@@ -137,6 +140,7 @@
       "MAP": "main/protoneer_3.xx_map.h",
       "caps": {
         "axes": 3,
+        "spindle_dir": 0,
         "digital_in": 0,
         "digital_out": 0,
         "safety_door": 0,
@@ -185,6 +189,7 @@
       "MAP": "main/mks_dlc32_2_0_map.h",
       "caps": {
         "axes": 3,
+        "spindle_dir": 0,
         "digital_in": 1,
         "digital_out": 4,
         "safety_door": 0,
@@ -201,6 +206,7 @@
       "MAP": "main/cnc3040_map.h",
       "caps": {
         "axes": 4,
+        "spindle_dir": 0,
         "serial_ports": 2,
         "eeprom": 1,
         "digital_in": 0,
@@ -221,6 +227,7 @@
       "MAP": "main/bdring_v3.5_map.h",
       "caps": {
         "axes": 3,
+        "spindle_dir": 0,
         "digital_in": 0,
         "digital_out": 0,
         "serial_ports": 1,
@@ -236,6 +243,7 @@
       "MAP": "main/bdring_v4_map.h",
       "caps": {
         "axes": 3,
+        "spindle_dir": 0,
         "digital_in": 0,
         "digital_out": 0,
         "serial_ports": 2,

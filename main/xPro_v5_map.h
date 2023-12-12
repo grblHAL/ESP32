@@ -26,7 +26,6 @@
 #endif
 
 #define BOARD_NAME "x-Pro v5"
-#define HAS_IOPORTS
 #define HAS_BOARD_INIT
 #if TRINAMIC_ENABLE != 5160
 #error BOARD_XPRO_V5 has soldered TMC5160 drivers.
@@ -59,10 +58,18 @@
 #define M3_LIMIT_PIN        GPIO_NUM_36
 #endif
 
-// Define spindle enable and spindle direction output pins.
+// Define driver spindle pins
+
+#if DRIVER_SPINDLE_PWM_ENABLE && !(MODBUS_ENABLE & MODBUS_RTU_ENABLED)
+#define SPINDLE_PWM_PIN     GPIO_NUM_25
+#else
+#define AUXOUTPUT0_PIN      GPIO_NUM_25
+#endif
+
 #if DRIVER_SPINDLE_ENABLE && !(MODBUS_ENABLE & MODBUS_RTU_ENABLED)
 #define SPINDLE_ENABLE_PIN  GPIO_NUM_4
-#define SPINDLEPWMPIN       GPIO_NUM_25
+#else
+#define AUXOUTPUT1_PIN      GPIO_NUM_4
 #endif
 
 // Define flood and mist coolant enable output pins.
@@ -82,10 +89,8 @@
 #define PROBE_PIN           GPIO_NUM_22
 #endif
 
-#ifdef HAS_IOPORTS
 #define AUXINPUT0_PIN       GPIO_NUM_13
 #define AUXINPUT1_PIN       GPIO_NUM_0
-#endif
 
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
