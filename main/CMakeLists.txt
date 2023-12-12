@@ -17,7 +17,7 @@ OPTION(BOARD_MKS_TINYBEE_V1 "Compile for MKS Tinybee v1" OFF)
 OPTION(BOARD_CNC3040 "Compile for CNC3040 controller" OFF)
 OPTION(BOARD_ROOTCNC_V2 "Compile for RootCNC v2.x controller" OFF)
 OPTION(BOARD_ROOTCNC_V3 "Compile for RootCNC v3 controller" OFF)
-OPTION(BOARD_CNC_BOOSTERPACK "Compile for CNC BoosterPack" ON)
+OPTION(BOARD_CNC_BOOSTERPACK "Compile for CNC BoosterPack" OFF)
 OPTION(BOARD_MY_MACHINE "Compile for my_machine_map.h" OFF)
 
 OPTION(X_AXIS_GANGED "Compile with ganged X axis" OFF)
