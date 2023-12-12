@@ -30,7 +30,6 @@
 
 #define BOARD_NAME "BlackBox X32"
 #define BOARD_URL "https://docs.openbuilds.com/doku.php?id=docs:blackbox-x32:start"
-#define HAS_IOPORTS
 #if N_AUTO_SQUARED || N_AXIS > 3
 #define HAS_BOARD_INIT
 #endif
@@ -79,36 +78,49 @@
   #define PROBE_PIN           GPIO_NUM_22
 #endif
 
-// Define spindle enable and spindle direction output pins.
-#define SPINDLE_ENABLE_PIN    GPIO_NUM_13
-#define SPINDLEPWMPIN         GPIO_NUM_25
-#define SPINDLE_DIRECTION_PIN GPIO_NUM_4
+// Define driver spindle pins
+
+#if DRIVER_SPINDLE_PWM_ENABLE
+#define SPINDLE_PWM_PIN         GPIO_NUM_25
+#else
+#define AUXOUTPUT0_PIN          GPIO_NUM_25
+#endif
+
+#if DRIVER_SPINDLE_DIR_ENABLE
+#define SPINDLE_DIRECTION_PIN   GPIO_NUM_4
+#else
+#define AUXOUTPUT1_PIN          GPIO_NUM_4
+#endif
+
+#if DRIVER_SPINDLE_ENABLE
+#define SPINDLE_ENABLE_PIN      GPIO_NUM_13
+#else
+#define AUXOUTPUT2_PIN          GPIO_NUM_13
+#endif
 
 // Define flood and mist coolant enable output pins.
 // Only one can be enabled!
-#define COOLANT_FLOOD_PIN     GPIO_NUM_21 // coolant
-//#define COOLANT_MIST_PIN      GPIO_NUM_21 // or mist
+#define COOLANT_FLOOD_PIN   GPIO_NUM_21 // coolant
+//#define COOLANT_MIST_PIN  GPIO_NUM_21 // or mist
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 #if SAFETY_DOOR_ENABLE
-  #define SAFETY_DOOR_PIN     GPIO_NUM_16
-#elif defined(HAS_IOPORTS)
-  #define AUXINPUT1_PIN       GPIO_NUM_16
+  #define SAFETY_DOOR_PIN   GPIO_NUM_16
+#else
+  #define AUXINPUT1_PIN     GPIO_NUM_16
 #endif
 
-#ifdef HAS_IOPORTS
-  #define AUXINPUT0_PIN       GPIO_NUM_0 // Mode button on front panel
-#endif
+#define AUXINPUT0_PIN       GPIO_NUM_0 // Mode button on front panel
 
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
 // Note that a pull-up on CS line is required in SD mode.
-#define PIN_NUM_MISO          GPIO_NUM_19
-#define PIN_NUM_MOSI          GPIO_NUM_23
-#define PIN_NUM_CLK           GPIO_NUM_18
+#define PIN_NUM_MISO        GPIO_NUM_19
+#define PIN_NUM_MOSI        GPIO_NUM_23
+#define PIN_NUM_CLK         GPIO_NUM_18
 //
 // #if SDCARD_ENABLE
-#define PIN_NUM_CS            GPIO_NUM_5
+#define PIN_NUM_CS          GPIO_NUM_5
 // #endif
 
 #if MODBUS_ENABLE & MODBUS_RTU_ENABLED

@@ -15,6 +15,8 @@ OPTION(BOARD_XPRO_V5 "Compile for xPro v5 board - untested!" OFF)
 OPTION(BOARD_MKS_DLC32_V2P0 "Compile for MKS DLC2" OFF)
 OPTION(BOARD_MKS_TINYBEE_V1 "Compile for MKS Tinybee v1" OFF)
 OPTION(BOARD_CNC3040 "Compile for CNC3040 controller" OFF)
+OPTION(BOARD_ROOTCNC_V2 "Compile for RootCNC v2.x controller" OFF)
+OPTION(BOARD_ROOTCNC_V3 "Compile for RootCNC v3 controller" OFF)
 OPTION(BOARD_CNC_BOOSTERPACK "Compile for CNC BoosterPack" OFF)
 OPTION(BOARD_MY_MACHINE "Compile for my_machine_map.h" OFF)
 
@@ -58,14 +60,17 @@ OPTION(TMC5160 "Trinamic TMC5160 driver support" OFF)
 OPTION(Trinamic "Trinamic driver support via I2C" OFF)
 
 # Spindle plugin options
-# NOTE: only one spindle option can be enabled!
+# NOTE: up to four spindle options can be enabled!
 OPTION(SPINDLE_HUANYANG1 "Compile with Huanyang v1 Modbus spindle support" OFF)
 OPTION(SPINDLE_HUANYANG2 "Compile with Huanyang v2 Modbus spindle support" OFF)
 OPTION(SPINDLE_GS20 "Compile with GS20 Modbus spindle support" OFF)
 OPTION(SPINDLE_YL620A "Compile with Yalang YL620A Modbus spindle support" OFF)
 OPTION(SPINDLE_MODVFD "Compile with generic MODVFD Modbus spindle support" OFF)
 OPTION(SPINDLE_H100 "Compile with H100 Modbus spindle support" OFF)
-OPTION(SPINDLE_ALL "Compile with all Modbus spindles, including driver PWM spindle" OFF)
+OPTION(SPINDLE_STEPPER "Compile with stepper spindle" OFF)
+OPTION(SPINDLE_PWM0 "Compile with standard PWM spindle" OFF)
+OPTION(SPINDLE_PWM0_CLONE "Compile with standard PWM spindle + clone" OFF)
+OPTION(SPINDLE_ALL "Compile with all spindles, including standard PWM spindle" OFF)
 # RS485 communication channel option
 OPTION(RS485_DIR_OUT "Compile with RS485 direction pin enabled" OFF)
 
@@ -120,6 +125,10 @@ set(MODBUS_SOURCE
 )
 set(SPINDLE_SOURCE
  spindle/select.c
+ spindle/onoff.c
+ spindle/pwm.c
+ spindle/pwm_clone.c
+ spindle/stepper.c
  spindle/vfd/gs20.c
  spindle/vfd/h100.c
  spindle/vfd/huanyang.c
@@ -183,80 +192,38 @@ set(TRINAMIC_UART_SOURCE
  trinamic/tmc2209.c
  trinamic/tmc2209hal.c
 )
-
 set(LASER_SOURCE
  laser/coolant.c
  laser/lb_clusters.c
 )
-
 set(EMBROIDERY_SOURCE
  embroidery/embroidery.c
  embroidery/brother.c
  embroidery/tajima.c
 )
-
+set(USB_SOURCE
+ usb_serial.c
+)
 if(AddMyPlugin)
-set(SRCS
- main.c
- driver.c
- nvs.c
- esp32-hal-uart.c
- ioports.c
- i2c.c
- ioexpand.c
- i2s_out.c
- BlackBoxX32.c
- networking/strutils.c
- grbl/grbllib.c
- grbl/coolant_control.c
- grbl/crossbar.c
- grbl/nvs_buffer.c
- grbl/gcode.c
- grbl/machine_limits.c
- grbl/messages.c
- grbl/modbus.c
- grbl/motion_control.c
+set(MY_PLUGIN_SOURCE
  my_plugin.c
- grbl/nuts_bolts.c
- grbl/override.c
- grbl/planner.c
- grbl/protocol.c
- grbl/report.c
- grbl/settings.c
- grbl/sleep.c
- grbl/spindle_control.c
- grbl/state_machine.c
- grbl/stream.c
- grbl/stepper.c
- grbl/system.c
- grbl/tool_change.c
- grbl/alarms.c
- grbl/errors.c
- grbl/ngc_expr.c
- grbl/ngc_params.c
- grbl/ngc_flowctrl.c
- grbl/regex.c
- grbl/ioports.c
- grbl/vfs.c
- grbl/kinematics/corexy.c
- grbl/kinematics/wall_plotter.c
- grbl/kinematics/delta.c
- grbl/kinematics/polar.c
- littlefs_hal.c
- littlefs/lfs.c
- littlefs/lfs_util.c
- sdcard/fs_littlefs.c
 )
 else()
+set(MY_PLUGIN_SOURCE
+ grbl/my_plugin.c
+)
+endif()
+
 set(SRCS
  main.c
  driver.c
  nvs.c
- esp32-hal-uart.c
+ uart_serial.c
  ioports.c
  i2c.c
  ioexpand.c
  i2s_out.c
+ blox.c
  BlackBoxX32.c
  networking/strutils.c
  grbl/grbllib.c
@@ -268,7 +235,6 @@ set(SRCS
  grbl/messages.c
  grbl/modbus.c
  grbl/motion_control.c
- grbl/my_plugin.c
  grbl/nuts_bolts.c
  grbl/override.c
  grbl/planner.c
@@ -280,6 +246,7 @@ set(SRCS
  grbl/state_machine.c
  grbl/stream.c
  grbl/stepper.c
+ grbl/stepper2.c
  grbl/system.c
  grbl/tool_change.c
  grbl/alarms.c
@@ -299,7 +266,8 @@ set(SRCS
  littlefs/lfs_util.c
  sdcard/fs_littlefs.c
 )
-endif()
+
+list (APPEND SRCS ${MY_PLUGIN_SOURCE})
 
 if(Wifi OR WIFI_ENABLE EQUAL 1)
 list (APPEND SRCS ${WIFI_SOURCE})
@@ -348,9 +316,9 @@ if(MODBUS_SPINDLE OR VFD_ENABLE EQUAL -1 OR VFD_ENABLE GREATER_EQUAL 1 OR MODBUS
 list (APPEND SRCS ${MODBUS_SOURCE})
 endif()
 
-if(MODBUS_SPINDLE OR VFD_ENABLE EQUAL -1 OR VFD_ENABLE GREATER_EQUAL 1)
+#if(MODBUS_SPINDLE OR SPINDLE_STEPPER OR VFD_ENABLE EQUAL -1 OR VFD_ENABLE GREATER_EQUAL 1)
 list (APPEND SRCS ${SPINDLE_SOURCE})
-endif()
+#endif()
 
 if(EEPROM OR FRAM OR BOARD_CNC_BOOSTERPACK OR DEFINED(BOARD_CNC_BOOSTERPACK) OR EEPROM_ENABLE EQUAL 1)
 list (APPEND SRCS ${EEPROM_SOURCE})
@@ -364,9 +332,21 @@ if(Embroidery OR EMBROIDERY_ENABLE EQUAL 1)
 list (APPEND SRCS ${EMBROIDERY_SOURCE})
 endif()
 
+if("${target}" STREQUAL "esp32s3")
+list (APPEND SRCS ${USB_SOURCE})
+endif()
+
 idf_component_register(SRCS "${SRCS}" INCLUDE_DIRS ".")
 
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC STEP_INJECT_ENABLE=1)
+
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC GRBL_ESP32)
+
+idf_build_get_property(target IDF_TARGET)
+if("${target}" STREQUAL "esp32s3")
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC GRBL_ESP32S3=1)
+endif()
+
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC OVERRIDE_MY_MACHINE)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC LITTLEFS_ENABLE=1)
 
@@ -402,6 +382,10 @@ elseif(BOARD_MKS_TINYBEE_V1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC BOARD_MKS_TINYBEE_V1)
 elseif(BOARD_CNC3040)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC BOARD_CNC3040)
+elseif(BOARD_ROOTCNC_V2)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC BOARD_ROOTCNC_V2)
+elseif(BOARD_ROOTCNC_V3)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC BOARD_ROOTCNC_V3)
 elseif(BOARD_MY_MACHINE)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC BOARD_MY_MACHINE)
 endif()
@@ -528,26 +512,56 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC EMBROIDERY_ENABLE=1)
 endif()
 
 if(SPINDLE_ALL)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC VFD_ENABLE=-1)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC N_SPINDLE=7)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC SPINDLE0_ENABLE=-1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC N_SPINDLE=8)
+else()
+	if(SPINDLE_HUANYANG1)
+		list(APPEND SPINDLES 1)
+	endif()
+	if(SPINDLE_HUANYANG2)
+		list(APPEND SPINDLES 2)
+	endif()
+	if(SPINDLE_GS20)
+		list(APPEND SPINDLES 3)
+	endif()
+	if(SPINDLE_YL620A)
+		list(APPEND SPINDLES 4)
+	endif()
+	if(SPINDLE_MODVFD)
+		list(APPEND SPINDLES 5)
+	endif()
+	if(SPINDLE_H100)
+		list(APPEND SPINDLES 6)
+	endif()
+	if(SPINDLE_PWM0)
+		list(APPEND SPINDLES 11)
+	endif()
+    if(SPINDLE_PWM0_CLONE)
+        list(APPEND SPINDLES 11)
+        list(APPEND SPINDLES 17)
+    endif()
+	if(SPINDLE_STEPPER)
+		list(APPEND SPINDLES 19)
+	endif()
 endif()
-if(SPINDLE_HUANYANG1)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC VFD_ENABLE=1)
+
+list(LENGTH SPINDLES SPINDLENUM) 
+
+if(SPINDLENUM GREATER_EQUAL 1)
+list(GET SPINDLES 0 SPINDLE)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC SPINDLE0_ENABLE=${SPINDLE})
 endif()
-if(SPINDLE_HUANYANG2)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC VFD_ENABLE=2)
+if(SPINDLENUM GREATER_EQUAL 2)
+list(GET SPINDLES 1 SPINDLE)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC SPINDLE1_ENABLE=${SPINDLE})
 endif()
-if(SPINDLE_GS20)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC VFD_ENABLE=3)
+if(SPINDLENUM GREATER_EQUAL 3)
+list(GET SPINDLES 2 SPINDLE)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC SPINDLE2_ENABLE=${SPINDLE})
 endif()
-if(SPINDLE_YL620A)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC VFD_ENABLE=4)
-endif()
-if(SPINDLE_MODVFD)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC VFD_ENABLE=5)
-endif()
-if(SPINDLE_H100)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC VFD_ENABLE=6)
+if(SPINDLENUM GREATER_EQUAL 4)
+list(GET SPINDLES 3 SPINDLE)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC SPINDLE3_ENABLE=${SPINDLE})
 endif()
 
 if(RS485_DIR_OUT)
@@ -555,7 +569,7 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC RS485_DIR_ENABLE=1)
 endif()
 
 if(EEPROM OR BOARD_CNC_BOOSTERPACK)
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC EEPROM_ENABLE=1)
+#target_compile_definitions("${COMPONENT_LIB}" PUBLIC EEPROM_ENABLE=1)
 endif()
 
 if(FRAM)
@@ -583,6 +597,8 @@ target_add_binary_data("${COMPONENT_LIB}" "embedded/index.html.gz" BINARY)
 endif()
 
 unset(BOARD_BLACKBOX_X32 CACHE)
+unset(BOARD_ROOTCNC_V2 CACHE)
+unset(BOARD_ROOTCNC_V3 CACHE)
 unset(BOARD_BDRING_V3P5 CACHE)
 unset(BOARD_BDRING_V4 CACHE)
 unset(BOARD_BDRING_I2S6A CACHE)
@@ -594,6 +610,7 @@ unset(BOARD_FYSETC_E4 CACHE)
 unset(BOARD_XPRO_V5 CACHE)
 unset(BOARD_MKS_DLC32_V2P0 CACHE)
 unset(BOARD_MKS_TINYBEE_V1 CACHE)
+unset(BOARD_CNC3040 CACHE)
 unset(BOARD_MY_MACHINE CACHE)
 
 unset(X_AXIS_GANGED CACHE)
@@ -633,7 +650,10 @@ unset(SPINDLE_GS20 CACHE)
 unset(SPINDLE_YL620A CACHE)
 unset(SPINDLE_MODVFD CACHE)
 unset(SPINDLE_H100 CACHE)
-
+unset(SPINDLE_PWM0 CACHE)
+unset(SPINDLE_PWM0_CLONE CACHE)
+unset(SPINDLE_STEPPER CACHE)
+unset(MODBUS_SPINDLE CACHE)
 unset(RS485_DIR_OUT CACHE)
 unset(EEPROM CACHE)
 unset(FRAM CACHE)

@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2022 Terje Io
+  Copyright (c) 2022-2023 Terje Io
 
   File data is extracted from files Copyright (c) 2021 Luc Lebosse
   https://github.com/luc-github/ESP3D-webui
@@ -203,5 +203,5 @@ void fs_embedded_mount (void)
         .fstat = fs_stat
     };
 
-    vfs_mount("/embedded", &fs);
+    vfs_mount("/embedded", &fs, (vfs_st_mode_t){ .directory = true, .read_only = true, .hidden = true });
 }

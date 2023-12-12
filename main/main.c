@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2022 Terje Io
+  Copyright (c) 2018-2023 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -58,5 +58,5 @@ void app_main(void)
             ret = nvs_flash_init();
     }
 
-    xTaskCreatePinnedToCore(vGrblTask, "Grbl", 8128, NULL, tskIDLE_PRIORITY, NULL, 1);
+    xTaskCreatePinnedToCore(vGrblTask, "grblHAL", 8128, NULL, 5, NULL, 1);
 }
