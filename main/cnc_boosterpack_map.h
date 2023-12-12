@@ -27,6 +27,8 @@
 #define BOARD_NAME "CNC BoosterPack"
 #define BOARD_URL "https://github.com/terjeio/CNC_Boosterpack"
 
+#define HAS_IOPORTS
+
 #if TRINAMIC_ENABLE
 #ifdef TRINAMIC_MIXED_DRIVERS
 #undef TRINAMIC_MIXED_DRIVERS
@@ -70,20 +72,11 @@
 #define Y_LIMIT_PIN             GPIO_NUM_16
 #define Z_LIMIT_PIN             GPIO_NUM_32
 
-// Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_17
-#else
-#define AUXOUTPUT0_PIN          GPIO_NUM_17
-#endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE
-#define SPINDLE_DIRECTION_PIN   IOEXPAND
-#endif
-
 #if DRIVER_SPINDLE_ENABLE
+// Define spindle enable and spindle direction output pins.
 #define SPINDLE_ENABLE_PIN      IOEXPAND
+#define SPINDLE_DIRECTION_PIN   IOEXPAND
+#define SPINDLEPWMPIN           GPIO_NUM_17
 #endif
 
 // Define flood and mist coolant enable output pins.

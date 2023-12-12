@@ -89,25 +89,11 @@
 #define M5_LIMIT_PIN            GPIO_NUM_33
 #endif
 
-// Define driver spindle pins
+// Define spindle enable and spindle direction output pins.
 
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_26
-#else
-#define AUXOUTPUT0_PIN          GPIO_NUM_26
-#endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE
-#define SPINDLE_DIRECTION_PIN   GPIO_NUM_16
-#else
-#define AUXOUTPUT1_PIN          GPIO_NUM_16
-#endif
-
-#if DRIVER_SPINDLE_ENABLE
+#define SPINDLEPWMPIN           GPIO_NUM_26
 #define SPINDLE_ENABLE_PIN      GPIO_NUM_4
-#else
-#define AUXOUTPUT2_PIN          GPIO_NUM_4
-#endif
+#define SPINDLE_DIRECTION_PIN   GPIO_NUM_16
 
 // Define flood and mist coolant enable output pins.
 

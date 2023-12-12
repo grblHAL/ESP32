@@ -61,18 +61,11 @@
 #define Y_LIMIT_PIN         GPIO_NUM_5
 #define Z_LIMIT_PIN         GPIO_NUM_23
 
-// Define driver spindle pins
+// Define spindle enable and spindle direction output pins.
 
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN     GPIO_NUM_19
-#else
-#define AUXOUTPUT0_PIN      GPIO_NUM_19
-#endif
-
-#if DRIVER_SPINDLE_ENABLE
+#if !VFD_SPINDLE
 #define SPINDLE_ENABLE_PIN  GPIO_NUM_18
-#else
-#define AUXOUTPUT1_PIN      GPIO_NUM_18
+#define SPINDLEPWMPIN       GPIO_NUM_19
 #endif
 
 // Define flood enable output pin.

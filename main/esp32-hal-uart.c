@@ -20,11 +20,9 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
-#if !GRBL_ESP32S3
 #include "esp32/rom/ets_sys.h"
-#include "esp32/rom/uart.h"
-#endif
 #include "esp_attr.h"
+#include "esp32/rom/uart.h"
 #include "soc/uart_reg.h"
 #include "soc/uart_struct.h"
 #include "soc/io_mux_reg.h"
@@ -34,7 +32,7 @@
 #include "hal/uart_ll.h"
 #include "esp_intr_alloc.h"
 
-#include "uart_serial.h"
+#include "esp32-hal-uart.h"
 #include "grbl/hal.h"
 #include "grbl/protocol.h"
 
@@ -63,19 +61,12 @@ static int16_t serialRead (void);
 #if CONFIG_DISABLE_HAL_LOCKS
 #define UART_MUTEX_LOCK(u)
 #define UART_MUTEX_UNLOCK(u)
-#if GRBL_ESP32S3
-static uart_t _uart_bus_array[3] = {
-    {(uart_dev_t *)(DR_REG_UART_BASE), 0, NULL},
-    {(uart_dev_t *)(DR_REG_UART1_BASE), 1, NULL},
-    {(uart_dev_t *)(DR_REG_UART2_BASE), 2, NULL}
-};
-#else
+
 static uart_t _uart_bus_array[3] = {
     {(volatile uart_dev_t *)(DR_REG_UART_BASE), 0, NULL},
     {(volatile uart_dev_t *)(DR_REG_UART1_BASE), 1, NULL},
     {(volatile uart_dev_t *)(DR_REG_UART2_BASE), 2, NULL}
 };
-#endif
 #else
 #define UART_MUTEX_LOCK(u)    do {} while (xSemaphoreTake(u->lock, portMAX_DELAY) != pdPASS)
 #define UART_MUTEX_UNLOCK(u)  xSemaphoreGive(u->lock)
@@ -139,11 +130,7 @@ void serialRegisterStreams (void)
     static const periph_pin_t tx0 = {
         .function = Output_TX,
         .group = PinGroup_UART,
-#if GRBL_ESP32S3
-        .pin = 43,
-#else
         .pin = 35,
-#endif
         .mode = { .mask = PINMODE_OUTPUT },
         .description = "Primary UART"
     };
@@ -151,11 +138,7 @@ void serialRegisterStreams (void)
     static const periph_pin_t rx0 = {
         .function = Input_RX,
         .group = PinGroup_UART,
-#if GRBL_ESP32S3
-        .pin = 44,
-#else
-		.pin = 34,
-#endif
+        .pin = 34,
         .mode = { .mask = PINMODE_NONE },
         .description = "Primary UART"
     };
@@ -191,53 +174,6 @@ void serialRegisterStreams (void)
 
     stream_register_streams(&streams);
 }
-
-#if GRBL_ESP32S3
-
-IRAM_ATTR static void _uart1_isr (void *arg)
-{
-    uint8_t c;
-
-    uart1->dev->int_clr.rxfifo_full_int_clr = 1;
-    uart1->dev->int_clr.frm_err_int_clr = 1;
-    uart1->dev->int_clr.rxfifo_tout_int_clr = 1;
-
-    while(uart1->dev->status.rxfifo_cnt /*|| (uart1->dev->mem_rx_status.wr_addr != uart1->dev->mem_rx_status.rd_addr)*/) {
-
-        c = uart1->dev->fifo.rxfifo_rd_byte;
-
-        if(!enqueue_realtime_command(c)) {
-
-            uint32_t bptr = (rxbuffer.head + 1) & RX_BUFFER_SIZE_MASK;  // Get next head pointer
-
-            if(bptr == rxbuffer.tail)                   // If buffer full
-                rxbuffer.overflow = 1;                  // flag overflow,
-            else {
-                rxbuffer.data[rxbuffer.head] = (char)c; // else add data to buffer
-                rxbuffer.head = bptr;                   // and update pointer
-            }
-        }
-    }
-}
-
-static void uartEnableInterrupt (uart_t *uart, uart_isr_ptr isr, bool enable_rx)
-{
-    UART_MUTEX_LOCK(uart);
-
-    esp_intr_alloc(UART_INTR_SOURCE(uart->num), (int)ESP_INTR_FLAG_IRAM, isr, NULL, &uart->intr_handle);
-
-    uart->dev->conf1.rxfifo_full_thrhd = 112;
-//    uart->dev->conf1.rx_tout_thrhd = 50;
-    uart->dev->conf1.rx_tout_en = 1;
-    uart->dev->int_ena.rxfifo_full_int_ena = enable_rx;
-    uart->dev->int_ena.frm_err_int_ena = enable_rx;
-    uart->dev->int_ena.rxfifo_tout_int_ena = enable_rx;
-    uart->dev->int_clr.val = 0xffffffff;
-
-    UART_MUTEX_UNLOCK(uart);
-}
-
-#else
 
 IRAM_ATTR static void _uart1_isr (void *arg)
 {
@@ -281,9 +217,6 @@ static void uartEnableInterrupt (uart_t *uart, uart_isr_ptr isr, bool enable_rx)
 
     UART_MUTEX_UNLOCK(uart);
 }
-
-#endif
-
 /*
 static void uartDisableInterrupt (uart_t *uart)
 {
@@ -304,13 +237,9 @@ static void uartSetBaudRate (uart_t *uart, uint32_t baud_rate)
         return;
 
     UART_MUTEX_LOCK(uart);
-#if GRBL_ESP32S3
-    uart_ll_set_baudrate(uart->dev, baud_rate);
-#else
     uint32_t clk_div = ((UART_CLK_FREQ << 4) / baud_rate);
     uart->dev->clk_div.div_int = clk_div >> 4 ;
     uart->dev->clk_div.div_frag = clk_div & 0xf;
-#endif
     UART_MUTEX_UNLOCK(uart);
 }
 
@@ -323,8 +252,7 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
             return;
     }
 #endif
-#if GRBL_ESP32S3
-#else
+
     switch(uart->num) {
 
         case 0:
@@ -342,7 +270,6 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
             DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_UART2_RST);
             break;
     }
-#endif
 
     uartSetBaudRate(uart, baud_rate);
 
@@ -376,13 +303,9 @@ IRAM_ATTR static void flush (uart_t *uart)
     //See description about UART_TXFIFO_RST and UART_RXFIFO_RST in <<esp32_technical_reference_manual>> v2.6 or later.
 
     // we read the data out and make `fifo_len == 0 && rd_addr == wr_addr`.
-#if GRBL_ESP32S3
-    while(uart->dev->status.rxfifo_cnt || (uart->dev->mem_rx_status.rx_waddr != uart->dev->mem_rx_status.apb_rx_raddr))
-        READ_PERI_REG(UART_FIFO_REG(uart->num));
-#else
     while(uart->dev->status.rxfifo_cnt || (uart->dev->mem_rx_status.wr_addr != uart->dev->mem_rx_status.rd_addr))
         READ_PERI_REG(UART_FIFO_REG(uart->num));
-#endif
+
     uart_ll_rxfifo_rst(uart->dev);
 }
 
@@ -426,11 +349,7 @@ static bool serialPutC (const char c)
             return false;
     }
 
-#if GRBL_ESP32S3
-	uart1->dev->fifo.rxfifo_rd_byte = c;
-#else
     uart1->dev->fifo.rw_byte = c;
-#endif
 
     return true;
 }
@@ -439,9 +358,8 @@ static void serialWriteS (const char *data)
 {
     char c, *ptr = (char *)data;
 
-//    uart_ll_write_txfifo(uart1->dev, (uint8_t *)data, 5);
     while((c = *ptr++) != '\0')
-       serialPutC(c);
+        serialPutC(c);
 }
 
 IRAM_ATTR static void serialFlush (void)
@@ -476,25 +394,7 @@ IRAM_ATTR static bool serialSuspendInput (bool suspend)
 IRAM_ATTR static bool serialDisable (bool disable)
 {
     UART_MUTEX_LOCK(uart1);
-#if GRBL_ESP32S3
-    if(disable) {
-        // Disable interrupts
-        uart1->dev->int_ena.rxfifo_full_int_ena = 0;
-        uart1->dev->int_ena.frm_err_int_ena = 0;
-        uart1->dev->int_ena.rxfifo_tout_int_ena = 0;
-    } else {
-        // Clear and enable interrupts
-        uart1->dev->int_ena.rxfifo_full_int_ena = 0;
-        uart1->dev->int_clr.rxfifo_full_int_clr = 1;
-        uart1->dev->int_clr.frm_err_int_clr = 1;
-        uart1->dev->int_clr.rxfifo_tout_int_clr = 1;
-        flush(uart1);
-        rxbuffer.tail = rxbuffer.head;
-        uart1->dev->int_ena.rxfifo_full_int_ena = 1;
-        uart1->dev->int_ena.frm_err_int_ena = 1;
-        uart1->dev->int_ena.rxfifo_tout_int_ena = 1;
-    }
-#else
+
     if(disable) {
         // Disable interrupts
         uart1->dev->int_ena.rxfifo_full = 0;
@@ -512,7 +412,6 @@ IRAM_ATTR static bool serialDisable (bool disable)
         uart1->dev->int_ena.frm_err = 1;
         uart1->dev->int_ena.rxfifo_tout = 1;
     }
-#endif
 
     UART_MUTEX_UNLOCK(uart1);
 

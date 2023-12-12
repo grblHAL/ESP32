@@ -53,19 +53,9 @@
 #define Y_LIMIT_PIN         GPIO_NUM_4
 #define Z_LIMIT_PIN         GPIO_NUM_15
 
-// Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_17
-#else
-#define AUXOUTPUT0_PIN          GPIO_NUM_17
-#endif
-
-#if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN      GPIO_NUM_22
-#else
-#define AUXOUTPUT1_PIN          GPIO_NUM_22
-#endif
+// Define spindle enable and spindle direction output pins.
+#define SPINDLE_ENABLE_PIN  GPIO_NUM_22
+#define SPINDLEPWMPIN       GPIO_NUM_17
 
 // Define flood and mist coolant enable output pins.
 
