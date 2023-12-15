@@ -40,8 +40,8 @@
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
 // Note that a pull-up on CS line is required in SD mode.
-#define PIN_NUM_MISO        GPIO_NUM_12
-#define PIN_NUM_MOSI        GPIO_NUM_13
+#define PIN_NUM_MISO        GPIO_NUM_13
+#define PIN_NUM_MOSI        GPIO_NUM_12
 #define PIN_NUM_CLK         GPIO_NUM_14
 #define PIN_NUM_CS          GPIO_NUM_15
 
