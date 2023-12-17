@@ -55,9 +55,9 @@
 
 #include <stdatomic.h>
 
-//#include "Pins.h"
-#include "i2s.h"
 #include "i2s_out.h"
+
+#define delay(ms) hal.delay_ms(ms, 0);
 
 //
 // Configrations for DMA connected I2S
@@ -75,9 +75,9 @@
 // Reference information:
 //   FreeRTOS task time slice = portTICK_PERIOD_MS = 1 ms (ESP32 FreeRTOS port)
 //
-#define I2S_SAMPLE_SIZE 4                                     /* 4 bytes, 32 bits per sample */
-#define DMA_SAMPLE_COUNT I2S_OUT_DMABUF_LEN / I2S_SAMPLE_SIZE /* number of samples per buffer */
-#define SAMPLE_SAFE_COUNT (20 / I2S_OUT_USEC_PER_PULSE)       /* prevent buffer overrun (GRBL's $0 should be less than or equal 20) */
+#define I2S_SAMPLE_SIZE 4                                       /* 4 bytes, 32 bits per sample */
+#define DMA_SAMPLE_COUNT (I2S_OUT_DMABUF_LEN / I2S_SAMPLE_SIZE) /* number of samples per buffer */
+#define SAMPLE_SAFE_COUNT (20 / I2S_OUT_USEC_PER_PULSE)         /* prevent buffer overrun (GRBL's $0 should be less than or equal 20) */
 
 typedef struct {
     uint32_t**   buffers;
@@ -116,8 +116,8 @@ static portMUX_TYPE i2s_out_spinlock = portMUX_INITIALIZER_UNLOCKED;
 
 static int i2s_out_initialized = 0;
 
-static volatile uint64_t             i2s_out_pulse_period;
-static uint64_t                      i2s_out_remain_time_until_next_pulse;  // Time remaining until the next pulse (usec)
+static volatile uint32_t             i2s_out_pulse_period;
+static uint32_t                      i2s_out_remain_time_until_next_pulse;  // Time remaining until the next pulse (usec)
 static volatile i2s_out_pulse_func_t i2s_out_pulse_func;
 static gpio_num_t i2s_out_ws_pin   = 255;
 static gpio_num_t i2s_out_bck_pin  = 255;
@@ -232,13 +232,13 @@ static void IRAM_ATTR i2s_out_gpio_detach (uint8_t ws, uint8_t bck, uint8_t data
 
 static void IRAM_ATTR i2s_out_gpio_shiftout (uint32_t port_data)
 {
-    __digitalWrite(i2s_out_ws_pin, LOW);
+    gpio_set_level(i2s_out_ws_pin, 0);
     for (int i = 0; i < I2S_OUT_NUM_BITS; i++) {
-        __digitalWrite(i2s_out_data_pin, !!(port_data & bit(((I2S_OUT_NUM_BITS - 1) - i))));
-        __digitalWrite(i2s_out_bck_pin, HIGH);
-        __digitalWrite(i2s_out_bck_pin, LOW);
+        gpio_set_level(i2s_out_data_pin, !!(port_data & bit(((I2S_OUT_NUM_BITS - 1) - i))));
+        gpio_set_level(i2s_out_bck_pin, 1);
+        gpio_set_level(i2s_out_bck_pin, 0);
     }
-    __digitalWrite(i2s_out_ws_pin, HIGH);  // Latch
+    gpio_set_level(i2s_out_ws_pin, 1);  // Latch
 }
 
 static void IRAM_ATTR i2s_out_stop (void)
@@ -256,7 +256,7 @@ static void IRAM_ATTR i2s_out_stop (void)
 
     // Force WS to LOW before detach
     // This operation prevents unintended WS edge trigger when detach
-    __digitalWrite(i2s_out_ws_pin, LOW);
+    gpio_set_level(i2s_out_ws_pin, 0);
 
     // Now, detach GPIO pin from I2S
     i2s_out_gpio_detach(i2s_out_ws_pin, i2s_out_bck_pin, i2s_out_data_pin);
@@ -264,7 +264,7 @@ static void IRAM_ATTR i2s_out_stop (void)
     // Force BCK to LOW
     // After the TX module is stopped, BCK always seems to be in LOW.
     // However, I'm going to do it manually to ensure the BCK's LOW.
-    __digitalWrite(i2s_out_bck_pin, LOW);
+    gpio_set_level(i2s_out_bck_pin, 0);
 
     // Transmit recovery data to 74HC595
     uint32_t port_data = atomic_load(&i2s_out_port_data);  // current expanded port value
@@ -342,7 +342,7 @@ static void IRAM_ATTR i2s_fillout_dma_buffer (lldesc_t *dma_desc)
         //
         // Fillout the buffer for pulse
         //
-        // To avoid buffer overflow, all of the maximum pulse width (normaly about 10us)
+        // To avoid buffer overflow, all of the maximum pulse width (normally about 10us)
         // is adjusted to be in a single buffer.
         // DMA_SAMPLE_SAFE_COUNT is referred to as the margin value.
         // Therefore, if a buffer is close to full and it is time to generate a pulse,
@@ -441,7 +441,7 @@ static void IRAM_ATTR i2s_out_intr_handler (void *arg)
             }
             I2S_OUT_PULSER_EXIT_CRITICAL_ISR();
             for (int i = 0; i < DMA_SAMPLE_COUNT; i++) {
-                front_desc->buf[i] = port_data;
+                ((uint32_t *)front_desc->buf)[i] = port_data;
             }
             front_desc->length = I2S_OUT_DMABUF_LEN;
         }
@@ -460,7 +460,7 @@ static void IRAM_ATTR i2s_out_intr_handler (void *arg)
 //
 // I2S bitstream generator task
 //
-static void IRAM_ATTR i2sOutTask(void* parameter)
+static void IRAM_ATTR i2sOutTask (void* parameter)
 {
     lldesc_t *dma_desc;
 
@@ -488,7 +488,7 @@ static void IRAM_ATTR i2sOutTask(void* parameter)
         } else if (i2s_out_pulser_status == WAITING) {
             if (dma_desc->qe.stqe_next == NULL) {
                 // Tail of the DMA descriptor found
-                // I2S TX module has alrewdy stopped by ISR
+                // I2S TX module has already stopped by ISR
                 i2s_out_stop();
                 i2s_clear_o_dma_buffers(0);  // 0 for static I2S control mode (right ch. data is always 0)
                 // You need to set the status before calling i2s_out_start()
@@ -628,10 +628,9 @@ void IRAM_ATTR i2s_out_set_stepping (void)
     I2S_OUT_PULSER_EXIT_CRITICAL();
 }
 
-void IRAM_ATTR i2s_out_set_pulse_period (uint64_t period)
+void IRAM_ATTR i2s_out_set_pulse_period (uint32_t period)
 {
-    // Use 64-bit values to avoid overflowing during the calculation.
-    i2s_out_pulse_period = period * 1000000 / F_STEPPER_TIMER;
+    i2s_out_pulse_period = period;
 }
 
 void IRAM_ATTR i2s_out_set_pulse_callback (i2s_out_pulse_func_t func)
@@ -702,25 +701,25 @@ bool IRAM_ATTR i2s_out_init2 (i2s_out_init_t init_param)
 
     // Allocate the array of pointers to the buffers
     o_dma.buffers = (uint32_t **)malloc(sizeof(uint32_t *)*I2S_OUT_DMABUF_COUNT);
-    if (o_dma.buffers == nullptr)
+    if (o_dma.buffers == NULL)
         return -1;
 
     // Allocate each buffer that can be used by the DMA controller
     for (int buf_idx = 0; buf_idx < I2S_OUT_DMABUF_COUNT; buf_idx++) {
         o_dma.buffers[buf_idx] = (uint32_t *)heap_caps_calloc(1, I2S_OUT_DMABUF_LEN, MALLOC_CAP_DMA);
-        if (o_dma.buffers[buf_idx] == nullptr)
+        if (o_dma.buffers[buf_idx] == NULL)
             return -1;
     }
 
     // Allocate the array of DMA descriptors
     o_dma.desc = (lldesc_t**)malloc(sizeof(lldesc_t *)*I2S_OUT_DMABUF_COUNT);
-    if (o_dma.desc == nullptr)
+    if (o_dma.desc == NULL)
         return -1;
 
     // Allocate each DMA descriptor that will be used by the DMA controller
     for (int buf_idx = 0; buf_idx < I2S_OUT_DMABUF_COUNT; buf_idx++) {
         o_dma.desc[buf_idx] = (lldesc_t *)heap_caps_malloc(sizeof(lldesc_t), MALLOC_CAP_DMA);
-        if (o_dma.desc[buf_idx] == nullptr)
+        if (o_dma.desc[buf_idx] == NULL)
             return -1;
     }
 
@@ -859,15 +858,15 @@ bool IRAM_ATTR i2s_out_init2 (i2s_out_init_t init_param)
     // Create the task that will feed the buffer
     xTaskCreatePinnedToCore(i2sOutTask,
                             "I2SOutTask",
-                            1024 * 10,
+                            4096,
                             NULL,
-                            1,
-                            nullptr,
-                            CONFIG_ARDUINO_RUNNING_CORE  // must run the task on same core
+                            GRBLHAL_TASK_PRIORITY + 1,
+                            NULL,
+                            GRBLHAL_TASK_CORE  // must run the task on same core
     );
 
     // Allocate and Enable the I2S interrupt
-    esp_intr_alloc(ETS_I2S0_INTR_SOURCE, 0, i2s_out_intr_handler, nullptr, &i2s_out_isr_handle);
+    esp_intr_alloc(ETS_I2S0_INTR_SOURCE, 0, i2s_out_intr_handler, NULL, &i2s_out_isr_handle);
     esp_intr_enable(i2s_out_isr_handle);
 
     // Remember GPIO pin numbers

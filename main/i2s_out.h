@@ -155,10 +155,9 @@ void i2s_out_set_stepping (void);
 void i2s_out_delay (void);
 
 /*
-   Set the pulse callback period in ISR ticks.
-   (same value of the timer period for the ISR)
+   Set the pulse callback period in ISR microseconds.
  */
-void i2s_out_set_pulse_period (uint64_t period);
+void i2s_out_set_pulse_period (uint32_t period);
 
 /*
    Register a callback function to generate pulse data

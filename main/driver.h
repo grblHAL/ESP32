@@ -104,7 +104,12 @@
 #error "Cannot use static IP for station when soft AP is enabled!"
 #endif
 
-static const DRAM_ATTR float FZERO = 0.0f;
+#ifndef GRBLHAL_TASK_PRIORITY
+#define GRBLHAL_TASK_PRIORITY 5
+#endif
+#ifndef GRBLHAL_TASK_CORE
+#define GRBLHAL_TASK_CORE 1
+#endif
 
 #define PROBE_ISR 0 // Catch probe state change by interrupt TODO: needs verification!
 

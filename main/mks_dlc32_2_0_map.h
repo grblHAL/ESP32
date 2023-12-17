@@ -40,8 +40,8 @@
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
 // Note that a pull-up on CS line is required in SD mode.
-#define PIN_NUM_MISO        GPIO_NUM_13
-#define PIN_NUM_MOSI        GPIO_NUM_12
+#define PIN_NUM_MISO        GPIO_NUM_12
+#define PIN_NUM_MOSI        GPIO_NUM_13
 #define PIN_NUM_CLK         GPIO_NUM_14
 #define PIN_NUM_CS          GPIO_NUM_15
 
@@ -53,28 +53,22 @@
 
 #define X_STEP_PIN          I2SO(1)
 #define X_DIRECTION_PIN     I2SO(2)
-#define X_ENABLE_PIN        I2SO(0)
 #define X_LIMIT_PIN         GPIO_NUM_36
 
 #define Y_STEP_PIN          I2SO(5)
 #define Y_DIRECTION_PIN     I2SO(6)
-#define Y_ENABLE_PIN        I2SO(0)
 #define Y_LIMIT_PIN         GPIO_NUM_35
 
 #define Z_STEP_PIN          I2SO(3)
 #define Z_DIRECTION_PIN     I2SO(4)
-#define Z_ENABLE_PIN        I2SO(0)
 #define Z_LIMIT_PIN         GPIO_NUM_34
+
+#define STEPPERS_ENABLE_PIN I2SO(0)
 
 // Define ganged axis or A axis step pulse and step direction output pins.
 #if N_ABC_MOTORS >= 1
 #error "Board BOARD_MKS_DLC32_V2P0 does not have support for ABC Motors"
 #endif
-
-// Define spindle enable and spindle direction output pins.
-
-#define SPINDLE_PWM_PIN     GPIO_NUM_32
-#define SPINDLE_ENABLE_PIN  GPIO_NUM_27
 
 // Define driver spindle pins
 

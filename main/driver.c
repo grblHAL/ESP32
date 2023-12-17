@@ -242,68 +242,95 @@ static input_signal_t inputpin[] = {
 };
 
 static output_signal_t outputpin[] = {
-    { .id = Output_StepX,         .pin = X_STEP_PIN,            .group = PinGroup_StepperStep },
-    { .id = Output_StepY,         .pin = Y_STEP_PIN,            .group = PinGroup_StepperStep },
+    { .id = Output_StepX,          .pin = X_STEP_PIN,            .group = PinGroup_StepperStep },
+    { .id = Output_StepY,          .pin = Y_STEP_PIN,            .group = PinGroup_StepperStep },
 #ifdef Z_STEP_PIN
-    { .id = Output_StepZ,         .pin = Z_STEP_PIN,            .group = PinGroup_StepperStep },
+    { .id = Output_StepZ,          .pin = Z_STEP_PIN,            .group = PinGroup_StepperStep },
 #endif
 #ifdef A_STEP_PIN
-    { .id = Output_StepA,         .pin = A_STEP_PIN,            .group = PinGroup_StepperStep },
+    { .id = Output_StepA,          .pin = A_STEP_PIN,            .group = PinGroup_StepperStep },
 #endif
 #ifdef B_STEP_PIN
-    { .id = Output_StepB,         .pin = B_STEP_PIN,            .group = PinGroup_StepperStep },
+    { .id = Output_StepB,          .pin = B_STEP_PIN,            .group = PinGroup_StepperStep },
 #endif
 #ifdef C_STEP_PIN
-    { .id = Output_StepC,         .pin = C_STEP_PIN,            .group = PinGroup_StepperStep },
+    { .id = Output_StepC,          .pin = C_STEP_PIN,            .group = PinGroup_StepperStep },
 #endif
 #ifdef X2_STEP_PIN
-    { .id = Output_StepX_2,       .pin = X2_STEP_PIN,           .group = PinGroup_StepperStep },
+    { .id = Output_StepX_2,        .pin = X2_STEP_PIN,           .group = PinGroup_StepperStep },
 #endif
 #ifdef Y2_STEP_PIN
-    { .id = Output_StepY_2,       .pin = Y2_STEP_PIN,           .group = PinGroup_StepperStep },
+    { .id = Output_StepY_2,        .pin = Y2_STEP_PIN,           .group = PinGroup_StepperStep },
 #endif
 #ifdef Z2_STEP_PIN
-    { .id = Output_StepZ_2,       .pin = Z2_STEP_PIN,           .group = PinGroup_StepperStep },
+    { .id = Output_StepZ_2,        .pin = Z2_STEP_PIN,           .group = PinGroup_StepperStep },
 #endif
 #if defined(STEPPERS_ENABLE_PIN) && STEPPERS_ENABLE_PIN != IOEXPAND
-    { .id = Output_StepperEnable, .pin = STEPPERS_ENABLE_PIN,   .group = PinGroup_StepperEnable },
+    { .id = Output_StepperEnable,  .pin = STEPPERS_ENABLE_PIN,   .group = PinGroup_StepperEnable },
+#endif
+#if defined(X_ENABLE_PIN) && X_ENABLE_PIN != IOEXPAND
+    { .id = Output_StepperEnableX, .pin = X_ENABLE_PIN,          .group = PinGroup_StepperEnable },
+#endif
+#if defined(Y_ENABLE_PIN) && Y_ENABLE_PIN != IOEXPAND
+    { .id = Output_StepperEnableY, .pin = Y_ENABLE_PIN,          .group = PinGroup_StepperEnable },
+#endif
+#if defined(Z_ENABLE_PIN) && Z_ENABLE_PIN != IOEXPAND
+    { .id = Output_StepperEnableZ, .pin = Z_ENABLE_PIN,          .group = PinGroup_StepperEnable },
+#endif
+#if defined(A_ENABLE_PIN) && A_ENABLE_PIN != IOEXPAND
+    { .id = Output_StepperEnableA, .pin = A_ENABLE_PIN,          .group = PinGroup_StepperEnable },
+#endif
+#if defined(B_ENABLE_PIN) && B_ENABLE_PIN != IOEXPAND
+    { .id = Output_StepperEnableB, .pin = B_ENABLE_PIN,          .group = PinGroup_StepperEnable },
+#endif
+#if defined(C_ENABLE_PIN) && C_ENABLE_PIN != IOEXPAND
+    { .id = Output_StepperEnableC, .pin = C_ENABLE_PIN,          .group = PinGroup_StepperEnable },
+#endif
+#if defined(X2_ENABLE_PIN) && X2_ENABLE_PIN != IOEXPAND
+    { .id = Output_StepperEnableX, .pin = X2_ENABLE_PIN,         .group = PinGroup_StepperEnable },
+#endif
+#if defined(Y2_ENABLE_PIN) && Y2_ENABLE_PIN != IOEXPAND
+    { .id = Output_StepperEnableY, .pin = Y2_ENABLE_PIN,         .group = PinGroup_StepperEnable },
+#endif
+#if defined(Z2_ENABLE_PIN) && Z2_ENABLE_PIN != IOEXPAND
+    { .id = Output_StepperEnableZ, .pin = Z2_ENABLE_PIN,         .group = PinGroup_StepperEnable },
 #endif
 #if DRIVER_SPINDLE_ENABLE
   #if defined(SPINDLE_ENABLE_PIN) && SPINDLE_ENABLE_PIN != IOEXPAND
-    { .id = Output_SpindleOn,     .pin = SPINDLE_ENABLE_PIN,    .group = PinGroup_SpindleControl },
+    { .id = Output_SpindleOn,      .pin = SPINDLE_ENABLE_PIN,    .group = PinGroup_SpindleControl },
   #endif
   #if defined(SPINDLE_DIRECTION_PIN) && SPINDLE_DIRECTION_PIN != IOEXPAND
-    { .id = Output_SpindleDir,    .pin = SPINDLE_DIRECTION_PIN, .group = PinGroup_SpindleControl },
+    { .id = Output_SpindleDir,     .pin = SPINDLE_DIRECTION_PIN, .group = PinGroup_SpindleControl },
   #endif
 #endif // DRIVER_SPINDLE_ENABLE
 #if defined(COOLANT_FLOOD_PIN) && COOLANT_FLOOD_PIN != IOEXPAND
-    { .id = Output_CoolantFlood,  .pin = COOLANT_FLOOD_PIN,     .group = PinGroup_Coolant },
+    { .id = Output_CoolantFlood,   .pin = COOLANT_FLOOD_PIN,     .group = PinGroup_Coolant },
 #endif
 #if defined(COOLANT_MIST_PIN) && COOLANT_MIST_PIN != IOEXPAND
-    { .id = Output_CoolantMist,   .pin = COOLANT_MIST_PIN,      .group = PinGroup_Coolant },
+    { .id = Output_CoolantMist,    .pin = COOLANT_MIST_PIN,      .group = PinGroup_Coolant },
 #endif
-    { .id = Output_DirX,          .pin = X_DIRECTION_PIN,       .group = PinGroup_StepperDir },
-    { .id = Output_DirY,          .pin = Y_DIRECTION_PIN,       .group = PinGroup_StepperDir },
+    { .id = Output_DirX,           .pin = X_DIRECTION_PIN,       .group = PinGroup_StepperDir },
+    { .id = Output_DirY,           .pin = Y_DIRECTION_PIN,       .group = PinGroup_StepperDir },
 #ifdef Z_DIRECTION_PIN
-    { .id = Output_DirZ,          .pin = Z_DIRECTION_PIN,       .group = PinGroup_StepperDir },
+    { .id = Output_DirZ,           .pin = Z_DIRECTION_PIN,       .group = PinGroup_StepperDir },
 #endif
 #ifdef A_AXIS
-    { .id = Output_DirA,          .pin = A_DIRECTION_PIN,       .group = PinGroup_StepperDir },
+    { .id = Output_DirA,           .pin = A_DIRECTION_PIN,       .group = PinGroup_StepperDir },
 #endif
 #ifdef B_AXIS
-    { .id = Output_DirB,          .pin = B_DIRECTION_PIN,       .group = PinGroup_StepperDir },
+    { .id = Output_DirB,           .pin = B_DIRECTION_PIN,       .group = PinGroup_StepperDir },
 #endif
 #ifdef C_AXIS
-    { .id = Output_DirC,          .pin = C_DIRECTION_PIN,       .group = PinGroup_StepperDir },
+    { .id = Output_DirC,           .pin = C_DIRECTION_PIN,       .group = PinGroup_StepperDir },
 #endif
 #ifdef X2_DIRECTION_PIN
-    { .id = Output_DirX_2,        .pin = X2_DIRECTION_PIN,      .group = PinGroup_StepperDir },
+    { .id = Output_DirX_2,         .pin = X2_DIRECTION_PIN,      .group = PinGroup_StepperDir },
 #endif
 #ifdef Y2_DIRECTION_PIN
-    { .id = Output_DirY_2,        .pin = Y2_DIRECTION_PIN,      .group = PinGroup_StepperDir },
+    { .id = Output_DirY_2,         .pin = Y2_DIRECTION_PIN,      .group = PinGroup_StepperDir },
 #endif
 #ifdef Z2_DIRECTION_PIN
-    { .id = Output_DirZ_2,        .pin = Z2_DIRECTION_PIN,      .group = PinGroup_StepperDir },
+    { .id = Output_DirZ_2,         .pin = Z2_DIRECTION_PIN,      .group = PinGroup_StepperDir },
 #endif
 #ifdef MOTOR_CS_PIN
     { .id = Output_MotorChipSelect,   .pin = MOTOR_CS_PIN,      .group = PinGroup_MotorChipSelect },
@@ -330,31 +357,31 @@ static output_signal_t outputpin[] = {
     { .id = Output_SdCardCS,          .pin = PIN_NUM_CS,        .group = PinGroup_SdCard },
 #endif
 #ifdef MODBUS_DIRECTION_PIN
-    { .id = Output_Aux0,          .pin = MODBUS_DIRECTION_PIN,  .group = PinGroup_AuxOutput },
+    { .id = Output_Aux0,           .pin = MODBUS_DIRECTION_PIN,  .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT0_PIN
-    { .id = Output_Aux0,          .pin = AUXOUTPUT0_PIN,        .group = PinGroup_AuxOutput },
+    { .id = Output_Aux0,           .pin = AUXOUTPUT0_PIN,        .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT1_PIN
-    { .id = Output_Aux1,          .pin = AUXOUTPUT1_PIN,        .group = PinGroup_AuxOutput },
+    { .id = Output_Aux1,           .pin = AUXOUTPUT1_PIN,        .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT2_PIN
-    { .id = Output_Aux2,          .pin = AUXOUTPUT2_PIN,        .group = PinGroup_AuxOutput },
+    { .id = Output_Aux2,           .pin = AUXOUTPUT2_PIN,        .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT3_PIN
-    { .id = Output_Aux3,          .pin = AUXOUTPUT3_PIN,        .group = PinGroup_AuxOutput },
+    { .id = Output_Aux3,           .pin = AUXOUTPUT3_PIN,        .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT4_PIN
-    { .id = Output_Aux4,          .pin = AUXOUTPUT4_PIN,        .group = PinGroup_AuxOutput },
+    { .id = Output_Aux4,           .pin = AUXOUTPUT4_PIN,        .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT5_PIN
-    { .id = Output_Aux5,          .pin = AUXOUTPUT5_PIN,        .group = PinGroup_AuxOutput },
+    { .id = Output_Aux5,           .pin = AUXOUTPUT5_PIN,        .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT6_PIN
-    { .id = Output_Aux3,          .pin = AUXOUTPUT6_PIN,        .group = PinGroup_AuxOutput },
+    { .id = Output_Aux3,           .pin = AUXOUTPUT6_PIN,        .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT7_PIN
-    { .id = Output_Aux7,          .pin = AUXOUTPUT7_PIN,        .group = PinGroup_AuxOutput }
+    { .id = Output_Aux7,           .pin = AUXOUTPUT7_PIN,        .group = PinGroup_AuxOutput }
 #endif
 };
 
@@ -372,7 +399,7 @@ static axes_signals_t motors_1 = {AXES_BITMASK}, motors_2 = {AXES_BITMASK};
 
 #if USE_I2S_OUT
 static bool goIdlePending = false;
-static uint32_t i2s_step_length = I2S_OUT_USEC_PER_PULSE, i2s_step_samples = 1;
+static uint32_t i2s_step_length = I2S_OUT_USEC_PER_PULSE, i2s_delay_length = I2S_OUT_USEC_PER_PULSE, i2s_delay_samples = 1, i2s_step_samples = 1;
 static bool laser_mode = false;
 #if DRIVER_SPINDLE_ENABLE
 static on_spindle_selected_ptr on_spindle_selected;
@@ -760,14 +787,16 @@ inline IRAM_ATTR static void set_dir_outputs (axes_signals_t dir_outbits)
 
 IRAM_ATTR static void I2S_stepperCyclesPerTick (uint32_t cycles_per_tick)
 {
-    i2s_out_set_pulse_period(cycles_per_tick < (1UL << 18) ? cycles_per_tick : (1UL << 18) - 1UL);
+    i2s_out_set_pulse_period((cycles_per_tick < (1UL << 18) ? cycles_per_tick : (1UL << 18) - 1UL) / (hal.f_step_timer / 1000000));
 }
 
 // Sets stepper direction and pulse pins and starts a step pulse
 IRAM_ATTR static void I2S_stepperPulseStart (stepper_t *stepper)
 {
-    if(stepper->dir_change)
+    if(stepper->dir_change) {
         set_dir_outputs(stepper->dir_outbits);
+        i2s_out_push_sample(i2s_delay_samples);
+    }
 
     if(stepper->step_outbits.value) {
         i2s_set_step_outputs(stepper->step_outbits);
@@ -1217,14 +1246,21 @@ static axes_signals_t getGangedAxes (bool auto_squared)
 // Sets stepper direction and pulse pins and starts a step pulse
 IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
 {
-    if(stepper->dir_change)
+    if(stepper->dir_change) {
         set_dir_outputs(stepper->dir_outbits);
+#if USE_I2S_OUT
+        uint64_t start_time = esp_timer_get_time();
+        while (esp_timer_get_time() - start_time < i2s_delay_length) {
+            __asm__ __volatile__ ("nop");  // spin here until time to output step
+        }
+#endif
+    }
 
     if(stepper->step_outbits.value) {
 #if USE_I2S_OUT
-        uint64_t step_pulse_start_time = esp_timer_get_time();
+        uint64_t start_time = esp_timer_get_time();
         i2s_set_step_outputs(stepper->step_outbits);
-        while (esp_timer_get_time() - step_pulse_start_time < i2s_step_length) {
+        while (esp_timer_get_time() - start_time < i2s_step_length) {
             __asm__ __volatile__ ("nop");  // spin here until time to turn off step
         }
         i2s_set_step_outputs((axes_signals_t){0});
@@ -1300,7 +1336,7 @@ static void i2s_set_streaming_mode (bool stream)
             hal.stepper.pulse_start = I2S_stepperPulseStart;
             i2s_out_set_pulse_callback(hal.stepper.interrupt_callback);
         }
-    } else if(hal.stepper.wake_up != stepperWakeUp ){
+    } else if(hal.stepper.wake_up != stepperWakeUp) {
         hal.stepper.wake_up = stepperWakeUp;
         hal.stepper.go_idle = stepperGoIdle;
         hal.stepper.cycles_per_tick = stepperCyclesPerTick;
@@ -1897,9 +1933,20 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
          *********************/
 
 #if USE_I2S_OUT
-        i2s_step_length = (uint32_t)(settings->steppers.pulse_microseconds);
+        i2s_delay_length = (uint32_t)settings->steppers.pulse_delay_microseconds;
+        i2s_step_length = (uint32_t)settings->steppers.pulse_microseconds;
+
+        if(i2s_delay_length < I2S_OUT_USEC_PER_PULSE)
+            i2s_delay_length = I2S_OUT_USEC_PER_PULSE;
+        else if(i2s_delay_length > 10)
+            i2s_delay_length = 10;
+
         if(i2s_step_length < I2S_OUT_USEC_PER_PULSE)
             i2s_step_length = I2S_OUT_USEC_PER_PULSE;
+        else if(i2s_step_length > 20)
+            i2s_step_length = 20;
+
+        i2s_delay_samples = i2s_delay_length / I2S_OUT_USEC_PER_PULSE; // round up?
         i2s_step_samples = i2s_step_length / I2S_OUT_USEC_PER_PULSE; // round up?
 #else
         initRMT(settings);
@@ -2083,7 +2130,8 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info, void *data)
     pin.mode.output = On;
 
     for(i = 0; i < sizeof(outputpin) / sizeof(output_signal_t); i++) {
-        pin.pin = outputpin[i].pin;
+        pin.pin = outputpin[i].pin - (outputpin[i].pin < I2S_OUT_PIN_BASE ? 0 : I2S_OUT_PIN_BASE);
+        pin.port = low_level || outputpin[i].pin < I2S_OUT_PIN_BASE ? NULL : "I2S";
         pin.function = outputpin[i].id;
         pin.group = outputpin[i].group;
         pin.description = outputpin[i].description;
@@ -2459,7 +2507,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "231208";
+    hal.driver_version = "231217";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
