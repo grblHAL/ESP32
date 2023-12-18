@@ -2275,6 +2275,11 @@ static char *sdcard_mount (FATFS **fs)
 // Initializes MCU peripherals for Grbl use
 static bool driver_setup (settings_t *settings)
 {
+
+#if LITTLEFS_ENABLE
+    fs_littlefs_mount("/littlefs", esp32_littlefs_hal());
+#endif
+
     /******************
      *  Stepper init  *
      ******************/
@@ -2507,7 +2512,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "231217";
+    hal.driver_version = "231218";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2736,10 +2741,6 @@ bool driver_init (void)
 
 #if BLUETOOTH_ENABLE
     bluetooth_init_local();
-#endif
-
-#if LITTLEFS_ENABLE
-    fs_littlefs_mount("/littlefs", esp32_littlefs_hal());
 #endif
 
 #include "grbl/plugins_init.h"
