@@ -152,7 +152,7 @@
       "URL": "https://www.fysetc.com/products/fysetc-e4-board-with-built-in-wi-fi-and-bluetooth-4-pcs-tmc2209-240mhz-16m-flash-3d-printer-control-board-based-for-3d-printer?variant=37558333341871",
       "MAP": "main/fysetc_e4_map.h",
       "caps": {
-        "axes": 3,
+        "axes": 4,
         "digital_in": 0,
         "digital_out": 0,
         "safety_door": 0,
