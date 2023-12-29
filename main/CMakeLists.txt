@@ -223,7 +223,7 @@ set(SRCS
  i2c.c
  ioexpand.c
  i2s_out.c
- BlackBoxX32.c
+ boards/BlackBoxX32.c
  networking/strutils.c
  grbl/grbllib.c
  grbl/coolant_control.c

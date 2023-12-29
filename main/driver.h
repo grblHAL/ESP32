@@ -154,42 +154,42 @@ typedef struct {
 // End configuration
 
 #ifdef BOARD_CNC_BOOSTERPACK
-  #include "cnc_boosterpack_map.h"
+  #include "boards/cnc_boosterpack_map.h"
 #elif defined(BOARD_BDRING_V4)
-  #include "bdring_v4_map.h"
+  #include "boards/bdring_v4_map.h"
 #elif defined(BOARD_BDRING_V3P5)
-  #include "bdring_v3.5_map.h"
+  #include "boards/bdring_v3.5_map.h"
 #elif defined(BOARD_BDRING_I2S6A)
-  #include "bdring_i2s_6_axis_map.h"
+  #include "boards/bdring_i2s_6_axis_map.h"
 #elif defined(BOARD_ESPDUINO32)
-  #include "espduino-32_wemos_d1_r32_uno_map.h"
+  #include "boards/espduino-32_wemos_d1_r32_uno_map.h"
 #elif defined(BOARD_SOURCERABBIT_4AXIS)
-  #include "sourcerabbit_4axis.h"
+  #include "boards/sourcerabbit_4axis.h"
 #elif defined(BOARD_PROTONEER_3XX)
-  #include "protoneer_3.xx_map.h"
+  #include "boards/protoneer_3.xx_map.h"
 #elif defined(BOARD_FYSETC_E4)
-  #include "fysetc_e4_map.h"
+  #include "boards/fysetc_e4_map.h"
 #elif defined(BOARD_XPRO_V5)
-  #include "xPro_v5_map.h"
+  #include "boards/xPro_v5_map.h"
 #elif defined(BOARD_MKS_DLC32_V2P0)
-  #include "mks_dlc32_2_0_map.h"
+  #include "boards/mks_dlc32_2_0_map.h"
 #elif defined(BOARD_MKS_TINYBEE_V1)
-  #include "mks_tinybee_1_0_map.h"
+  #include "boards/mks_tinybee_1_0_map.h"
 #elif defined(BOARD_BLACKBOX_X32)
-  #include "BlackBoxX32_map.h"
+  #include "boards/BlackBoxX32_map.h"
 #elif defined(BOARD_ROOTCNC_V2)
-  #include "root_cnc_v2_map.h"
+  #include "boards/root_cnc_v2_map.h"
 #elif defined(BOARD_ROOTCNC_V3)
-  #include "root_cnc_v3_map.h"
+  #include "boards/root_cnc_v3_map.h"
 #elif defined(BOARD_BLOX)
-  #include "blox_map.h"
+  #include "boards/blox_map.h"
 #elif defined(BOARD_CNC3040)
-  #include "cnc3040_map.h"
+  #include "boards/cnc3040_map.h"
 #elif defined(BOARD_MY_MACHINE)
-  #include "my_machine_map.h"
+  #include "boards/my_machine_map.h"
 #else // default board - NOTE: NOT FINAL VERSION!
   #warning "Compiling for generic board!"
-  #include "generic_map.h"
+  #include "boards/generic_map.h"
 #endif
 
 #ifndef GRBL_ESP32

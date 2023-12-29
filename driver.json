@@ -50,7 +50,7 @@
       "name": "BlackBox X32",
       "symbol": "BOARD_BLACKBOX_X32",
       "URL": "https://docs.openbuilds.com/doku.php?id=docs:blackbox-x32:start",
-      "MAP": "main/BlackBoxX32_map.h",
+      "MAP": "main/boards/BlackBoxX32_map.h",
       "caps": {
         "axes": 4,
         "digital_in": 0,
@@ -66,7 +66,7 @@
       "name": "BDRING 6-axis I2S",
       "symbol": "BOARD_BDRING_I2S6A",
       "URL": "https://github.com/bdring/6-Pack_CNC_Controller",
-      "MAP": "main/bdring_i2s_6_axis_map.h",
+      "MAP": "main/boards/bdring_i2s_6_axis_map.h",
       "caps": {
         "axes": 6,
         "digital_in": 0,
@@ -85,7 +85,7 @@
     {
       "name": "ESPDUINO-32 Wemos D1 R32",
       "symbol": "BOARD_ESPDUINO32",
-      "MAP": "main/espduino-32_wemos_d1_r32_uno_map.h ",
+      "MAP": "main/boards/espduino-32_wemos_d1_r32_uno_map.h ",
       "URL": "",
       "caps": {
         "axes": 3,
@@ -101,7 +101,7 @@
       "name": "MKS Tinybee V1.0",
       "symbol": "BOARD_MKS_TINYBEE_V1",
       "URL": "https://github.com/makerbase-mks/MKS-TinyBee",
-      "MAP": "main/mks_tinybee_1_0_map.h",
+      "MAP": "main/boards/mks_tinybee_1_0_map.h",
       "caps": {
         "axes": 5,
         "digital_in": 0,
@@ -117,7 +117,7 @@
       "name": "SourceRabbit 4-axis CNC",
       "symbol": "BOARD_SOURCERABBIT_4AXIS",
       "URL": "https://www.sourcerabbit.com/",
-      "MAP": "main/sourcerabbit_4axis.h",
+      "MAP": "main/boards/sourcerabbit_4axis.h",
       "caps": {
         "axes": 4,
         "auto_square": 0,
@@ -134,7 +134,7 @@
       "name": "Protoneer v3",
       "symbol": "BOARD_PROTONEER_3XX",
       "URL": "https://blog.protoneer.co.nz/arduino-cnc-shield/",
-      "MAP": "main/protoneer_3.xx_map.h",
+      "MAP": "main/boards/protoneer_3.xx_map.h",
       "caps": {
         "axes": 3,
         "digital_in": 0,
@@ -150,7 +150,7 @@
       "name": "Fysetc E4 v1.0",
       "symbol": "BOARD_FYSETC_E4",
       "URL": "https://www.fysetc.com/products/fysetc-e4-board-with-built-in-wi-fi-and-bluetooth-4-pcs-tmc2209-240mhz-16m-flash-3d-printer-control-board-based-for-3d-printer?variant=37558333341871",
-      "MAP": "main/fysetc_e4_map.h",
+      "MAP": "main/boards/fysetc_e4_map.h",
       "caps": {
         "axes": 4,
         "digital_in": 0,
@@ -165,7 +165,7 @@
       "name": "xPro v5",
       "symbol": "BOARD_XPRO_V5",
       "URL": "https://www.spark-concepts.com/cnc-xpro-v5/",
-      "MAP": "main/xPro_v5_map.h",
+      "MAP": "main/boards/xPro_v5_map.h",
       "caps": {
         "axes": 3,
         "digital_in": 2,
@@ -182,7 +182,7 @@
       "name": "MKS DLC32 2.0",
       "symbol": "BOARD_MKS_DLC32_V2P0",
       "URL": "https://github.com/makerbase-mks/MKS-DLC32",
-      "MAP": "main/mks_dlc32_2_0_map.h",
+      "MAP": "main/boards/mks_dlc32_2_0_map.h",
       "caps": {
         "axes": 3,
         "digital_in": 1,
@@ -198,7 +198,7 @@
       "name": "CNC 3040",
       "symbol": "BOARD_CNC3040",
       "URL": "https://github.com/shaise/grblHAL_CNC3040",
-      "MAP": "main/cnc3040_map.h",
+      "MAP": "main/boards/cnc3040_map.h",
       "caps": {
         "axes": 4,
         "serial_ports": 2,
@@ -218,7 +218,7 @@
       "name": "BDRING v3.5",
       "symbol": "BOARD_BDRING_V3P5",
       "URL": "",
-      "MAP": "main/bdring_v3.5_map.h",
+      "MAP": "main/boards/bdring_v3.5_map.h",
       "caps": {
         "axes": 3,
         "digital_in": 0,
@@ -233,7 +233,7 @@
       "name": "BDRING v4",
       "symbol": "BOARD_BDRING_V4",
       "URL": "",
-      "MAP": "main/bdring_v4_map.h",
+      "MAP": "main/boards/bdring_v4_map.h",
       "caps": {
         "axes": 3,
         "digital_in": 0,
@@ -248,7 +248,7 @@
       "name": "CNC BoosterPack",
       "symbol": "BOARD_CNC_BOOSTERPACK",
       "URL": "https://github.com/terjeio/CNC_Boosterpack",
-      "MAP": "main/boosterpack_map.h",
+      "MAP": "main/boards/boosterpack_map.h",
       "caps": {
         "axes": 3,
         "digital_in": 0,
