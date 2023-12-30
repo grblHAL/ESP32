@@ -253,7 +253,7 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
     UART_MUTEX_LOCK(uart);
 
     uart_ll_set_data_bit_num(uart->dev, UART_DATA_8_BITS);
-    uart_ll_set_stop_bits(uart->dev, UART_STOP_BITS_2);
+    uart_ll_set_stop_bits(uart->dev, UART_STOP_BITS_1);
     uart_ll_set_parity(uart->dev, UART_PARITY_DISABLE);
 
     // Note: UART0 pin mappings are set at boot, no need to set here unless override is required

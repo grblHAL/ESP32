@@ -10,7 +10,7 @@ include_dir = main
 build_flags =
 
 [env:%env_name%]
-platform = espressif32 @ @ ~4.0.0
+platform = espressif32 @ ~4.0.0
 framework = espidf
 board =%board%
 board_build.partitions = partitions.csv
