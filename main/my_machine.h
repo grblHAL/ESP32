@@ -1,11 +1,9 @@
 /*
-  my_machine.h - configuration for ESP32 processos
-
-  NOTE: only in use if not compiling with cmake (idf.py)
+  my_machine.h - configuration for ESP32 processors
 
   Part of grblHAL
 
-  Copyright (c) 2020-2023 Terje Io
+  Copyright (c) 2020-2024 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,61 +21,124 @@
 
 // NOTE: Only one board may be enabled!
 // If none is enabled pin mappings from generic_map.h will be used
-//#define BOARD_ESPDUINO32
-//#define BOARD_BDRING_V3P5
-//#define BOARD_BDRING_V4
-//#define BOARD_BDRING_I2S6A    // NOT production ready!
-//#define BOARD_SOURCERABBIT_4AXIS
-//#define BOARD_PROTONEER_3XX
-//#define BOARD_MKS_DLC32_V2P0  // MKS DLC32 and MKS TinyBee boards
-//#define BOARD_MY_MACHINE      // Add my_machine_map.h before enabling this!
+//#define BOARD_BDRING_V3P5         //
+//#define BOARD_BDRING_V4           //
+//#define BOARD_BDRING_I2S6A        //
+//#define BOARD_ESPDUINO32          //
+//#define BOARD_SOURCERABBIT_4AXIS  //
+//#define BOARD_PROTONEER_3XX       //
+//#define BOARD_FYSETC_E4           //
+//#define BOARD_XPRO_V5             //
+//#define BOARD_MKS_DLC32_V2P0      //
+//#define BOARD_MKS_TINYBEE_V1      //
+//#define BOARD_CNC3040             //
+//#define BOARD_BLACKBOX_X32        // NOTE: Enable in CMakeLists.txt to set board specific defaults for the core!
+//#define BOARD_ROOTCNC_V2          //
+//#define BOARD_ROOTCNC_V3          //
+//#define BOARD_CNC_BOOSTERPACK     //
+//#define BOARD_MY_MACHINE          // Add my_machine_map.h in the boards directory before enabling this!
 
 // Configuration
 // Uncomment to enable, for some a value > 1 may be assigned, if so the default value is shown.
 
-//#define VFD_ENABLE         1 // Set to 1 or 2 for Huanyang VFD spindle. More here https://github.com/grblHAL/Plugins_spindle
-//#define NETWORKING_ENABLE  1 // WiFi streaming. Requires networking plugin.
-#if NETWORKING_ENABLE
-//#define WIFI_SOFTAP        1 // Use Soft AP mode for WiFi.
-//#define WEBUI_ENABLE       0 // Not yet available, do not change.
+#if GRBL_ESP32S3
+#define USB_SERIAL_CDC          1 // Serial communication via native USB.
 #endif
-//#define SDCARD_ENABLE      1 // Run gcode programs from SD card, requires sdcard plugin.
-//#define BLUETOOTH_ENABLE   1 // Enable Bluetooth streaming.
-//#define MPG_MODE_ENABLE    1 // Enable MPG mode (secondary serial port)
-//#define NOPROBE            1 // Comment out to disable probe input.
-//#define EEPROM_ENABLE      1 // I2C EEPROM support. Set to 1 for 24LC16 (2K), 3 for 24C32 (4K - 32 byte page) and 2 for other sizes. Uses eeprom plugin.
-//#define EEPROM_IS_FRAM     1 // Uncomment when EEPROM is enabled and chip is FRAM, this to remove write delay.
+// Spindle selection:
+// Up to four specific spindle drivers can be instantiated at a time
+// depending on N_SPINDLE and N_SYS_SPINDLE definitions in grbl/config.h.
+// If none are specified the default PWM spindle is instantiated.
+// Spindle definitions can be found in grbl/spindle_control.h.
+// More here https://github.com/grblHAL/Plugins_spindle
+//#define SPINDLE0_ENABLE         SPINDLE_HUANYANG1
+//#define SPINDLE0_ENABLE         SPINDLE_PWM0_NODIR
+//#define SPINDLE2_ENABLE         SPINDLE_NONE
+//#define SPINDLE3_ENABLE         SPINDLE_NONE
+// **********************
+//#define MODBUS_ENABLE           1 // Set to 1 for auto direction, 2 for direction signal on auxillary output pin.
+//#define WEBUI_ENABLE            3 // Enable ESP3D-WEBUI plugin along with networking and SD card plugins.
+//#define WEBUI_AUTH_ENABLE       1 // Enable ESP3D-WEBUI authentication.
+//#define WEBUI_INFLASH           1 // Store WebUI files in flash instead of on SD card.
+//#define WIFI_ENABLE             1 //
+//#define WIFI_SOFTAP             1 // Use Soft AP mode for WiFi.
+//#define ETHERNET_ENABLE         1 // Ethernet streaming. Uses networking plugin.
+//#define BLUETOOTH_ENABLE        1 // Set to 1 for native radio, 2 for HC-05 module.
+//#define SDCARD_ENABLE           2 // Run gcode programs from SD card. Set to 2 to enable YModem upload.
+//#define KEYPAD_ENABLE           1 // I2C keypad for jogging etc., uses keypad plugin.
+//#define PPI_ENABLE              1 // Laser PPI plugin. To be completed.
+//#define LASER_COOLANT_ENABLE    1 // Laser coolant plugin. To be completed.
+//#define LB_CLUSTERS_ENABLE      1 // LaserBurn cluster support.
+//#define FANS_ENABLE             1 // Enable fan control via M106/M107. Enables fans plugin.
+//#define EMBROIDERY_ENABLE       1 // Embroidery plugin. To be completed.
+//#define TRINAMIC_ENABLE      2130 // Trinamic TMC2130 stepper driver support. NOTE: work in progress.
+//#define TRINAMIC_ENABLE      5160 // Trinamic TMC5160 stepper driver support. NOTE: work in progress.
+//#define TRINAMIC_I2C            1 // Trinamic I2C - SPI bridge interface.
+//#define TRINAMIC_DEV            1 // Development mode, adds a few M-codes to aid debugging. Do not enable in production code.
+//#define EEPROM_ENABLE          16 // I2C EEPROM/FRAM support. Set to 16 for 2K, 32 for 4K, 64 for 8K, 128 for 16K and 256 for 16K capacity.
+//#define EEPROM_IS_FRAM          1 // Uncomment when EEPROM is enabled and chip is FRAM, this to remove write delay.
+#define ESTOP_ENABLE            0 // When enabled only real-time report requests will be executed when the reset pin is asserted.
+                                    // NOTE: if left commented out the default setting is determined from COMPATIBILITY_LEVEL.
+//#define PROBE_ENABLE            0 // Uncomment to disable probe input.
 
-#if NETWORKING_ENABLE
-#define NETWORK_PARAMETERS_OK   1
-#define WEBSOCKET_ENABLE        1 // Websocket daemon - requires networking enabled.
-#define TELNET_ENABLE           1 // Telnet daemon - requires networking enabled.
-//#define WIFI_SOFTAP        1 // Use Soft AP mode for WiFi.
-//#define WEBUI_ENABLE       0 // Not yet available, do not change.
-#ifdef SDCARD_ENABLE
-//#define FTP_ENABLE              1 // Ftp daemon - requires SD card enabled.
+// Optional control signals:
+// These will be assigned to aux input pins. Use the $pins command to check which pins are assigned.
+// NOTE: If not enough pins are available assignment will silently fail.
+//#define SAFETY_DOOR_ENABLE      1
+//#define MOTOR_FAULT_ENABLE      1
+//#define MOTOR_WARNING_ENABLE    1
+//#define PROBE_DISCONNECT_ENABLE 1
+//#define STOP_DISABLE_ENABLE     1
+//#define BLOCK_DELETE_ENABLE     1
+//#define SINGLE_BLOCK_ENABLE     1
+//#define LIMITS_OVERRIDE_ENABLE  1
+
+// If the selected board map supports more than three motors ganging and/or auto-squaring
+// of axes can be enabled here.
+//#define X_GANGED            1
+//#define X_AUTO_SQUARE       1
+//#define Y_GANGED            1
+//#define Y_AUTO_SQUARE       1
+//#define Z_GANGED            1
+//#define Z_AUTO_SQUARE       1
+// For ganged axes the limit switch input (if available) can be configured to act as a max travel limit switch.
+// NOTE: If board map already has max limit inputs defined this configuration will be ignored.
+//#define X_GANGED_LIM_MAX    1
+//#define Y_GANGED_LIM_MAX    1
+//#define Z_GANGED_LIM_MAX    1
+//
+
+#if WIFI_ENABLE || ETHERNET_ENABLE || WEBUI_ENABLE
+#define TELNET_ENABLE         1 // Telnet daemon - requires WiFi streaming enabled.
+#define WEBSOCKET_ENABLE      1 // Websocket daemon - requires WiFi streaming enabled.
+//#define MDNS_ENABLE           0 // mDNS daemon. Do NOT enable here, enable in CMakeLists.txt!
+//#define SSDP_ENABLE           1 // SSDP daemon - requires HTTP enabled.
+//#define MQTT_ENABLE           1 // MQTT client API, only enable if needed by plugin code.
+#if SDCARD_ENABLE || WEBUI_ENABLE
+//#define FTP_ENABLE            1 // Ftp daemon - requires SD card enabled.
+//#define HTTP_ENABLE           1 // http daemon - requires SD card enabled.
+//#define WEBDAV_ENABLE         1 // webdav protocol - requires http daemon and SD card enabled.
 #endif
-//#define NETWORK_HOSTNAME        "grblHAL"
-//#define NETWORK_IPMODE          1 // 0 = static, 1 = DHCP, 2 = AutoIP
-//#define NETWORK_IP              "192.168.5.1"
-//#define NETWORK_GATEWAY         "192.168.5.1"
-//#define NETWORK_MASK            "255.255.255.0"
-//#define NETWORK_TELNET_PORT     23
+// The following symbols have the default values as shown, uncomment and change as needed.
+//#define NETWORK_STA_HOSTNAME    "grblHAL"
+//#define NETWORK_STA_IPMODE      1 // 0 = static, 1 = DHCP, 2 = AutoIP
+//#define NETWORK_STA_IP          "192.168.5.1"
+//#define NETWORK_STA_GATEWAY     "192.168.5.1"
+//#define NETWORK_STA_MASK        "255.255.255.0"
+#if WIFI_SOFTAP > 0
+//#define NETWORK_AP_SSID         "grblHAL_AP"
+//#define NETWORK_AP_PASSWORD     "grblHALap"
+//#define NETWORK_AP_HOSTNAME     "grblHAL_AP"
+//#define NETWORK_AP_IPMODE       0              // Do not change!
+//#define NETWORK_AP_IP           "192.168.4.1"  // Do not change!
+//#define NETWORK_AP_GATEWAY      "192.168.4.1"  // Do not change!
+//#define NETWORK_AP_MASK         "255.255.255.0"
+#endif
+//#define NETWORK_FTP_PORT     21
+//#define NETWORK_TELNET_PORT  23
+//#define NETWORK_HTTP_PORT    80
+#if HTTP_ENABLE
 //#define NETWORK_WEBSOCKET_PORT  81
-//#define NETWORK_HTTP_PORT       80
-
-// WiFi Access Point (AP) settings
-#if WIFI_SOFTAP
-#define NETWORK_AP_HOSTNAME "grblHAL_AP"
-#define NETWORK_AP_IP       "192.168.5.1"
-#define NETWORK_AP_GATEWAY  "192.168.5.1"
-#define NETWORK_AP_MASK     "255.255.255.0"
-#define NETWORK_AP_SSID     "grblHAL"
-#define NETWORK_AP_PASSWORD "GrblPassword" // Minimum 8 characters, or blank for open
-#define WIFI_MODE WiFiMode_AP; // OPTION: WiFiMode_APSTA
 #else
-#define WIFI_SOFTAP 0
-#define WIFI_MODE WiFiMode_STA; // Do not change!
+//#define NETWORK_WEBSOCKET_PORT  80
 #endif
-
-#endif
+#endif // WIFI_ENABLE

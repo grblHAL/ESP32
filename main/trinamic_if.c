@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2022 Terje Io
+  Copyright (c) 2020-2024 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 
 #include "driver.h"
 
-#if defined(BOARD_XPRO_V5) // || defined(BOARD_CNC_BOOSTERPACK)
+#if defined(BOARD_XPRO_V5)|| defined(BOARD_BLOX) // || defined(BOARD_CNC_BOOSTERPACK)
 
 #include <math.h>
 #include <string.h>
@@ -160,8 +160,6 @@ static void if_init (uint8_t motors, axes_signals_t axisflags)
 
 #if TRINAMIC_UART_ENABLE
 
-#include "esp32-hal-uart.h"
-
 static io_stream_t tmc_uart = {0};
 
 TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read_datagram_t *dgr)
@@ -261,10 +259,13 @@ void board_init (void)
     trinamic_if_init(&driver_if);
 #endif
 
-    const io_stream_t *uart = serial2Init(230400);
+    const io_stream_t *stream;
 
-    if(uart) {
-        memcpy(&tmc_uart, uart, sizeof(io_stream_t));
+    if((stream = stream_open_instance(TRINAMIC_STREAM, 230400, NULL)) == NULL)
+        stream = stream_null_init(230400);
+
+    if(stream) {
+        memcpy(&tmc_uart, stream, sizeof(io_stream_t));
         tmc_uart.disable_rx(true);
         tmc_uart.set_enqueue_rt_handler(stream_buffer_all);
     } // else output POS failure?

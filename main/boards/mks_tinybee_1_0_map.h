@@ -6,7 +6,7 @@
   Part of grblHAL
 
   Copyright (c) 2022 Ennio Sesana
-  Copyright (c) 2023 Terje Io (added SD card, ModBus and MPG options)
+  Copyright (c) 2023-2024 Terje Io (added SD card, ModBus and MPG options)
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,9 +28,13 @@
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
 
+#define SERIAL2_ENABLE      1
+#define UART2_RX_PIN        GPIO_NUM_16 // EXP_1
+#define UART2_TX_PIN        GPIO_NUM_17 // EXP_1
+
 // timer definitions
-#define STEP_TIMER_GROUP TIMER_GROUP_0
-#define STEP_TIMER_INDEX TIMER_0
+#define STEP_TIMER_GROUP    TIMER_GROUP_0
+#define STEP_TIMER_INDEX    TIMER_0
 
 #define I2S_OUT_BCK         GPIO_NUM_25
 #define I2S_OUT_WS          GPIO_NUM_26
@@ -113,16 +117,9 @@
 #define PROBE_PIN               GPIO_NUM_35 // MT_DET
 #endif
 
-#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
-#define UART2_RX_PIN            GPIO_NUM_16 // EXP_1
-#define UART2_TX_PIN            GPIO_NUM_17 // EXP_1
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_13 // EXP_1
-#endif
-#endif
-
-#if MPG_MODE == 1
-#define UART2_RX_PIN            GPIO_NUM_16 // EXP_1
+#elif MPG_MODE == 1
 #define MPG_ENABLE_PIN          GPIO_NUM_13 // EXP_1
 #endif
 

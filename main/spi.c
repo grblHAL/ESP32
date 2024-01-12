@@ -3,7 +3,7 @@
 
   Part of grblHAL driver for ESP32
 
-  Copyright (c) 2020-2021 Terje Io
+  Copyright (c) 2020-2024 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 */
 
 #include "driver.h"
+
+#if SPI_ENABLE
 
 #include "driver/sdspi_host.h"
 #include "driver/spi_master.h"
@@ -131,3 +133,6 @@ uint8_t spi_put_byte (uint8_t byte)
 
     return spi_device_polling_transmit(handle, &t) == ESP_OK ? 0 : 0xFF;
 }
+
+#endif
+

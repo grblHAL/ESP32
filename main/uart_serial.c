@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2023 Terje Io
+  Copyright (c) 2023-2024 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -112,6 +112,13 @@ static enqueue_realtime_command_ptr enqueue_realtime_command2 = protocol_enqueue
 static const io_stream_t *serial2Init (uint32_t baud_rate);
 #endif
 
+#if SERIAL3_ENABLE
+static uart_t uart3;
+static stream_rx_buffer_t rxbuffer3 = {0};
+static enqueue_realtime_command_ptr enqueue_realtime_command3 = protocol_enqueue_realtime_command;
+static const io_stream_t *serial3Init (uint32_t baud_rate);
+#endif
+
 static io_stream_properties_t serial[] = {
     {
       .type = StreamType_Serial,
@@ -139,6 +146,22 @@ static io_stream_properties_t serial[] = {
       .claim = serial2Init
     }
 #endif // SERIAL2_ENABLE
+#if SERIAL3_ENABLE
+    {
+      .type = StreamType_Serial,
+      .instance = 2,
+      .flags.claimable = On,
+      .flags.claimed = Off,
+      .flags.connected = On,
+      .flags.can_set_baud = On,
+  #ifdef UART3_TX_PIN
+      .flags.modbus_ready = On,
+  #else
+      .flags.rx_only = On,
+  #endif
+      .claim = serial3Init
+    }
+#endif // SERIAL3_ENABLE
 };
 
 void serialRegisterStreams (void)
@@ -201,6 +224,32 @@ void serialRegisterStreams (void)
 
 #endif // SERIAL2_ENABLE
 
+#if SERIAL3_ENABLE
+
+  #ifdef UART3_TX_PIN
+    static const periph_pin_t tx2 = {
+        .function = Output_TX,
+        .group = PinGroup_UART3,
+        .pin = UART3_TX_PIN,
+        .mode = { .mask = PINMODE_OUTPUT },
+        .description = "Tertiary UART"
+    };
+
+    hal.periph_port.register_pin(&tx2);
+  #endif
+
+    static const periph_pin_t rx2 = {
+        .function = Input_RX,
+        .group = PinGroup_UART3,
+        .pin = UART3_RX_PIN,
+        .mode = { .mask = PINMODE_NONE },
+        .description = "Tertiary UART"
+    };
+
+    hal.periph_port.register_pin(&rx2);
+
+#endif // SERIAL3_ENABLE
+
     stream_register_streams(&streams);
 }
 
@@ -228,6 +277,10 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
     uart_ll_set_mode(uart->dev, UART_MODE_UART);
 
 #if GRBL_ESP32S3
+
+    periph_module_reset((periph_module_t)(PERIPH_UART0_MODULE + uart->num));
+    periph_module_enable((periph_module_t)(PERIPH_UART0_MODULE + uart->num));
+
 #else
     switch(uart->num) {
 
@@ -258,14 +311,30 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
 
     // Note: UART0 pin mappings are set at boot, no need to set here unless override is required
 
-#if SERIAL2_ENABLE
-    if(uart->num == 1)
+#if SERIAL2_ENABLE ||  SERIAL3_ENABLE
+
+    switch(uart->num) {
+
+ #if SERIAL2_ENABLE
+        case 1:
   #ifdef UART2_TX_PIN
-        uart_set_pin(uart->num, UART2_TX_PIN, UART2_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+            uart_set_pin(uart->num, UART2_TX_PIN, UART2_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
   #else
-        uart_set_pin(uart->num, UART_PIN_NO_CHANGE, UART2_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+            uart_set_pin(uart->num, UART_PIN_NO_CHANGE, UART2_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
   #endif
-#endif
+            break;
+ #endif
+ #if SERIAL3_ENABLE
+        case 2:
+  #ifdef UART3_TX_PIN
+            uart_set_pin(uart->num, UART3_TX_PIN, UART3_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+  #else
+            uart_set_pin(uart->num, UART_PIN_NO_CHANGE, UART3_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+  #endif
+            break;
+ #endif
+}
+#endif // SERIAL2_ENABLE ||  SERIAL3_ENABLE
 
     UART_MUTEX_UNLOCK(uart);
 }
@@ -772,3 +841,237 @@ static const io_stream_t *serial2Init (uint32_t baud_rate)
 }
 
 #endif // SERIAL2_ENABLE
+
+#if SERIAL3_ENABLE
+
+static void IRAM_ATTR _uart3_isr (void *arg)
+{
+    uint32_t c, cnt = uart_ll_get_rxfifo_len(uart3.dev), iflags = uart_ll_get_intsts_mask(uart3.dev);
+
+    uart_ll_clr_intsts_mask(uart3.dev, iflags);
+
+    if(iflags & UART_INTR_RXFIFO_OVF)
+        rxbuffer3.overflow = On;
+
+    while(cnt) {
+
+        cnt--;
+        c = _uart_ll_read_rxfifo(uart3.dev);
+
+        if(!enqueue_realtime_command3(c)) {
+
+            uint32_t bptr = (rxbuffer3.head + 1) & RX_BUFFER_SIZE_MASK;  // Get next head pointer
+
+            if(bptr == rxbuffer3.tail)                    // If buffer full
+                rxbuffer3.overflow = On;                  // flag overflow,
+            else {
+                rxbuffer3.data[rxbuffer3.head] = (char)c; // else add data to buffer
+                rxbuffer3.head = bptr;                    // and update pointer
+            }
+        }
+    }
+}
+
+uint16_t static serial3Available (void)
+{
+    uint16_t head = rxbuffer3.head, tail = rxbuffer3.tail;
+
+    return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
+}
+
+uint16_t static serial3TxCount (void)
+{
+    return uart_ll_is_tx_idle(uart3.dev) ? 0 : (uint16_t)_uart_ll_get_txfifo_count(uart3.dev) + 1;
+}
+
+uint16_t static serial3RXFree (void)
+{
+    uint16_t head = rxbuffer3.head, tail = rxbuffer3.tail;
+
+    return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
+}
+
+bool static serial3PutC (const char c)
+{
+    UART_MUTEX_LOCK(&uart3);
+    serialPutC(c);
+    while(_uart_ll_get_txfifo_count(uart3.dev) == uart3.tx_len) {
+        if(!hal.stream_blocking_callback())
+            return false;
+    }
+
+    _uart_ll_write_txfifo(uart3.dev, c);
+
+    UART_MUTEX_UNLOCK(&uart3);
+
+    return true;
+}
+
+void static serial3WriteS (const char *data)
+{
+    char c, *ptr = (char *)data;
+
+    while((c = *ptr++) != '\0')
+        serial3PutC(c);
+}
+
+//
+// Writes a number of characters from a buffer to the serial output stream, blocks if buffer full
+//
+void static serial3Write (const char *s, uint16_t length)
+{
+    char *ptr = (char *)s;
+
+    while(length--)
+        serial3PutC(*ptr++);
+}
+
+int16_t static serial3Read (void)
+{
+    UART_MUTEX_LOCK(&uart3);
+
+    int16_t data;
+    uint16_t bptr = rxbuffer3.tail;
+
+    if(bptr == rxbuffer3.head) {
+        UART_MUTEX_UNLOCK(&uart3);
+        return -1; // no data available else EOF
+    }
+
+    data = rxbuffer3.data[bptr++];                 // Get next character, increment tmp pointer
+    rxbuffer3.tail = bptr & (RX_BUFFER_SIZE - 1);  // and update pointer
+
+    UART_MUTEX_UNLOCK(&uart3);
+
+    return data;
+}
+
+IRAM_ATTR static void serial3Flush (void)
+{
+    UART_MUTEX_LOCK(&uart3);
+
+    _uart_flush(&uart3, false);
+
+    rxbuffer3.tail = rxbuffer3.head;
+    rxbuffer3.overflow = Off;
+
+    UART_MUTEX_UNLOCK(&uart3);
+}
+
+IRAM_ATTR static void serial3TxFlush (void)
+{
+    UART_MUTEX_LOCK(&uart3);
+
+    _uart_flush(&uart3, true);
+
+    UART_MUTEX_UNLOCK(&uart3);
+}
+
+IRAM_ATTR static void serial3Cancel (void)
+{
+    UART_MUTEX_LOCK(&uart3);
+
+    rxbuffer3.data[rxbuffer3.head] = ASCII_CAN;
+    rxbuffer3.tail = rxbuffer3.head;
+    rxbuffer3.head = (rxbuffer3.tail + 1) & (RX_BUFFER_SIZE - 1);
+
+    UART_MUTEX_UNLOCK(&uart3);
+}
+
+static bool serial3SuspendInput (bool suspend)
+{
+    bool ok;
+
+    UART_MUTEX_LOCK(&uart3);
+
+    ok = stream_rx_suspend(&rxbuffer3, suspend);
+
+    UART_MUTEX_UNLOCK(&uart3);
+
+    return ok;
+}
+
+IRAM_ATTR static bool serial3Disable (bool disable)
+{
+    UART_MUTEX_LOCK(&uart3);
+
+    uart_ll_disable_intr_mask(uart3.dev, rx_int_flags);
+
+    if(!disable) {
+        // Clear and enable interrupts
+        _uart_flush(&uart3, false);
+        rxbuffer3.tail = rxbuffer3.head;
+        uart_ll_clr_intsts_mask(uart3.dev, rx_int_flags);
+        uart_ll_ena_intr_mask(uart3.dev, rx_int_flags);
+    }
+
+    UART_MUTEX_UNLOCK(&uart3);
+
+    return true;
+}
+
+static bool serial3SetBaudRate (uint32_t baud_rate)
+{
+    uartSetBaudRate(&uart3, baud_rate);
+
+    return true;
+}
+
+static bool serial3EnqueueRtCommand (char c)
+{
+    return enqueue_realtime_command3(c);
+}
+
+static enqueue_realtime_command_ptr serial3SetRtHandler (enqueue_realtime_command_ptr handler)
+{
+    enqueue_realtime_command_ptr prev = enqueue_realtime_command3;
+
+    if(handler)
+        enqueue_realtime_command3 = handler;
+
+    return prev;
+}
+
+static const io_stream_t *serial3Init (uint32_t baud_rate)
+{
+    static const io_stream_t stream = {
+        .type = StreamType_Serial,
+        .instance = 2,
+        .state.connected = true,
+        .read = serial3Read,
+        .write = serial3WriteS,
+        .write_n =  serial3Write,
+        .write_char = serial3PutC,
+        .enqueue_rt_command = serial3EnqueueRtCommand,
+        .get_rx_buffer_free = serial3RXFree,
+        .get_rx_buffer_count = serial3Available,
+        .get_tx_buffer_count = serial3TxCount,
+        .reset_write_buffer = serial3TxFlush,
+        .reset_read_buffer = serial3Flush,
+        .cancel_read_buffer = serial3Cancel,
+        .suspend_read = serial3SuspendInput,
+        .set_baud_rate = serial3SetBaudRate,
+        .disable_rx = serial3Disable,
+        .set_enqueue_rt_handler = serial3SetRtHandler
+    };
+
+    if(serial[2].flags.claimed)
+        return NULL;
+
+    serial[2].flags.claimed = On;
+
+    memcpy(&uart3, &_uart_bus_array[2], sizeof(uart_t)); // use UART 2
+
+    uartConfig(&uart3, baud_rate);
+
+    serial3Flush();
+#ifdef UART3_TX_PIN
+    uartEnableInterrupt(&uart3, _uart3_isr, true);
+#else
+    uartEnableInterrupt(&uart3, _uart3_isr, false);
+#endif
+
+    return &stream;
+}
+
+#endif // SERIAL3_ENABLE

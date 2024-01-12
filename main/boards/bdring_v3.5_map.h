@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2022 Terje Io
+  Copyright (c) 2020-2024 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -56,16 +56,18 @@
 // Define driver spindle pins
 
 #if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_17
+#define SPINDLE_PWM_PIN     GPIO_NUM_17
 #else
-#define AUXOUTPUT0_PIN          GPIO_NUM_17
+#define AUXOUTPUT0_PIN      GPIO_NUM_17
 #endif
 
 #if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN      GPIO_NUM_22
+#define SPINDLE_ENABLE_PIN  GPIO_NUM_22
 #else
-#define AUXOUTPUT1_PIN          GPIO_NUM_22
+#define AUXOUTPUT1_PIN      GPIO_NUM_22
 #endif
+
+#define AUXINPUT0_PIN       GPIO_NUM_35
 
 // Define flood and mist coolant enable output pins.
 
@@ -76,7 +78,7 @@
 #define FEED_HOLD_PIN       GPIO_NUM_36
 #define CYCLE_START_PIN     GPIO_NUM_39
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN     GPIO_NUM_35
+#define SAFETY_DOOR_PIN     AUXINPUT0_PIN
 #endif
 
 // Define probe switch input pin.
@@ -97,4 +99,3 @@
 #if KEYPAD_ENABLE
 #error No free pins for keypad!
 #endif
-

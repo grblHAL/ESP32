@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2023 Terje Io
+  Copyright (c) 2018-2024 Terje Io
 
   Some parts
    Copyright (c) 2011-2015 Sungeun K. Jeon
@@ -37,6 +37,7 @@
 #include "nvs.h"
 #include "esp_log.h"
 #include "sdkconfig.h"
+#include "esp32s3/clk.h"
 #include "esp_ota_ops.h"
 #include "soc/rtc.h"
 #include "driver/gpio.h"
@@ -46,13 +47,13 @@
 #include "hal/rmt_ll.h"
 #include "driver/i2c.h"
 #include "hal/gpio_types.h"
-
-//#include "grbl_esp32_if/grbl_esp32_if.h"
+#include "xtensa/core-macros.h"
 
 #include "grbl/protocol.h"
 #include "grbl/state_machine.h"
 #include "grbl/motor_pins.h"
 #include "grbl/machine_limits.h"
+#include "grbl/pin_bits_masks.h"
 
 #if GRBL_ESP32S3
 #include "usb_serial.h"
@@ -163,11 +164,18 @@ typedef struct {
 static pwm_ramp_t pwm_ramp;
 #endif
 
+#if SAFETY_DOOR_ENABLE
+static input_signal_t *door_pin;
+#endif
 static periph_signal_t *periph_pins = NULL;
 
 static input_signal_t inputpin[] = {
 #ifdef RESET_PIN
+#if ESTOP_ENABLE
+    { .id = Input_EStop,        .pin = RESET_PIN,         .group = PinGroup_Control },
+#else
     { .id = Input_Reset,        .pin = RESET_PIN,         .group = PinGroup_Control },
+#endif
 #endif
 #ifdef FEED_HOLD_PIN
     { .id = Input_FeedHold,     .pin = FEED_HOLD_PIN,     .group = PinGroup_Control },
@@ -175,7 +183,7 @@ static input_signal_t inputpin[] = {
 #ifdef CYCLE_START_PIN
     { .id = Input_CycleStart,   .pin = CYCLE_START_PIN,   .group = PinGroup_Control },
 #endif
-#ifdef SAFETY_DOOR_PIN
+#if SAFETY_DOOR_BIT
     { .id = Input_SafetyDoor,   .pin = SAFETY_DOOR_PIN,   .group = PinGroup_Control },
 #endif
 #ifdef PROBE_PIN
@@ -386,6 +394,7 @@ static output_signal_t outputpin[] = {
 };
 
 static bool IOInitDone = false, rtc_started = false;
+static rtc_cpu_freq_config_t cpu;
 static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED, debounce_mux = portMUX_INITIALIZER_UNLOCKED;
 #if PROBE_ENABLE
 static probe_state_t probe = {
@@ -471,6 +480,8 @@ void initRMT (settings_t *settings)
     rmtItem[0].duration1 = (uint32_t)(4.0f * settings->steppers.pulse_microseconds);
     rmtItem[1].duration0 = 0;
     rmtItem[1].duration1 = 0;
+
+//    hal.max_step_rate = 4000000UL / (rmtItem[0].duration0 + rmtItem[0].duration1); // + latency
 
     uint32_t channel;
     for(channel = 0; channel < (N_AXIS + N_GANGED); channel++) {
@@ -578,12 +589,23 @@ IRAM_ATTR static void driver_delay_ms (uint32_t ms, void (*callback)(void))
     }
 }
 
-#ifdef DEBUGOUT
-static void debug_out (bool enable)
+
+static inline void delay_us (uint32_t us)
 {
-    gpio_set_level(STEPPERS_ENABLE_PIN, enable);
-}
+#if GRBL_ESP32S3
+    int32_t t = XTHAL_GET_CCOUNT() + 240 * us; // TODO: use cpu.freq_mhz?
+
+    while((XTHAL_GET_CCOUNT() - t) < 0) {
+//        __asm__ __volatile__ ("nop");  // spin here until time to output step
+    }
+#else
+    uint64_t start_time = esp_timer_get_time();
+
+    while (esp_timer_get_time() - start_time < us) {
+        __asm__ __volatile__ ("nop");  // spin here until time to output step
+    }
 #endif
+}
 
 // Enable/disable steppers
 static void stepperEnable (axes_signals_t enable)
@@ -795,7 +817,8 @@ IRAM_ATTR static void I2S_stepperPulseStart (stepper_t *stepper)
 {
     if(stepper->dir_change) {
         set_dir_outputs(stepper->dir_outbits);
-        i2s_out_push_sample(i2s_delay_samples);
+        if(stepper->step_outbits.value)
+            i2s_out_push_sample(i2s_delay_samples);
     }
 
     if(stepper->step_outbits.value) {
@@ -1039,9 +1062,7 @@ void stepperOutputStep (axes_signals_t step_outbits, axes_signals_t dir_outbits)
         if(step_outbits.c)
             DIGITAL_OUT(C_STEP_PIN, step_outbits.c);
 #endif
-/*        while (esp_timer_get_time() - step_pulse_start_time < i2s_step_length) {
-            __asm__ __volatile__ ("nop");  // spin here until time to turn off step
-        } */
+//               delay_us(i2s_step_length);
         i2s_out_push_sample(i2s_step_samples);
         i2s_set_step_outputs((axes_signals_t){0});
     }
@@ -1249,20 +1270,15 @@ IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
     if(stepper->dir_change) {
         set_dir_outputs(stepper->dir_outbits);
 #if USE_I2S_OUT
-        uint64_t start_time = esp_timer_get_time();
-        while (esp_timer_get_time() - start_time < i2s_delay_length) {
-            __asm__ __volatile__ ("nop");  // spin here until time to output step
-        }
+        if(stepper->step_outbits.value)
+            delay_us(i2s_delay_length + 1);
 #endif
     }
 
     if(stepper->step_outbits.value) {
 #if USE_I2S_OUT
-        uint64_t start_time = esp_timer_get_time();
         i2s_set_step_outputs(stepper->step_outbits);
-        while (esp_timer_get_time() - start_time < i2s_step_length) {
-            __asm__ __volatile__ ("nop");  // spin here until time to turn off step
-        }
+        delay_us(i2s_step_length + 1);
         i2s_set_step_outputs((axes_signals_t){0});
 #else
         set_step_outputs(stepper->step_outbits);
@@ -1321,7 +1337,11 @@ IRAM_ATTR static void I2S_stepperGoIdle (bool clear_signals)
 
 static void i2s_set_streaming_mode (bool stream)
 {
+#if GRBL_ESP32S3
+    TIMERG0.hw_timer[STEP_TIMER_INDEX].config.tn_en = 0;
+#else
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.enable = 0;
+#endif
 
     if(!stream && hal.stepper.wake_up == I2S_stepperWakeUp && i2s_out_get_pulser_status() == STEPPING) {
        i2s_out_set_passthrough();
@@ -1434,6 +1454,8 @@ inline IRAM_ATTR static limit_signals_t limitsGetState (void)
     return signals;
 }
 
+static bool fpu_hack = false; // Needed to avoid awakening the stupid meditating guru that is overly sensitive to floats!
+
 // Returns system state as a control_signals_t variable.
 // Each bitfield bit indicates a control signal, where triggered is 1 and not triggered is 0.
 inline IRAM_ATTR static control_signals_t systemGetState (void)
@@ -1443,7 +1465,11 @@ inline IRAM_ATTR static control_signals_t systemGetState (void)
     signals.value = settings.control_invert.value;
 
 #ifdef RESET_PIN
+#if ESTOP_ENABLE
+    signals.estop = gpio_get_level(RESET_PIN);
+#else
     signals.reset = gpio_get_level(RESET_PIN);
+#endif
 #endif
 #ifdef FEED_HOLD_PIN
     signals.feed_hold = gpio_get_level(FEED_HOLD_PIN);
@@ -1451,15 +1477,127 @@ inline IRAM_ATTR static control_signals_t systemGetState (void)
 #ifdef CYCLE_START_PIN
     signals.cycle_start = gpio_get_level(CYCLE_START_PIN);
 #endif
-#ifdef SAFETY_DOOR_PIN
+#if SAFETY_DOOR_BIT
     signals.safety_door_ajar = gpio_get_level(SAFETY_DOOR_PIN);
 #endif
 
-    if(settings.control_invert.value)
-        signals.value ^= settings.control_invert.value;
+#if AUX_CONTROLS_ENABLED
+
+  #ifdef SAFETY_DOOR_PIN
+    if(aux_ctrl[AuxCtrl_SafetyDoor].debouncing)
+        signals.safety_door_ajar = !settings.control_invert.safety_door_ajar;
+    else
+        signals.safety_door_ajar = DIGITAL_IN(SAFETY_DOOR_PIN);
+  #endif
+  #ifdef MOTOR_FAULT_PIN
+    signals.motor_fault = DIGITAL_IN(MOTOR_FAULT_PIN);
+  #endif
+  #ifdef MOTOR_WARNING_PIN
+    signals.motor_warning = DIGITAL_IN(MOTOR_WARNING_PIN);
+  #endif
+
+    if(settings.control_invert.mask)
+        signals.value ^= settings.control_invert.mask;
+
+  #if AUX_CONTROLS_SCAN
+    uint_fast8_t i;
+    for(i = AUX_CONTROLS_SCAN; i < AuxCtrl_NumEntries; i++) {
+        if(!fpu_hack && aux_ctrl[i].enabled) {
+            signals.mask &= ~aux_ctrl[i].cap.mask;
+            if(hal.port.wait_on_input(Port_Digital, aux_ctrl[i].port, WaitMode_Immediate, FZERO) == 1)
+                signals.mask |= aux_ctrl[i].cap.mask;
+        }
+    }
+  #endif
+
+#else
+    if(settings.control_invert.mask)
+        signals.value ^= settings.control_invert.mask;
+
+#endif // AUX_CONTROLS_ENABLED
 
     return signals;
 }
+
+#if AUX_CONTROLS_ENABLED
+
+IRAM_ATTR static void aux_irq_handler (uint8_t port, bool state)
+{
+    uint_fast8_t i;
+    control_signals_t signals = {0};
+
+    for(i = 0; i < AuxCtrl_NumEntries; i++) {
+        if(aux_ctrl[i].port == port) {
+            if(!aux_ctrl[i].debouncing) {
+#if SAFETY_DOOR_ENABLE
+                if(i == AuxCtrl_SafetyDoor) {
+                    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+                    if((aux_ctrl[i].debouncing = door_pin->active = (xTimerStartFromISR(debounceTimer, &xHigherPriorityTaskWoken) == pdPASS)))
+                        break;
+                }
+#endif
+                signals.mask |= aux_ctrl[i].cap.mask;
+                if(aux_ctrl[i].irq_mode == IRQ_Mode_Change)
+                    signals.deasserted = hal.port.wait_on_input(Port_Digital, aux_ctrl[i].port, WaitMode_Immediate, FZERO) == 0;
+            }
+            break;
+        }
+    }
+
+    if(signals.mask) {
+        if(!signals.deasserted) {
+            fpu_hack = true;
+            signals.mask |= systemGetState().mask;
+        }
+        hal.control.interrupt_callback(signals);
+        fpu_hack = false;
+    }
+}
+
+static bool aux_attach (xbar_t *properties, aux_ctrl_t *aux_ctrl)
+{
+    bool ok;
+    uint_fast8_t i = sizeof(inputpin) / sizeof(input_signal_t);
+
+    do {
+        i--;
+        if((ok = inputpin[i].pin == properties->pin)) {
+            inputpin[i].aux_ctrl = aux_ctrl;
+            break;
+        }
+    } while(i);
+
+    return ok;
+}
+
+static bool aux_claim (xbar_t *properties, uint8_t port, void *data)
+{
+    bool ok;
+
+    ((aux_ctrl_t *)data)->port = port;
+
+    if((ok = ioport_claim(Port_Digital, Port_Input, &((aux_ctrl_t *)data)->port, xbar_fn_to_pinname(((aux_ctrl_t *)data)->function))))
+        aux_attach(properties, (aux_ctrl_t *)data);
+
+    return ok;
+}
+
+#if AUX_CONTROLS_XMAP
+
+static bool aux_claim_explicit (aux_ctrl_t *aux_ctrl)
+{
+    if((aux_ctrl->enabled = aux_ctrl->port != 0xFF && ioport_claim(Port_Digital, Port_Input, &aux_ctrl->port, xbar_fn_to_pinname(aux_ctrl->function)))) {
+        hal.signals_cap.mask |= aux_ctrl->cap.mask;
+        aux_attach(hal.port.get_pin_info(Port_Digital, Port_Input, aux_ctrl->port), aux_ctrl);
+    } else
+        aux_ctrl->port = 0xFF;
+
+    return aux_ctrl->enabled;
+}
+
+#endif
+
+#endif // AUX_CONTROLS_ENABLED
 
 #ifdef PROBE_PIN
 
@@ -1855,6 +1993,10 @@ void debounceTimerCallback (TimerHandle_t xTimer)
             inputpin[i].active = false; //gpio_get_level(inputpin[i].pin) == (inputpin[i].invert ? 0 : 1);
             grp |= inputpin[i].group;
         }
+#if SAFETY_DOOR_ENABLE
+        if(&inputpin[i] == door_pin)
+            aux_ctrl[AuxCtrl_SafetyDoor].debouncing = Off;
+#endif
     } while(i);
 
     if(grp & (PinGroup_Limit|PinGroup_LimitMax)) {
@@ -1933,6 +2075,7 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
          *********************/
 
 #if USE_I2S_OUT
+
         i2s_delay_length = (uint32_t)settings->steppers.pulse_delay_microseconds;
         i2s_step_length = (uint32_t)settings->steppers.pulse_microseconds;
 
@@ -1948,6 +2091,9 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
 
         i2s_delay_samples = i2s_delay_length / I2S_OUT_USEC_PER_PULSE; // round up?
         i2s_step_samples = i2s_step_length / I2S_OUT_USEC_PER_PULSE; // round up?
+
+//        hal.max_step_rate = 250000UL / (i2s_delay_samples + i2s_step_samples);
+
 #else
         initRMT(settings);
 #endif
@@ -2106,6 +2252,16 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
                 signal->active = signal->debounce && gpio_get_level(signal->pin) == (signal->invert ? 0 : 1);
             }
         } while(i);
+
+#if AUX_CONTROLS_ENABLED
+        for(i = 0; i < AuxCtrl_NumEntries; i++) {
+            if(aux_ctrl[i].enabled && aux_ctrl[i].irq_mode != IRQ_Mode_None) {
+                if(aux_ctrl[i].irq_mode & (IRQ_Mode_Falling|IRQ_Mode_Rising))
+                    aux_ctrl[i].irq_mode = (settings->control_invert.mask & aux_ctrl[i].cap.mask) ? IRQ_Mode_Falling : IRQ_Mode_Rising;
+                hal.port.register_interrupt_handler(aux_ctrl[i].port, aux_ctrl[i].irq_mode, aux_irq_handler);
+            }
+        }
+#endif
     }
 }
 
@@ -2218,15 +2374,20 @@ static char *sdcard_mount (FATFS **fs)
             .intr_flags      = ESP_INTR_FLAG_IRAM
         };
 
-#if PIN_NUM_CLK == GPIO_NUM_14
-        if(spi_bus_initialize(SPI2_HOST, &bus_config, 1) != ESP_OK)
-            return NULL;
-#elif PIN_NUM_CLK == GPIO_NUM_18
-        if(spi_bus_initialize(SPI3_HOST, &bus_config, 1) != ESP_OK)
+#if GRBL_ESP32S3
+        if(spi_bus_initialize(SDSPI_DEFAULT_HOST, &bus_config, SPI_DMA_CH_AUTO) != ESP_OK)
             return NULL;
 #else
+  #if PIN_NUM_CLK == GPIO_NUM_14
+        if(spi_bus_initialize(SPI2_HOST, &bus_config, 1) != ESP_OK) // 1 = SPI_DMA_CH1
+            return NULL;
+  #elif PIN_NUM_CLK == GPIO_NUM_18
+        if(spi_bus_initialize(SPI3_HOST, &bus_config, 1) != ESP_OK)
+            return NULL;
+  #else
         if(spi_bus_initialize(SDSPI_DEFAULT_HOST, &bus_config, 1) != ESP_OK)
             return NULL;
+  #endif
 #endif
 
         bus_ok = true;
@@ -2297,6 +2458,11 @@ static bool driver_setup (settings_t *settings)
     timer_set_counter_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 0ULL);
     timer_isr_register(STEP_TIMER_GROUP, STEP_TIMER_INDEX, stepper_driver_isr, 0, ESP_INTR_FLAG_IRAM, NULL);
     timer_enable_intr(STEP_TIMER_GROUP, STEP_TIMER_INDEX);
+
+#if USE_I2S_OUT
+    i2s_out_init();
+    i2s_out_set_pulse_callback(hal.stepper.interrupt_callback);
+#endif
 
     /********************
      *  Output signals  *
@@ -2505,14 +2671,14 @@ bool driver_init (void)
 {
     // Enable EEPROM and serial port here for Grbl to be able to configure itself and report any errors
 
-    rtc_cpu_freq_config_t cpu;
     rtc_clk_cpu_freq_get_config(&cpu);
+
 #if GRBL_ESP32S3
     hal.info = "ESP32-S3";
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "231218";
+    hal.driver_version = "240110";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2545,8 +2711,6 @@ bool driver_init (void)
     hal.stepper.enable = stepperEnable;
     hal.stepper.cycles_per_tick = I2S_stepperCyclesPerTick;
     hal.stepper.pulse_start = I2S_stepperPulseStart;
-    i2s_out_init();
-    i2s_out_set_pulse_callback(hal.stepper.interrupt_callback);
 #endif
     hal.stepper.motor_iterator = motor_iterator;
 #ifdef GANGING_ENABLED
@@ -2613,11 +2777,6 @@ bool driver_init (void)
         hal.nvs.type = NVS_None;
 #endif
 
-#ifdef DEBUGOUT
-
-    hal.debug_out = debug_out;
-#endif
-
 #if DRIVER_SPINDLE_ENABLE
 
  #if DRIVER_SPINDLE_PWM_ENABLE
@@ -2680,8 +2839,9 @@ bool driver_init (void)
     hal.driver_cap.control_pull_up = On;
     hal.driver_cap.limits_pull_up = On;
     hal.driver_cap.probe_pull_up = On;
-#ifdef SAFETY_DOOR_PIN
-    hal.signals_cap.safety_door_ajar = On;
+#if ESTOP_ENABLE
+    hal.signals_cap.e_stop = On;
+    hal.signals_cap.reset = Off;
 #endif
     hal.limits_cap = get_limits_cap();
     hal.home_cap = get_home_cap();
@@ -2696,9 +2856,24 @@ bool driver_init (void)
         if(input->group == PinGroup_AuxInput) {
             if(aux_inputs.pins.inputs == NULL)
                 aux_inputs.pins.inputs = input;
+            input->id = (pin_function_t)(Input_Aux0 + aux_inputs.n_pins++);
             input->cap.pull_mode = PullMode_UpDown;
             input->cap.irq_mode = IRQ_Mode_Edges;
-            aux_inputs.n_pins++;
+#if SAFETY_DOOR_ENABLE
+            if(input->pin == SAFETY_DOOR_PIN && input->cap.irq_mode != IRQ_Mode_None) {
+                door_pin = input;
+                door_pin->debounce = On;
+                aux_ctrl[AuxCtrl_SafetyDoor].port = aux_inputs.n_pins - 1;
+            }
+#endif
+#if MOTOR_FAULT_ENABLE
+            if(input->pin == MOTOR_FAULT_PIN && input->cap.irq_mode != IRQ_Mode_None)
+                aux_ctrl[AuxCtrl_MotorFault].port = aux_inputs.n_pins - 1;
+#endif
+#if MOTOR_WARNING_ENABLE
+            if(input->pin == MOTOR_WARNING_PIN && input->cap.irq_mode != IRQ_Mode_None)
+                aux_ctrl[AuxCtrl_MotorWarning].port = aux_inputs.n_pins - 1;
+#endif
         }
     }
 
@@ -2713,20 +2888,47 @@ bool driver_init (void)
 
     ioports_init(&aux_inputs, &aux_outputs);
 
+#if SAFETY_DOOR_ENABLE
+    aux_claim_explicit(&aux_ctrl[AuxCtrl_SafetyDoor]);
+#elif defined(SAFETY_DOOR_PIN)
+    hal.signals_cap.safety_door_ajar = On;
+#endif
+
+#if MOTOR_FAULT_ENABLE
+    aux_claim_explicit(&aux_ctrl[AuxCtrl_MotorFault]);
+#elif defined(MOTOR_FAULT_PIN)
+    hal.signals_cap.motor_fault = On;
+#endif
+
+#if MOTOR_WARNING_ENABLE
+    aux_claim_explicit(&aux_ctrl[AuxCtrl_MotorWarning]);
+#elif defined(MOTOR_WARNING_PIN)
+    hal.signals_cap.motor_warning = On;
+#endif
+
+#if AUX_CONTROLS_ENABLED
+    for(i = AuxCtrl_ProbeDisconnect; i < AuxCtrl_NumEntries; i++) {
+        if(aux_ctrl[i].enabled) {
+            if((aux_ctrl[i].enabled = ioports_enumerate(Port_Digital, Port_Input, (pin_mode_t){ .irq_mode = aux_ctrl[i].irq_mode }, true, aux_claim, (void *)&aux_ctrl[i])))
+                hal.signals_cap.mask |= aux_ctrl[i].cap.mask;
+        }
+    }
+#endif
+
 #ifdef HAS_BOARD_INIT
     board_init();
 #endif
 
 #if MPG_MODE == 1
   #if KEYPAD_ENABLE == 2
-    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), true, keypad_enqueue_keycode)))
+    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), MPG_STREAM_DUPLEX, keypad_enqueue_keycode)))
         protocol_enqueue_rt_command(modeEnable);
   #else
-    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), true, NULL)))
+    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), MPG_STREAM_DUPLEX, NULL)))
         protocol_enqueue_rt_command(modeEnable);
   #endif
 #elif MPG_MODE == 2
-    hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), true, keypad_enqueue_keycode);
+    hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), 0, keypad_enqueue_keycode);
 #elif KEYPAD_ENABLE == 2
     stream_open_instance(KEYPAD_STREAM, 115200, keypad_enqueue_keycode);
 #endif

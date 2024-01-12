@@ -171,6 +171,7 @@ typedef enum  {
     PASSTHROUGH = 0,  // Static I2S mode.The i2s_out_write() reflected with very little delay
     STEPPING,         // Streaming step data.
     WAITING,          // Waiting for the step DMA completion
+    STOPPED,          // ESP32-S: no output
 } i2s_out_pulser_status_t;
 
 i2s_out_pulser_status_t i2s_out_get_pulser_status (void);

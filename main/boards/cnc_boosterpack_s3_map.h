@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c)2023 Terje Io
+  Copyright (c)2023-2024 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -81,6 +81,8 @@
 #define SPINDLE_ENABLE_PIN      IOEXPAND
 #endif
 
+#define AUXINPUT1_PIN           GPIO_NUM_34
+
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PIN       IOEXPAND
 #define COOLANT_MIST_PIN        IOEXPAND
@@ -90,7 +92,7 @@
 #define FEED_HOLD_PIN           GPIO_NUM_39
 #define CYCLE_START_PIN         GPIO_NUM_36
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN         GPIO_NUM_34
+#define SAFETY_DOOR_PIN         AUXINPUT1_PIN
 #endif
 
 // Define probe switch input pin.
@@ -105,7 +107,7 @@
 #if MODBUS_ENABLE & MODBUS_RTU_ENABLED
 #define UART2_RX_PIN            GPIO_NUM_33
 #define UART2_TX_PIN            GPIO_NUM_25
-#if RS485_DIR_ENABLE
+#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_25
 #endif
 #endif

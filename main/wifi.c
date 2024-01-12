@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2023 Terje Io
+  Copyright (c) 2018-2024 Terje Io
 
   Some parts of the code is based on example code by Espressif, in the public domain
 
@@ -50,6 +50,11 @@
 #include "grbl/nvs_buffer.h"
 #include "grbl/protocol.h"
 
+typedef struct {
+    grbl_wifi_mode_t mode;
+    wifi_sta_settings_t sta;
+    wifi_ap_settings_t ap;
+} wifi_settings_t;
 
 /* The event group allows multiple bits for each event,
    but we only care about one event - are we connected
@@ -121,7 +126,7 @@ void wifi_release_aplist (void)
 
 char *iptoa (void *ip)
 {
-    static char aip[INET6_ADDRSTRLEN];
+    static char aip[INET6_ADDRSTRLEN + 20]; // + 20 due to compiler issue?
 
     inet_ntop(AF_INET, ip, aip, INET6_ADDRSTRLEN);
 
@@ -402,7 +407,7 @@ static void msg_ap_disconnected (sys_state_t state)
 
 static void msg_sta_active (sys_state_t state)
 {
-    char buf[50];
+    char buf[50 + 45]; // + 45 due to compiler issue?
 
     sprintf(buf, "[MSG:WIFI STA ACTIVE, IP=%s]" ASCII_EOL, iptoa(&ap_list.ip_addr));
 
@@ -606,12 +611,11 @@ static bool init_adapter (esp_netif_t *netif, network_settings_t *settings)
     return network.ip_mode == IpMode_DHCP;
 }
 
-static wifi_mode_t settingToMode(grbl_wifi_mode_t mode)
+static wifi_mode_t settingToMode (grbl_wifi_mode_t mode)
 {
     return mode == WiFiMode_AP ? WIFI_MODE_AP :
            mode == WiFiMode_STA ? WIFI_MODE_STA :
-           mode == WiFiMode_APSTA ? WIFI_MODE_APSTA :
-           WIFI_MODE_NULL;
+           mode == WiFiMode_APSTA ? WIFI_MODE_APSTA : WIFI_MODE_NULL;
 }
 
 bool wifi_start (void)

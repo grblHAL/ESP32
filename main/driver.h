@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2023 Terje Io
+  Copyright (c) 2018-2024 Terje Io
   Copyright (c) 2011-2015 Sungeun K. Jeon
   Copyright (c) 2009-2011 Simen Svale Skogsrud
 
@@ -27,63 +27,10 @@
 #define __DRIVER_H__
 
 #ifndef OVERRIDE_MY_MACHINE
-//
-// Set options from my_machine.h
-//
 #include "my_machine.h"
-
-#if WEBUI_ENABLE
-#error "WebUI is not available in this setup!"
-#endif
-//
-#else
-//
-// Process options from CMakeLists.txt
-//
-
-#if WIFI_ENABLE || ETHERNET_ENABLE
-
-//#define TELNET_ENABLE           1
-//#define WEBSOCKET_ENABLE        1
-//#define NETWORK_TELNET_PORT     23
-//#define NETWORK_FTP_PORT        21
-//#define NETWORK_HTTP_PORT       80
-//#define NETWORK_WEBSOCKET_PORT  81
-
-// Ethernet settings
-//#define NETWORK_HOSTNAME        "grblHAL"
-//#define NETWORK_IPMODE          1 // 0 = static, 1 = DHCP, 2 = AutoIP
-//#define NETWORK_IP              "192.168.5.1"
-//#define NETWORK_GATEWAY         "192.168.5.1"
-//#define NETWORK_MASK            "255.255.255.0"
-
-// WiFi Station (STA) settings
-//#define NETWORK_STA_HOSTNAME    "grblHAL"
-//#define NETWORK_STA_IPMODE      1 // 0 = static, 1 = DHCP, 2 = AutoIP
-//#define NETWORK_STA_IP          "192.168.5.1"
-//#define NETWORK_STA_GATEWAY     "192.168.5.1"
-//#define NETWORK_STA_MASK        "255.255.255.0"
-
-// WiFi Access Point (AP) settings
-#if WIFI_SOFTAP
-//#define NETWORK_AP_HOSTNAME     "grblHAL_AP"
-//#define NETWORK_AP_IP           "192.168.5.1"
-//#define NETWORK_AP_GATEWAY      "192.168.5.1"
-//#define NETWORK_AP_MASK         "255.255.255.0"
-//#define NETWORK_AP_SSID         "grblHAL_AP"
-//#define NETWORK_AP_PASSWORD     "grblHALpwd" // Minimum 8 characters, or blank for open
-#define WIFI_MODE WiFiMode_AP; // OPTION: WiFiMode_APSTA
-#else
-#define WIFI_MODE WiFiMode_STA; // Do not change!
 #endif
 
-#endif // WIFI_ENABLE || ETHERNET_ENABLE
-
-#ifndef RS485_DIR_ENABLE
-#define RS485_DIR_ENABLE 0
-#endif
-
-#endif // CMakeLists options
+#include "grbl/driver_opts.h"
 
 #include "soc/rtc.h"
 #include "driver/gpio.h"
@@ -98,7 +45,6 @@
 #include "freertos/semphr.h"
 
 #include "grbl/hal.h"
-#include "grbl/driver_opts.h"
 
 #if WIFI_ENABLE && NETWORK_STA_IPMODE == 0 && WIFI_SOFTAP
 #error "Cannot use static IP for station when soft AP is enabled!"
@@ -121,11 +67,22 @@
 
 #define IOEXPAND 0xFF   // Dummy pin number for I2C IO expander
 
+static const DRAM_ATTR float FZERO = 0.0f;
+
 // end configuration
 
 #if !(WIFI_ENABLE || ETHERNET_ENABLE) && (HTTP_ENABLE || TELNET_ENABLE || WEBSOCKET_ENABLE || FTP_ENABLE)
 #error "Networking protocols requires networking enabled!"
 #endif
+
+#if WIFI_ENABLE
+// WiFi Access Point (AP) settings
+#if WIFI_SOFTAP
+#define WIFI_MODE WiFiMode_AP; // OPTION: WiFiMode_APSTA
+#else
+#define WIFI_MODE WiFiMode_STA; // Do not change!
+#endif
+#endif // WIFI_ENABLE
 
 // End configuration
 
@@ -136,14 +93,6 @@
 #include "motors/trinamic.h"
 #include "trinamic/common.h"
 #endif
-
-// TODO: move to wifi.c!
-typedef struct
-{
-    grbl_wifi_mode_t mode;
-    wifi_sta_settings_t sta;
-    wifi_ap_settings_t ap;
-} wifi_settings_t;
 
 typedef struct {
     uint8_t action;
@@ -232,6 +181,12 @@ extern SemaphoreHandle_t i2cBusy;
 #define SP1 0
 #endif
 
+#ifdef UART3_RX_PIN
+#define SP2 1
+#else
+#define SP2 0
+#endif
+
 #if MODBUS_ENABLE & MODBUS_RTU_ENABLED
 #define MODBUS_TEST 1
 #else
@@ -256,9 +211,9 @@ extern SemaphoreHandle_t i2cBusy;
 #define KEYPAD_TEST 0
 #endif
 
-#if (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST) > (SP0 + SP1)
+#if (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST + (DEBUGOUT ? 1 : 0)) > (SP0 + SP1 + SP2)
 #error "Too many options that requires a serial port are enabled!"
-#elif (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST)
+#elif (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST + DEBUGOUT)
 #define SERIAL2_ENABLE 1
 #else
 #define SERIAL2_ENABLE 0
@@ -266,10 +221,29 @@ extern SemaphoreHandle_t i2cBusy;
 
 #undef SP0
 #undef SP1
+#undef SP2
 #undef MODBUS_TEST
 #undef KEYPAD_TEST
 #undef MPG_TEST
 #undef TRINAMIC_TEST
+
+#if MPG_ENABLE
+#if MPG_STREAM == 0
+#define MPG_STREAM_DUPLEX 1
+#elif MPG_STREAM == 1
+#ifdef UART2_TX_PIN
+#define MPG_STREAM_DUPLEX 1
+#else
+#define MPG_STREAM_DUPLEX 0
+#endif
+#elif MPG_STREAM == 2
+#ifdef UART3_TX_PIN
+#define MPG_STREAM_DUPLEX 1
+#else
+#define MPG_STREAM_DUPLEX 0
+#endif
+#endif
+#endif
 
 #if MPG_MODE == 1
   #ifndef MPG_ENABLE_PIN
@@ -310,11 +284,12 @@ typedef struct {
     uint32_t mask;
     uint8_t offset;
     bool invert;
+    volatile bool active;
+    volatile bool debounce;
     pin_irq_mode_t irq_mode;
     pin_mode_t cap;
     ioport_interrupt_callback_ptr interrupt_callback;
-    volatile bool active;
-    volatile bool debounce;
+    aux_ctrl_t *aux_ctrl;
     const char *description;
 } input_signal_t;
 

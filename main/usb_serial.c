@@ -79,15 +79,17 @@ static void usb_out_chars (const char *buf, int length)
     }
 }
 
+/*
 static int32_t usb_in_chars (char *buf, uint32_t length)
 {
     uint32_t count = 0;
 
-    if (usb_connected() && tud_cdc_available())
-            count = tud_cdc_read(buf, length);
+    if(usb_connected() && tud_cdc_available())
+        count = tud_cdc_read(buf, length);
 
     return count ? count : -1;
 }
+*/
 
 //
 // Returns number of characters in USB input buffer
@@ -307,47 +309,4 @@ const io_stream_t *usb_serialInit (void)
     txbuf.max_length = (txbuf.max_length > BLOCK_TX_BUFFER_SIZE ? BLOCK_TX_BUFFER_SIZE : txbuf.max_length) - 20;
 
     return &stream;
-}
-
-//
-// This function get called from the foreground process,
-// used here to get characters off the USB serial input stream and buffer
-// them for processing by grbl. Real time command characters are stripped out
-// and submitted for realtime processing.
-//
-static void execute_realtime (uint_fast16_t state)
-{
-    static volatile bool lock = false;
-    static char tmpbuf[BLOCK_RX_BUFFER_SIZE];
-
-    if(lock)
-        return;
-
-    char c, *dp;
-    int32_t avail, free;
- 
-    lock = true;
- 
-    if(usb_connected() && (avail = (int32_t)tud_cdc_available())) {
-
-        dp = tmpbuf;
-        free = (int32_t)usb_serialRxFree();
-        free = free > BLOCK_RX_BUFFER_SIZE ? BLOCK_RX_BUFFER_SIZE : free;
-        avail = usb_in_chars(tmpbuf, (uint32_t)(avail > free ? free : avail));
-
-        if(avail > 0) while(avail--) {
-            c = *dp++;
-            if(!enqueue_realtime_command(c)) {
-                uint_fast16_t next_head = BUFNEXT(rxbuf.head, rxbuf);   // Get next head pointer
-                if(next_head == rxbuf.tail)                             // If buffer full
-                    rxbuf.overflow = On;                                // flag overflow,
-                else {
-                    rxbuf.data[rxbuf.head] = c;                         // else add character data to buffer
-                    rxbuf.head = next_head;                             // and update pointer
-                }
-            }
-        }
-    }
-
-    lock = false;
 }

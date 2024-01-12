@@ -103,14 +103,13 @@
 #define COOLANT_FLOOD_PIN   GPIO_NUM_21 // coolant
 //#define COOLANT_MIST_PIN  GPIO_NUM_21 // or mist
 
+#define AUXINPUT0_PIN       GPIO_NUM_0 // Mode button on front panel
+#define AUXINPUT1_PIN       GPIO_NUM_16
+
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 #if SAFETY_DOOR_ENABLE
-  #define SAFETY_DOOR_PIN   GPIO_NUM_16
-#else
-  #define AUXINPUT1_PIN     GPIO_NUM_16
+  #define SAFETY_DOOR_PIN   AUXINPUT1_PIN
 #endif
-
-#define AUXINPUT0_PIN       GPIO_NUM_0 // Mode button on front panel
 
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.

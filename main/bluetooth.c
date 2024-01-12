@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2023 Terje Io
+  Copyright (c) 2018-2024 Terje Io
 
   Some parts of the code is based on example code by Espressif, in the public domain
 
@@ -23,6 +23,10 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "driver.h"
+
+#if BLUETOOTH_ENABLE == 1
+
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
@@ -39,7 +43,6 @@
 #include "esp_bt_device.h"
 #include "esp_spp_api.h"
 
-#include "driver.h"
 #include "bluetooth.h"
 #include "grbl/grbl.h"
 #include "grbl/report.h"
@@ -624,8 +627,6 @@ bool bluetooth_disable_local (void)
 
     return true;
 }
-
-#if BLUETOOTH_ENABLE
 
 static const setting_group_detail_t bluetooth_groups [] = {
     { Group_Root, Group_Bluetooth, "Bluetooth"},
