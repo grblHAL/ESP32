@@ -38,7 +38,7 @@
 #include "driver/ledc.h"
 #include "driver/rmt.h"
 #include "driver/i2c.h"
-#include "hal/gpio_types.h"
+#include "hal/gpio_ll.h"
 #include "esp_log.h"
 
 #include "freertos/queue.h"
@@ -136,6 +136,8 @@ typedef struct {
   #include "boards/cnc3040_map.h"
 #elif defined(BOARD_MY_MACHINE)
   #include "boards/my_machine_map.h"
+#elif defined(BOARD_GENERIC_I2S_S3)
+  #include "boards/generic_i2s_s3_map.h"
 #else // default board - NOTE: NOT FINAL VERSION!
   #warning "Compiling for generic board!"
   #include "boards/generic_map.h"
@@ -261,12 +263,12 @@ extern SemaphoreHandle_t i2cBusy;
 #ifdef USE_I2S_OUT
 #undef USE_I2S_OUT
 #define USE_I2S_OUT 1
-#define DIGITAL_IN(pin) i2s_out_state(pin - I2S_OUT_PIN_BASE)
-#define DIGITAL_OUT(pin, state) i2s_out_write(pin - I2S_OUT_PIN_BASE, state)
+#define DIGITAL_IN(pin) (pin >= I2S_OUT_PIN_BASE ? i2s_out_state(pin - I2S_OUT_PIN_BASE) : gpio_ll_get_level(&GPIO, pin))
+#define DIGITAL_OUT(pin, state) { if(pin >= I2S_OUT_PIN_BASE) i2s_out_write(pin - I2S_OUT_PIN_BASE, state); else gpio_ll_set_level(&GPIO, pin, state); }
 #else
 #define USE_I2S_OUT 0
-#define DIGITAL_IN(pin) gpio_get_level(pin)
-#define DIGITAL_OUT(pin, state) gpio_set_level(pin, state)
+#define DIGITAL_IN(pin) gpio_ll_get_level(&GPIO, pin)
+#define DIGITAL_OUT(pin, state) gpio_ll_set_level(&GPIO, pin, state)
 #endif
 
 typedef enum

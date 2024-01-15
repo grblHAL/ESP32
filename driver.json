@@ -60,6 +60,14 @@
         "fram": 0,
         "i2c": 0,
         "sdcard": 1
+      },
+      "symbols": {
+        "DEFAULT_LIMIT_SIGNALS_INVERT_MASK": "N_AXIS",
+        "DEFAULT_PROBE_SIGNAL_INVERT": 1,
+        "DEFAULT_ENABLE_SIGNALS_INVERT_MASK": 0,
+        "DEFAULT_STEPPER_IDLE_LOCK_TIME": 255,
+        "MIN_FEED_RATE_OVERRIDE": 1,
+        "MAX_FEED_RATE_OVERRIDE": 999
       }
     },
     {

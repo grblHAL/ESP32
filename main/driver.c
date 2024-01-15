@@ -30,6 +30,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 #include <sys/time.h>
 
 #include "./driver.h"
@@ -37,7 +38,6 @@
 #include "nvs.h"
 #include "esp_log.h"
 #include "sdkconfig.h"
-#include "esp32s3/clk.h"
 #include "esp_ota_ops.h"
 #include "soc/rtc.h"
 #include "driver/gpio.h"
@@ -56,6 +56,7 @@
 #include "grbl/pin_bits_masks.h"
 
 #if GRBL_ESP32S3
+#include "esp32s3/clk.h"
 #include "usb_serial.h"
 #endif
 
@@ -394,7 +395,6 @@ static output_signal_t outputpin[] = {
 };
 
 static bool IOInitDone = false, rtc_started = false;
-static rtc_cpu_freq_config_t cpu;
 static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED, debounce_mux = portMUX_INITIALIZER_UNLOCKED;
 #if PROBE_ENABLE
 static probe_state_t probe = {
@@ -589,20 +589,19 @@ IRAM_ATTR static void driver_delay_ms (uint32_t ms, void (*callback)(void))
     }
 }
 
-
-static inline void delay_us (uint32_t us)
+IRAM_ATTR static void delay_us (uint32_t us)
 {
 #if GRBL_ESP32S3
-    int32_t t = XTHAL_GET_CCOUNT() + 240 * us; // TODO: use cpu.freq_mhz?
+    int32_t t = XTHAL_GET_CCOUNT() + hal.f_mcu * us;
 
     while((XTHAL_GET_CCOUNT() - t) < 0) {
-//        __asm__ __volatile__ ("nop");  // spin here until time to output step
+        __asm__ __volatile__ ("nop");
     }
 #else
     uint64_t start_time = esp_timer_get_time();
 
     while (esp_timer_get_time() - start_time < us) {
-        __asm__ __volatile__ ("nop");  // spin here until time to output step
+        __asm__ __volatile__ ("nop");
     }
 #endif
 }
@@ -620,74 +619,34 @@ static void stepperEnable (axes_signals_t enable)
     ioexpand_out(iopins);
   #else
     #if defined(STEPPERS_ENABLE_PIN)
-      #if STEPPERS_ENABLE_PIN >= I2S_OUT_PIN_BASE
         DIGITAL_OUT(STEPPERS_ENABLE_PIN, enable.x);
-      #else
-        gpio_set_level(STEPPERS_ENABLE_PIN, enable.x);
-      #endif
     #else
       #ifdef X_ENABLE_PIN
-        #if X_ENABLE_PIN >= I2S_OUT_PIN_BASE
             DIGITAL_OUT(X_ENABLE_PIN, enable.x);
-        #else
-            gpio_set_level(X_ENABLE_PIN, enable.x);
-        #endif
       #endif
       #ifdef Y_ENABLE_PIN
-        #if Y_ENABLE_PIN >= I2S_OUT_PIN_BASE
             DIGITAL_OUT(Y_ENABLE_PIN, enable.y);
-        #else
-            gpio_set_level(Y_ENABLE_PIN, enable.y);
-        #endif
       #endif
       #ifdef Z_ENABLE_PIN
-        #if Z_ENABLE_PIN >= I2S_OUT_PIN_BASE
             DIGITAL_OUT(Z_ENABLE_PIN, enable.z);
-        #else
-            gpio_set_level(Z_ENABLE_PIN, enable.z);
-        #endif
       #endif
       #ifdef A_ENABLE_PIN
-        #if A_ENABLE_PIN >= I2S_OUT_PIN_BASE
             DIGITAL_OUT(A_ENABLE_PIN, enable.a);
-        #else
-            gpio_set_level(A_ENABLE_PIN, enable.a);
-        #endif
       #endif
       #ifdef B_ENABLE_PIN
-        #if B_ENABLE_PIN >= I2S_OUT_PIN_BASE
             DIGITAL_OUT(B_ENABLE_PIN, enable.b);
-        #else
-            gpio_set_level(B_ENABLE_PIN, enable.b);
-        #endif
       #endif
       #ifdef C_ENABLE_PIN
-        #if C_ENABLE_PIN >= I2S_OUT_PIN_BASE
             DIGITAL_OUT(C_ENABLE_PIN, enable.c);
-        #else
-            gpio_set_level(C_ENABLE_PIN, enable.c);
-        #endif
       #endif
       #ifdef X2_ENABLE_PIN
-        #if X2_ENABLE_PIN >= I2S_OUT_PIN_BASE
             DIGITAL_OUT(X2_ENABLE_PIN, enable.x);
-        #else
-            gpio_set_level(X2_ENABLE_PIN, enable.x);
-        #endif
       #endif
       #ifdef Y2_ENABLE_PIN
-        #if Y2_ENABLE_PIN >= I2S_OUT_PIN_BASE
             DIGITAL_OUT(Y2_ENABLE_PIN, enable.y);
-        #else
-            gpio_set_level(Y2_ENABLE_PIN, enable.y);
-        #endif
       #endif
       #ifdef Z2_ENABLE_PIN
-        #if Z2_ENABLE_PIN >= I2S_OUT_PIN_BASE
             DIGITAL_OUT(Z2_ENABLE_PIN, enable.z);
-        #else
-            gpio_set_level(Z2_ENABLE_PIN, enable.z);
-        #endif
       #endif
     #endif
   #endif
@@ -741,66 +700,30 @@ IRAM_ATTR static void stepperCyclesPerTick (uint32_t cycles_per_tick)
 inline IRAM_ATTR static void set_dir_outputs (axes_signals_t dir_outbits)
 {
     dir_outbits.value ^= settings.steppers.dir_invert.mask;
-#if X_DIRECTION_PIN >= I2S_OUT_PIN_BASE
+
     DIGITAL_OUT(X_DIRECTION_PIN, dir_outbits.x);
-#else
-    gpio_set_level(X_DIRECTION_PIN, dir_outbits.x);
-#endif
-#if Y_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(Y_DIRECTION_PIN, dir_outbits.y);
-#else
-    gpio_set_level(Y_DIRECTION_PIN, dir_outbits.y);
-#endif
-#ifdef Z_DIRECTION_PIN
-  #if Z_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(Z_DIRECTION_PIN, dir_outbits.z);
-  #else
-    gpio_set_level(Z_DIRECTION_PIN, dir_outbits.z);
-  #endif
-#endif
+
 #ifdef A_AXIS
-  #if A_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(A_DIRECTION_PIN, dir_outbits.a);
-  #else
-    gpio_set_level(A_DIRECTION_PIN, dir_outbits.a);
-  #endif
 #endif
 #ifdef B_AXIS
-  #if B_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(B_DIRECTION_PIN, dir_outbits.b);
-  #else
-    gpio_set_level(B_DIRECTION_PIN, dir_outbits.b);
-  #endif
 #endif
 #ifdef C_AXIS
-  #if C_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(C_DIRECTION_PIN, dir_outbits.c);
-  #else
-    gpio_set_level(C_DIRECTION_PIN, dir_outbits.c);
-  #endif
 #endif
 #ifdef GANGING_ENABLED
     dir_outbits.mask ^= settings.steppers.ganged_dir_invert.mask;
   #ifdef X2_DIRECTION_PIN
-   #if X2_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(X2_DIRECTION_PIN, dir_outbits.x);
-   #else
-    gpio_set_level(X2_DIRECTION_PIN, dir_outbits.x);
-   #endif
   #endif
   #ifdef Y2_DIRECTION_PIN
-   #if Y2_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(Y2_DIRECTION_PIN, dir_outbits.y);
-   #else
-    gpio_set_level(Y2_DIRECTION_PIN, dir_outbits.y);
-   #endif
   #endif
   #ifdef Z2_DIRECTION_PIN
-   #if Z2_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(Z2_DIRECTION_PIN, dir_outbits.z);
-   #else
-    gpio_set_level(Z2_DIRECTION_PIN, dir_outbits.z);
-   #endif
   #endif
 #endif
 }
@@ -813,6 +736,7 @@ IRAM_ATTR static void I2S_stepperCyclesPerTick (uint32_t cycles_per_tick)
 }
 
 // Sets stepper direction and pulse pins and starts a step pulse
+// Called when in I2S stepping mode
 IRAM_ATTR static void I2S_stepperPulseStart (stepper_t *stepper)
 {
     if(stepper->dir_change) {
@@ -1265,6 +1189,37 @@ static axes_signals_t getGangedAxes (bool auto_squared)
 #endif // GANGING_ENABLED
 
 // Sets stepper direction and pulse pins and starts a step pulse
+// Called when in I2S passthrough mode
+
+#if GRBL_ESP32S3
+
+IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
+{
+#if USE_I2S_OUT
+    static bool add_dir_delay = false;
+#endif
+
+    if(stepper->dir_change) {
+        set_dir_outputs(stepper->dir_outbits);
+#if USE_I2S_OUT
+        if(!(add_dir_delay = !!stepper->step_outbits.value))
+            i2s_out_commit(0, i2s_delay_samples);
+#endif
+    }
+
+    if(stepper->step_outbits.value) {
+#if USE_I2S_OUT
+        i2s_set_step_outputs(stepper->step_outbits);
+        i2s_out_commit(i2s_step_samples, add_dir_delay ? i2s_delay_samples : 0);
+        add_dir_delay = false;
+#else
+        set_step_outputs(stepper->step_outbits);
+#endif
+    }
+}
+
+#else
+
 IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
 {
     if(stepper->dir_change) {
@@ -1285,6 +1240,8 @@ IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
 #endif
     }
 }
+
+#endif
 
 // Disables stepper driver interrupt
 IRAM_ATTR static void stepperGoIdle (bool clear_signals)
@@ -1416,32 +1373,32 @@ inline IRAM_ATTR static limit_signals_t limitsGetState (void)
     signals.min2.mask = settings.limits.invert.mask;
 #endif
 #ifdef X_LIMIT_PIN
-    signals.min.x = gpio_get_level(X_LIMIT_PIN);
+    signals.min.x = DIGITAL_IN(X_LIMIT_PIN);
 #endif
 #ifdef Y_LIMIT_PIN
-    signals.min.y = gpio_get_level(Y_LIMIT_PIN);
+    signals.min.y = DIGITAL_IN(Y_LIMIT_PIN);
 #endif
 #ifdef Z_LIMIT_PIN
-    signals.min.z = gpio_get_level(Z_LIMIT_PIN);
+    signals.min.z = DIGITAL_IN(Z_LIMIT_PIN);
 #endif
 #ifdef A_LIMIT_PIN
-    signals.min.a = gpio_get_level(A_LIMIT_PIN);
+    signals.min.a = DIGITAL_IN(A_LIMIT_PIN);
 #endif
 #ifdef B_LIMIT_PIN
-    signals.min.b = gpio_get_level(B_LIMIT_PIN);
+    signals.min.b = DIGITAL_IN(B_LIMIT_PIN);
 #endif
 #ifdef C_LIMIT_PIN
-    signals.min.c = gpio_get_level(C_LIMIT_PIN);
+    signals.min.c = DIGITAL_IN(C_LIMIT_PIN);
 #endif
 
 #ifdef X2_LIMIT_PIN
-    signals.min2.x = gpio_get_level(X2_LIMIT_PIN);
+    signals.min2.x = DIGITAL_IN(X2_LIMIT_PIN);
 #endif
 #ifdef Y2_LIMIT_PIN
-    signals.min2.y = gpio_get_level(Y2_LIMIT_PIN);
+    signals.min2.y = DIGITAL_IN(Y2_LIMIT_PIN);
 #endif
 #ifdef Z2_LIMIT_PIN
-    signals.min2.z = gpio_get_level(Z2_LIMIT_PIN);
+    signals.min2.z = DIGITAL_IN(Z2_LIMIT_PIN);
 #endif
 
     if (settings.limits.invert.value) {
@@ -1466,19 +1423,19 @@ inline IRAM_ATTR static control_signals_t systemGetState (void)
 
 #ifdef RESET_PIN
 #if ESTOP_ENABLE
-    signals.estop = gpio_get_level(RESET_PIN);
+    signals.estop = DIGITAL_IN(RESET_PIN);
 #else
-    signals.reset = gpio_get_level(RESET_PIN);
+    signals.reset = DIGITAL_IN(RESET_PIN);
 #endif
 #endif
 #ifdef FEED_HOLD_PIN
-    signals.feed_hold = gpio_get_level(FEED_HOLD_PIN);
+    signals.feed_hold = DIGITAL_IN(FEED_HOLD_PIN);
 #endif
 #ifdef CYCLE_START_PIN
-    signals.cycle_start = gpio_get_level(CYCLE_START_PIN);
+    signals.cycle_start = DIGITAL_IN(CYCLE_START_PIN);
 #endif
 #if SAFETY_DOOR_BIT
-    signals.safety_door_ajar = gpio_get_level(SAFETY_DOOR_PIN);
+    signals.safety_door_ajar = DIGITAL_IN(SAFETY_DOOR_PIN);
 #endif
 
 #if AUX_CONTROLS_ENABLED
@@ -1629,10 +1586,10 @@ static probe_state_t probeGetState (void)
 
 #if PROBE_ISR
     // TODO: verify!
-    inputpin[INPUT_PROBE].active = inputpin[INPUT_PROBE].active || ((uint8_t)gpio_get_level(PROBE_PIN) ^ probe.inverted);
+    inputpin[INPUT_PROBE].active = inputpin[INPUT_PROBE].active || ((uint8_t)DIGITAL_IN(PROBE_PIN) ^ probe.inverted);
     state.triggered = inputpin[INPUT_PROBE].active;
 #else
-    state.triggered = (uint8_t)gpio_get_level(PROBE_PIN) ^ probe.inverted;
+    state.triggered = (uint8_t)DIGITAL_IN(PROBE_PIN) ^ probe.inverted;
 #endif
 
     return state;
@@ -1649,11 +1606,7 @@ IRAM_ATTR inline static void spindle_off (void)
     iopins.spindle_on = settings.spindle.invert.on ? On : Off;
     ioexpand_out(iopins);
 #elif defined(SPINDLE_ENABLE_PIN)
-  #if SPINDLE_ENABLE_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(SPINDLE_ENABLE_PIN, settings.spindle.invert.on ? 1 : 0);
-  #else
-    gpio_set_level(SPINDLE_ENABLE_PIN, settings.spindle.invert.on ? 1 : 0);
-  #endif
 #endif
 }
 
@@ -1670,11 +1623,7 @@ IRAM_ATTR inline static void spindle_on (void)
     iopins.spindle_on = settings.spindle.invert.on ? Off : On;
     ioexpand_out(iopins);
 #elif defined(SPINDLE_ENABLE_PIN)
-  #if SPINDLE_ENABLE_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(SPINDLE_ENABLE_PIN, settings.spindle.invert.on ? 0 : 1);
-  #else
-    gpio_set_level(SPINDLE_ENABLE_PIN, settings.spindle.invert.on ? 0 : 1);
-  #endif
 #endif
 }
 
@@ -1684,11 +1633,7 @@ IRAM_ATTR inline static void spindle_dir (bool ccw)
     iopins.spindle_dir = (ccw ^ settings.spindle.invert.ccw) ? On : Off;
     ioexpand_out(iopins);
 #elif defined(SPINDLE_DIRECTION_PIN)
-  #if SPINDLE_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(SPINDLE_DIRECTION_PIN, (ccw ^ settings.spindle.invert.ccw) ? 1 : 0);
-  #else
-    gpio_set_level(SPINDLE_DIRECTION_PIN, (ccw ^ settings.spindle.invert.ccw) ? 1 : 0);
-  #endif
 #endif
 }
 
@@ -1845,18 +1790,10 @@ static spindle_state_t spindleGetState (spindle_ptrs_t *spindle)
     state.ccw = iopins.spindle_dir;
 #else
  #if defined(SPINDLE_ENABLE_PIN)
-  #if SPINDLE_ENABLE_PIN >= I2S_OUT_PIN_BASE
     state.on = DIGITAL_IN(SPINDLE_ENABLE_PIN) != 0;
-  #else
-    state.on = gpio_get_level(SPINDLE_ENABLE_PIN) != 0;
-  #endif
  #endif
  #if defined(SPINDLE_DIRECTION_PIN)
-  #if SPINDLE_DIRECTION_PIN >= I2S_OUT_PIN_BASE
     state.ccw = DIGITAL_IN(SPINDLE_DIRECTION_PIN) != 0;
-  #else
-    state.ccw = gpio_get_level(SPINDLE_DIRECTION_PIN) != 0;
-  #endif
  #endif
 #endif
     state.value ^= settings.spindle.invert.mask;
@@ -1882,18 +1819,10 @@ IRAM_ATTR static void coolantSetState (coolant_state_t mode)
     ioexpand_out(iopins);
 #else
  #ifdef COOLANT_FLOOD_PIN
-  #if COOLANT_FLOOD_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(COOLANT_FLOOD_PIN, mode.flood ? 1 : 0);
-  #else
-    gpio_set_level(COOLANT_FLOOD_PIN, mode.flood ? 1 : 0);
-  #endif
  #endif
  #ifdef COOLANT_MIST_PIN
-  #if COOLANT_MIST_PIN >= I2S_OUT_PIN_BASE
     DIGITAL_OUT(COOLANT_MIST_PIN, mode.mist ? 1 : 0);
-  #else
-    gpio_set_level(COOLANT_MIST_PIN, mode.mist ? 1 : 0);
-  #endif
  #endif
 #endif
 }
@@ -1908,18 +1837,10 @@ static coolant_state_t coolantGetState (void)
     state.mist = iopins.mist_on;
 #else
  #ifdef COOLANT_FLOOD_PIN
-  #if COOLANT_FLOOD_PIN >= I2S_OUT_PIN_BASE
-    DIGITAL_IN(COOLANT_FLOOD_PIN);
-  #else
-    state.flood = gpio_get_level(COOLANT_FLOOD_PIN);
-  #endif
+    state.flood = DIGITAL_IN(COOLANT_FLOOD_PIN);
  #endif
  #ifdef COOLANT_MIST_PIN
-  #if COOLANT_MIST_PIN >= I2S_OUT_PIN_BASE
     state.mist = DIGITAL_IN(COOLANT_MIST_PIN);
-  #else
-    state.mist = gpio_get_level(COOLANT_MIST_PIN);
-  #endif
  #endif
 #endif
 
@@ -1973,12 +1894,12 @@ static inline uint64_t getElapsedMicros (void)
 
 static void modeChange(sys_state_t state)
 {
-    stream_mpg_enable(!gpio_get_level(MPG_ENABLE_PIN));
+    stream_mpg_enable(!DIGITAL_IN(MPG_ENABLE_PIN));
 }
 
 static void modeEnable (sys_state_t state)
 {
-    if(sys.mpg_mode == gpio_get_level(MPG_ENABLE_PIN))
+    if(sys.mpg_mode == DIGITAL_IN(MPG_ENABLE_PIN))
         stream_mpg_enable(true);
 }
 
@@ -1990,7 +1911,7 @@ void debounceTimerCallback (TimerHandle_t xTimer)
     do {
         i--;
         if(inputpin[i].debounce && inputpin[i].active) {
-            inputpin[i].active = false; //gpio_get_level(inputpin[i].pin) == (inputpin[i].invert ? 0 : 1);
+            inputpin[i].active = false; //DIGITAL_IN(inputpin[i].pin) == (inputpin[i].invert ? 0 : 1);
             grp |= inputpin[i].group;
         }
 #if SAFETY_DOOR_ENABLE
@@ -2076,21 +1997,24 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
 
 #if USE_I2S_OUT
 
-        i2s_delay_length = (uint32_t)settings->steppers.pulse_delay_microseconds;
-        i2s_step_length = (uint32_t)settings->steppers.pulse_microseconds;
+        i2s_delay_length = (uint32_t)ceilf(settings->steppers.pulse_delay_microseconds);
+        i2s_step_length = (uint32_t)ceilf(settings->steppers.pulse_microseconds);
 
-        if(i2s_delay_length < I2S_OUT_USEC_PER_PULSE)
-            i2s_delay_length = I2S_OUT_USEC_PER_PULSE;
-        else if(i2s_delay_length > 10)
-            i2s_delay_length = 10;
+        if(i2s_delay_length % I2S_OUT_USEC_PER_PULSE)
+            i2s_delay_length += I2S_OUT_USEC_PER_PULSE - i2s_delay_length % I2S_OUT_USEC_PER_PULSE;
 
-        if(i2s_step_length < I2S_OUT_USEC_PER_PULSE)
-            i2s_step_length = I2S_OUT_USEC_PER_PULSE;
-        else if(i2s_step_length > 20)
-            i2s_step_length = 20;
+        i2s_delay_length = min(max(i2s_delay_length, I2S_OUT_USEC_PER_PULSE), I2S_OUT_USEC_PER_PULSE * 2);
 
-        i2s_delay_samples = i2s_delay_length / I2S_OUT_USEC_PER_PULSE; // round up?
-        i2s_step_samples = i2s_step_length / I2S_OUT_USEC_PER_PULSE; // round up?
+        if(i2s_step_length % I2S_OUT_USEC_PER_PULSE)
+            i2s_step_length += I2S_OUT_USEC_PER_PULSE - i2s_step_length % I2S_OUT_USEC_PER_PULSE;
+
+        i2s_step_length = min(max(i2s_step_length, I2S_OUT_USEC_PER_PULSE), I2S_OUT_USEC_PER_PULSE * 4);
+
+        i2s_delay_samples = i2s_delay_length / I2S_OUT_USEC_PER_PULSE;
+        i2s_step_samples = i2s_step_length / I2S_OUT_USEC_PER_PULSE;
+
+        debug_writeln(uitoa(i2s_delay_length));
+        debug_writeln(uitoa(i2s_step_length));
 
 //        hal.max_step_rate = 250000UL / (i2s_delay_samples + i2s_step_samples);
 
@@ -2238,8 +2162,14 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
 
                 config.pin_bit_mask = 1ULL << signal->pin;
                 config.mode = GPIO_MODE_INPUT;
+#if GRBL_ESP32S3
+                config.pull_up_en = pullup ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
+                config.pull_down_en = pullup ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE;
+                // Early versions(?) has an internal pullup on 45 - https://github.com/espressif/esp-idf/issues/9731
+#else
                 config.pull_up_en = pullup && signal->pin < 34 ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
                 config.pull_down_en = pullup || signal->pin >= 34 ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE;
+#endif
                 config.intr_type = (signal->group & (PinGroup_Limit|PinGroup_LimitMax)) ? GPIO_INTR_DISABLE : map_intr_type(signal->irq_mode);
 
                 signal->offset = config.pin_bit_mask > (1ULL << 31) ? 1 : 0;
@@ -2249,7 +2179,7 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
 
                 gpio_config(&config);
 
-                signal->active = signal->debounce && gpio_get_level(signal->pin) == (signal->invert ? 0 : 1);
+                signal->active = signal->debounce && DIGITAL_IN(signal->pin) == (signal->invert ? 0 : 1);
             }
         } while(i);
 
@@ -2406,7 +2336,9 @@ static char *sdcard_mount (FATFS **fs)
         };
 
         sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-//        host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
+#if GRBL_ESP32S3
+        host.max_freq_khz = 10000; // higher corrupts the card... Still incredible fast: ~35 Kb/sec vs. ~1.5 Mb/sec for the Teensy4 via FTP - 20 times faster! /sarc
+#endif
 
         sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
         slot_config.gpio_cs = PIN_NUM_CS;
@@ -2429,6 +2361,83 @@ static char *sdcard_mount (FATFS **fs)
     }
 
     return "";
+}
+
+#endif
+
+#ifdef NEOPIXELS_PIN
+
+//    https://github.com/adafruit/Adafruit_NeoPixel/blob/master/esp.c
+
+#ifndef NEOPIXELS_NUM
+#define NEOPIXELS_NUM 1
+#endif
+
+static rmt_config_t neo_config = RMT_DEFAULT_CONFIG_TX(NEOPIXELS_PIN, 3); // TODO: sort out channel allocation
+
+#define WS2812_T0H_NS (450)
+#define WS2812_T0L_NS (850)
+#define WS2812_T1H_NS (800)
+#define WS2812_T1L_NS (450)
+/*
+#define WS2812_T0H_NS (350)
+#define WS2812_T0L_NS (1000)
+#define WS2812_T1H_NS (1000)
+#define WS2812_T1L_NS (350)
+
+#define WS2812_T0H_NS (500)
+#define WS2812_T0L_NS (2000)
+#define WS2812_T1H_NS (1200)
+#define WS2812_T1L_NS (1300)
+*/
+static uint32_t t0h_ticks = 0, t1h_ticks = 0, t0l_ticks = 0, t1l_ticks = 0;
+
+static void IRAM_ATTR ws2812_rmt_adapter (const void *src, rmt_item32_t *dest, size_t src_size,
+                                           size_t wanted_num, size_t *translated_size, size_t *item_num)
+{
+    if (src == NULL || dest == NULL) {
+        *translated_size = 0;
+        *item_num = 0;
+        return;
+    }
+    const rmt_item32_t bit0 = {{{ t0h_ticks, 1, t0l_ticks, 0 }}}; //Logical 0
+    const rmt_item32_t bit1 = {{{ t1h_ticks, 1, t1l_ticks, 0 }}}; //Logical 1
+    size_t size = 0;
+    size_t num = 0;
+    uint8_t *psrc = (uint8_t *)src;
+    rmt_item32_t *pdest = dest;
+    while (size < src_size && num < wanted_num) {
+        for (int i = 0; i < 8; i++) {
+            // MSB first
+            if (*psrc & (1 << (7 - i))) {
+                pdest->val =  bit1.val;
+            } else {
+                pdest->val =  bit0.val;
+            }
+            num++;
+            pdest++;
+        }
+        size++;
+        psrc++;
+    }
+    *translated_size = size;
+    *item_num = num;
+}
+
+static void rgb_out (uint8_t device, rgb_color_t color)
+{
+    static uint8_t pixels[NEOPIXELS_NUM * 3] = {0};
+
+    if(device < NEOPIXELS_NUM) {
+
+        device *= 3;
+        pixels[device++] = color.G;
+        pixels[device++] = color.R;
+        pixels[device] = color.B;
+
+        rmt_write_sample(neo_config.channel, pixels, sizeof(pixels), true);
+//??        rmt_wait_tx_done(neo_config.channel, pdMS_TO_TICKS(100));
+    }
 }
 
 #endif
@@ -2460,8 +2469,14 @@ static bool driver_setup (settings_t *settings)
     timer_enable_intr(STEP_TIMER_GROUP, STEP_TIMER_INDEX);
 
 #if USE_I2S_OUT
-    i2s_out_init();
-    i2s_out_set_pulse_callback(hal.stepper.interrupt_callback);
+    if(i2s_out_init()) {
+#if GRBL_ESP32S3
+        i2s_set_step_outputs((axes_signals_t){ .mask = AXES_BITMASK });
+        i2s_set_step_mask();
+#endif
+        i2s_out_set_pulse_callback(hal.stepper.interrupt_callback);
+    }
+    // else report?
 #endif
 
     /********************
@@ -2508,9 +2523,9 @@ static bool driver_setup (settings_t *settings)
 #if USE_I2S_OUT
             if(outputpin[idx].mode == Pin_I2S)
                 DIGITAL_OUT(outputpin[idx].pin, 1);
-            else
+//            else
 #endif
-            gpio_set_level(outputpin[idx].pin, 1);
+            DIGITAL_OUT(outputpin[idx].pin, 1);
         }
     } while(idx);
 
@@ -2523,7 +2538,7 @@ static bool driver_setup (settings_t *settings)
     // Set as output low (until boot is complete)
     gpioConfig.pin_bit_mask = (1ULL << MPG_ENABLE_PIN);
     gpio_config(&gpioConfig);
-    gpio_set_level(MPG_ENABLE_PIN, 0);
+    DIGITAL_OUT(MPG_ENABLE_PIN, 0);
 
 #endif
 
@@ -2625,6 +2640,9 @@ static bool driver_setup (settings_t *settings)
     enet_start();
 #endif
 
+//    if(hal.rgb.out)
+//        hal.rgb.out(0, (rgb_color_t){ .R = 5, .G = 100, .B = 5 });
+
     return IOInitDone;
 }
 
@@ -2670,6 +2688,7 @@ static void wdt_tickler (sys_state_t state)
 bool driver_init (void)
 {
     // Enable EEPROM and serial port here for Grbl to be able to configure itself and report any errors
+    rtc_cpu_freq_config_t cpu;
 
     rtc_clk_cpu_freq_get_config(&cpu);
 
@@ -2678,7 +2697,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240110";
+    hal.driver_version = "240114";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2915,6 +2934,33 @@ bool driver_init (void)
     }
 #endif
 
+#ifdef NEOPIXELS_PIN
+
+    neo_config.clk_div = 2;
+
+    rmt_config(&neo_config);
+    rmt_driver_install(neo_config.channel, 0, 0);
+
+    uint32_t counter_clk_hz = 0;
+
+    rmt_get_counter_clock(neo_config.channel, &counter_clk_hz);
+
+    // NS to tick converter
+    float ratio = (float)counter_clk_hz / 1e9;
+
+    t0h_ticks = (uint32_t)(ratio * WS2812_T0H_NS);
+    t0l_ticks = (uint32_t)(ratio * WS2812_T0L_NS);
+    t1h_ticks = (uint32_t)(ratio * WS2812_T1H_NS);
+    t1l_ticks = (uint32_t)(ratio * WS2812_T1L_NS);
+
+    // Initialize automatic timing translator
+    rmt_translator_init(neo_config.channel, ws2812_rmt_adapter);
+
+    hal.rgb.out = rgb_out;
+    hal.rgb.num_devices = NEOPIXELS_NUM;
+
+#endif
+
 #ifdef HAS_BOARD_INIT
     board_init();
 #endif
@@ -3012,7 +3058,7 @@ IRAM_ATTR static void gpio_mpg_isr (void *signal)
 IRAM_ATTR static void gpio_i2c_strobe_isr (void *signal)
 {
     if(i2c_strobe.callback)
-        i2c_strobe.callback(0, gpio_get_level(I2C_STROBE_PIN));
+        i2c_strobe.callback(0, DIGITAL_IN(I2C_STROBE_PIN));
 }
 #endif
 
@@ -3069,7 +3115,7 @@ IRAM_ATTR static void gpio_isr (void *arg)
 
 #if I2C_STROBE_ENABLE
     if((grp & PinGroup_Keypad) && i2c_strobe.callback)
-        i2c_strobe.callback(0, gpio_get_level(I2C_STROBE_PIN));
+        i2c_strobe.callback(0, DIGITAL_IN(I2C_STROBE_PIN));
 #endif
 }
 

@@ -109,6 +109,9 @@ typedef struct {
 */
 bool i2s_out_init (void);
 
+void i2s_set_step_mask (void);
+
+
 /*
   Get a bit state from the internal pin state var.
   pin: expanded pin No. (0..31)
@@ -121,6 +124,9 @@ bool i2s_out_state (uint8_t pin);
    val: bit value(0 or not 0)
 */
 void i2s_out_write(uint8_t pin, uint8_t val);
+
+
+void i2s_out_commit (uint8_t pulse, uint8_t delay);
 
 /*
     Set current pin state to the I2S bitstream buffer

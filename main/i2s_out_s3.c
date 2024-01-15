@@ -3,10 +3,12 @@
 
     Part of Grbl_ESP32 and grblHAL
 
-    Basic GPIO expander using the ESP32 I2S peripheral (output)
+    Basic GPIO expander using the ESP32 I2S peripheral (output), adapted from the ESP32 version.
 
-    2020    - Michiyasu Odaki
-    2024    - Terje Io
+    NOTE: SR register bit31 (or bit15) cannot be used.
+
+    Copyright (c) 2020 - Michiyasu Odaki
+    Copyright (c) 2024 - Terje Io
 
     Grbl_ESP32 is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,7 +46,7 @@
  *
  */
 
-// !!! Work in progress, not yet functional !!!
+// !!! Work in progress, not yet functional - but getting close !!!
 
 #include "driver.h"
 
@@ -91,6 +93,7 @@
 #define I2S_SAMPLE_SIZE 4                                       /* 4 bytes, 32 bits per sample */
 #define DMA_SAMPLE_COUNT (I2S_OUT_DMABUF_LEN / I2S_SAMPLE_SIZE) /* number of samples per buffer */
 #define SAMPLE_SAFE_COUNT (20 / I2S_OUT_USEC_PER_PULSE)         /* prevent buffer overrun (GRBL's $0 should be less than or equal 20) */
+#define DMA_SAMPLE_COUNT_PASSTROUGH 12
 #ifndef I2S_OUT_INIT_VAL
 #define I2S_OUT_INIT_VAL 0
 #endif
@@ -102,6 +105,7 @@ typedef struct {
     uint32_t *current;
     uint32_t rw_pos;
     dma_descriptor_t **desc;
+    dma_descriptor_t *idle, *idle_next;
     int32_t channel;
     intr_handle_t intr_handle;
 #if !I2S_LOCAL_QUEUE
@@ -112,6 +116,7 @@ typedef struct {
 typedef struct {
     bool initialized;
     atomic_uint_least32_t port_data; // output value
+    uint32_t step_mask;
     volatile uint32_t pulse_period;
     uint32_t remain_time_until_next_pulse;  // Time remaining until the next pulse (usec)
     gpio_num_t ws_pin;
@@ -131,8 +136,6 @@ typedef struct {
 
 static const DRAM_ATTR uint32_t i2s_tx_int_flags = GDMA_LL_EVENT_TX_DONE|GDMA_LL_EVENT_TX_TOTAL_EOF;
 
-static uint32_t pd = 0;
-
 #if I2S_LOCAL_QUEUE
 static i2s_dma_queue_t dma_queue = {0};
 static on_execute_realtime_ptr on_execute_realtime, on_execute_delay;
@@ -145,7 +148,8 @@ static i2s_sr_t i2s_sr = {
     .pulser_status = STOPPED,
     .port_data = ATOMIC_VAR_INIT(0),
     .spinlock = portMUX_INITIALIZER_UNLOCKED,
-    .pulser_spinlock = portMUX_INITIALIZER_UNLOCKED
+    .pulser_spinlock = portMUX_INITIALIZER_UNLOCKED,
+    .dma.idle = NULL
 };
 
 // inner lock
@@ -202,6 +206,7 @@ static inline void gpio_matrix_out_check (uint8_t gpio, uint32_t signal_idx, boo
     }
 }
 
+/*
 static inline void i2s_out_single_data (void)
 {
 #if I2S_OUT_NUM_BITS == 16
@@ -212,7 +217,7 @@ static inline void i2s_out_single_data (void)
     I2S0.conf_single_data = atomic_load(&i2s_sr.port_data);  // Apply port data in real-time (static I2S)
 #endif
 }
-
+*/
 static inline void IRAM_ATTR i2s_clear_dma_buffer (dma_descriptor_t *dma_desc, uint32_t port_data)
 {
     uint32_t *buf = (uint32_t *)dma_desc->buffer, i = DMA_SAMPLE_COUNT;
@@ -250,7 +255,7 @@ static void IRAM_ATTR i2s_out_gpio_attach (uint8_t ws, uint8_t bck, uint8_t data
     gpio_matrix_out_check(bck, I2S0O_BCK_OUT_IDX, false, false);
     gpio_matrix_out_check(ws, I2S0O_WS_OUT_IDX, false, false);
 }
-
+/*
 static void IRAM_ATTR i2s_out_gpio_detach (uint8_t ws, uint8_t bck, uint8_t data)
 {
     // Route the i2s pins to the appropriate GPIO
@@ -258,7 +263,7 @@ static void IRAM_ATTR i2s_out_gpio_detach (uint8_t ws, uint8_t bck, uint8_t data
     gpio_matrix_out_check(bck, I2S_OUT_DETACH_PORT_IDX, false, false);
     gpio_matrix_out_check(data, I2S_OUT_DETACH_PORT_IDX, false, false);
 }
-
+*/
 static void IRAM_ATTR i2s_out_gpio_shiftout (uint32_t port_data)
 {
     uint32_t i = I2S_OUT_NUM_BITS;
@@ -276,6 +281,7 @@ static void IRAM_ATTR i2s_out_gpio_shiftout (uint32_t port_data)
     gpio_set_level(i2s_sr.ws_pin, 0);
 }
 
+/*
 static void IRAM_ATTR i2s_out_stop (void)
 {
     hal.stream.write("stop" ASCII_EOL);
@@ -317,20 +323,31 @@ static void IRAM_ATTR i2s_out_stop (void)
 
     I2S_OUT_EXIT_CRITICAL();
 }
+*/
 
 static bool IRAM_ATTR i2s_out_start (i2s_out_pulser_status_t pulser_status)
 {
-    static dma_descriptor_t pass_dma = {
-        .dw0.owner = 1,
-        .dw0.suc_eof = 0,
-        .dw0.length = sizeof(i2s_sr.port_data),
-        .dw0.size = sizeof(i2s_sr.port_data),
-        .buffer = &pd, // &i2s_sr.port_data,
-        .next = &pass_dma
-    };
+    static uint32_t pass_data[DMA_SAMPLE_COUNT_PASSTROUGH];
+    static dma_descriptor_t pass_dma[DMA_SAMPLE_COUNT_PASSTROUGH];
 
     if(!i2s_sr.initialized)
         return false;
+
+    if(i2s_sr.dma.idle == NULL) {
+
+        uint_fast8_t i = DMA_SAMPLE_COUNT_PASSTROUGH;
+
+        do {
+            pass_dma[--i].dw0.owner = 1;
+            pass_dma[i].dw0.suc_eof = 0;
+            pass_dma[i].dw0.length = pass_dma[i].dw0.size = sizeof(i2s_sr.port_data);
+            pass_dma[i].buffer = &pass_data[i];
+            pass_dma[i].next = &pass_dma[i == 0 || i == (DMA_SAMPLE_COUNT_PASSTROUGH - 1) ? 0 : i + 1];
+        } while(i);
+
+        i2s_sr.dma.idle = &pass_dma[0];
+        i2s_sr.dma.idle_next = &pass_dma[1];
+    }
 
     I2S_OUT_ENTER_CRITICAL();
 
@@ -341,21 +358,21 @@ static bool IRAM_ATTR i2s_out_start (i2s_out_pulser_status_t pulser_status)
         I2S_OUT_EXIT_CRITICAL();
         return true;
     }
-    gpio_set_level(41, 0);
+
+    // Stop DMA and reset I2S FIFO
 
     gdma_ll_tx_stop(&GDMA, i2s_sr.dma.channel);
 
-    //start DMA link
     i2s_ll_tx_reset(&I2S0);
     i2s_ll_tx_reset_fifo(&I2S0);
-//    i2s_out_gpio_attach(i2s_sr.ws_pin, i2s_sr.bck_pin, i2s_sr.data_pin);
 
-    // Transmit recovery data to 74HC595
     uint32_t port_data = atomic_load(&i2s_sr.port_data);  // current expanded port value
+
+// Transmit recovery data to 74HC595
 //    i2s_out_gpio_shiftout(port_data);
 
     if((i2s_sr.pulser_status = pulser_status) == PASSTHROUGH)
-        pd = port_data;
+        *(uint32_t *)i2s_sr.dma.idle->buffer = port_data;
     else {
         i2s_clear_o_dma_buffers(port_data);
 #if I2S_LOCAL_QUEUE
@@ -366,9 +383,7 @@ static bool IRAM_ATTR i2s_out_start (i2s_out_pulser_status_t pulser_status)
     }
 
     gdma_ll_tx_reset_channel(&GDMA, i2s_sr.dma.channel);
-    gdma_ll_tx_set_desc_addr(&GDMA, i2s_sr.dma.channel, (uint32_t)(i2s_sr.pulser_status == PASSTHROUGH ? &pass_dma : i2s_sr.dma.desc[0]));
-//    gdma_ll_tx_connect_to_periph(&GDMA, i2s_sr.dma.channel, GDMA_TRIG_PERIPH_I2S, SOC_GDMA_TRIG_PERIPH_I2S0);
-//    gdma_ll_tx_set_eof_mode(&GDMA, i2s_sr.dma.channel, 0); // Not needed?
+    gdma_ll_tx_set_desc_addr(&GDMA, i2s_sr.dma.channel, (uint32_t)(i2s_sr.pulser_status == PASSTHROUGH ? i2s_sr.dma.idle : i2s_sr.dma.desc[0]));
 //    gdma_ll_tx_enable_data_burst(&GDMA, i2s_sr.dma.channel, true);
 //    gdma_ll_tx_enable_descriptor_burst(&GDMA, i2s_sr.dma.channel, true);
     gdma_ll_tx_clear_interrupt_status(&GDMA, i2s_sr.dma.channel, gdma_ll_tx_get_interrupt_status(&GDMA, i2s_sr.dma.channel));
@@ -379,7 +394,7 @@ static bool IRAM_ATTR i2s_out_start (i2s_out_pulser_status_t pulser_status)
     I2S0.tx_conf.tx_update = 1;
     while (I2S0.tx_conf.tx_update);
 
-//    i2s_ll_tx_start(&I2S0);
+//    i2s_ll_tx_start(&I2S0); // Fails?
     gdma_ll_tx_start(&GDMA, i2s_sr.dma.channel);
 
     I2S0.tx_conf.tx_start = 1;
@@ -390,7 +405,6 @@ static bool IRAM_ATTR i2s_out_start (i2s_out_pulser_status_t pulser_status)
 
     I2S0.tx_conf.tx_stop_en = 1;  // BCK and WCK are suppressed while FIFO is empty - no ll func!
 */
-    gpio_set_level(41, 1);
 
     I2S_OUT_EXIT_CRITICAL();
 
@@ -406,8 +420,6 @@ static void IRAM_ATTR i2s_out_intr_handler (void *arg)
 
     uint32_t irq = gdma_ll_tx_get_interrupt_status(&GDMA, i2s_sr.dma.channel);
 
-//    gpio_set_level(41, 1);
-
     if(irq & i2s_tx_int_flags) {
 
         // Get the descriptor of the last item in the linked list
@@ -422,8 +434,6 @@ static void IRAM_ATTR i2s_out_intr_handler (void *arg)
         // If the queue is full it's because we have an underflow,
         // more than buf_count isr without new data, remove the front buffer
         else if((irq & GDMA_LL_EVENT_TX_DONE) && i2s_sr.pulser_status != PASSTHROUGH) {
-
-//            gpio_set_level(41, 1);
 
             uint32_t port_data = 0;
             dma_descriptor_t *front_desc;
@@ -475,12 +485,10 @@ static void IRAM_ATTR i2s_out_intr_handler (void *arg)
             xQueueSendFromISR(i2s_sr.dma.queue, &finish_desc, &high_priority_task_awoken);
 
 #endif
-//            gpio_set_level(41, 0);
         }
     }
 
     gdma_ll_tx_clear_interrupt_status(&GDMA, i2s_sr.dma.channel, 0xFF);
-//    gpio_set_level(41, 0);
 
     if(high_priority_task_awoken == pdTRUE)
         portYIELD_FROM_ISR();
@@ -690,10 +698,48 @@ void IRAM_ATTR i2s_out_write (uint8_t pin, uint8_t val)
 
     // It needs a lock for access, but I've given up because I need speed.
     // This is not a problem as long as there is no overlap between the status change and digitalWrite().
-//    if(i2s_sr.pulser_status == PASSTHROUGH)
-//        i2s_out_single_data();
+    if(i2s_sr.pulser_status == PASSTHROUGH) {
+        uint32_t data = atomic_load(&i2s_sr.port_data);
 
-    pd = atomic_load(&i2s_sr.port_data);
+        *(uint32_t *)i2s_sr.dma.idle->buffer = data & ~i2s_sr.step_mask;
+    }
+
+//    pd = atomic_load(&i2s_sr.port_data);
+}
+
+void IRAM_ATTR i2s_out_commit (uint8_t pulse, uint8_t delay)
+{
+    dma_descriptor_t *desc;
+
+    I2S_OUT_ENTER_CRITICAL();
+
+    uint32_t data = atomic_load(&i2s_sr.port_data);
+
+    desc = i2s_sr.dma.idle_next;
+
+    if(delay) do {
+        *(uint32_t *)desc->buffer = data & ~i2s_sr.step_mask;
+        desc = desc->next;
+    } while(--delay);
+
+    if(pulse) do {
+        *(uint32_t *)desc->buffer = data;
+        desc = desc->next;
+    } while(--pulse);
+
+    atomic_fetch_and(&i2s_sr.port_data, ~i2s_sr.step_mask);
+    data = atomic_load(&i2s_sr.port_data);
+
+    *(uint32_t *)desc->buffer = data;
+
+    i2s_sr.dma.idle->next = i2s_sr.dma.idle_next; // restore
+    i2s_sr.dma.idle_next = desc->next;
+    i2s_sr.dma.idle = desc;
+    desc->next = desc;
+
+    gdma_ll_tx_restart(&GDMA, i2s_sr.dma.channel);
+
+    I2S_OUT_EXIT_CRITICAL();
 }
 
 bool IRAM_ATTR i2s_out_state (uint8_t pin)
@@ -793,6 +839,17 @@ void IRAM_ATTR i2s_out_reset (void)
     I2S_OUT_PULSER_EXIT_CRITICAL();
 }
 
+void i2s_set_step_mask (void)
+{
+    i2s_sr.initialized = true;
+    i2s_sr.step_mask = atomic_load(&i2s_sr.port_data);
+
+    atomic_fetch_xor(&i2s_sr.port_data, i2s_sr.step_mask);
+
+    // Start the I2S peripheral
+    i2s_out_start(PASSTHROUGH);
+}
+
 // Hack, to be replaced with framework call?
 static int32_t allocate_dma_channel (void)
 {
@@ -812,12 +869,10 @@ static int32_t allocate_dma_channel (void)
 bool IRAM_ATTR i2s_out_init2 (i2s_out_init_t init_param)
 {
     if(i2s_sr.initialized)
-        return false;
+        return true;
 
     if((i2s_sr.dma.channel = allocate_dma_channel()) == -1)
         return false;
-
-    atomic_store(&i2s_sr.port_data, init_param.init_val);
 
     // To make sure hardware is enabled before any hardware register operations.
     periph_module_reset(PERIPH_I2S0_MODULE);
@@ -834,31 +889,6 @@ bool IRAM_ATTR i2s_out_init2 (i2s_out_init_t init_param)
 
     // Route the i2s pins to the appropriate GPIO
     i2s_out_gpio_attach(init_param.ws_pin, init_param.bck_pin, init_param.data_pin);
-
-    /**
-   * Each i2s transfer will take
-   *   fpll = PLL_D2_CLK      -- clka_en = 0
-   *
-   *   fi2s = fpll / N + b/a  -- N + b/a = clkm_div_num
-   *   fi2s = 160MHz / 2
-   *   fi2s = 80MHz
-   *
-   *   fbclk = fi2s / M   -- M = tx_bck_div_num
-   *   fbclk = 80MHz / 2
-   *   fbclk = 40MHz
-   *
-   *   fwclk = fbclk / 32
-   *
-   *   for fwclk = 250kHz(16-bit: 4uS pulse time), 125kHz(32-bit: 8uS pulse time)
-   *      N = 10, b/a = 0
-   *      M = 2
-   *   for fwclk = 500kHz(16-bit: 2uS pulse time), 250kHz(32-bit: 4uS pulse time)
-   *      N = 5, b/a = 0
-   *      M = 2
-   *   for fwclk = 1000kHz(16-bit: 1uS pulse time), 500kHz(32-bit: 2uS pulse time)
-   *      N = 2, b/a = 2/1 (N + b/a = 2.5)
-   *      M = 2
-   */
 
     // Allocate the array of pointers to the buffers
     if((i2s_sr.dma.buffers = (uint32_t **)malloc(sizeof(uint32_t *) * I2S_OUT_DMABUF_COUNT)) == NULL)
@@ -881,6 +911,9 @@ bool IRAM_ATTR i2s_out_init2 (i2s_out_init_t init_param)
     }
 
     // Initialize
+
+    atomic_store(&i2s_sr.port_data, init_param.init_val);
+
     i2s_clear_o_dma_buffers(init_param.init_val);
     i2s_sr.dma.rw_pos  = 0;
     i2s_sr.dma.current = NULL;
@@ -900,39 +933,37 @@ bool IRAM_ATTR i2s_out_init2 (i2s_out_init_t init_param)
     gdma_ll_tx_set_eof_mode(&GDMA, i2s_sr.dma.channel, 0); // Not needed?
 
 #if I2S_OUT_NUM_BITS == 16
+
+    // TODO
     I2S0.fifo_conf.tx_fifo_mod        = 0;   // 0: 16-bit dual channel data, 3: 32-bit single channel data
     I2S0.fifo_conf.rx_fifo_mod        = 0;   // 0: 16-bit dual channel data, 3: 32-bit single channel data
     I2S0.sample_rate_conf.tx_bits_mod = 16;  // default is 16-bits
     I2S0.sample_rate_conf.rx_bits_mod = 16;  // default is 16-bits
 
 #else
-    i2s_ll_tx_enable_pdm(&I2S0, false); // Enables TDM
-    i2s_ll_rx_set_active_chan_mask(&I2S0, 1);
-    i2s_ll_tx_enable_msb_shift(&I2S0, 1);
-    i2s_ll_tx_set_sample_bit(&I2S0, 32, 32); // ?
-    i2s_ll_tx_set_ws_width(&I2S0, 1);
-#endif
 
-    //
-    // i2s_set_clk
-    //
-    i2s_ll_tx_set_ws_idle_pol(&I2S0, 0);
-    i2s_ll_tx_clk_set_src(&I2S0, I2S_CLK_D2CLK); // Set I2S_CLK_D2CLK as default
-    i2s_ll_mclk_use_tx_clk(&I2S0);
-
-#if I2S_OUT_NUM_BITS == 16
-    // N = 10
-    //!     I2S0.clkm_conf.clkm_div_num = 10;  // minimum value of 2, reset value of 4, max 256 (I²S clock divider’s integral value)
-#else
-    // N = 5
-    //!     I2S0.clkm_conf.clkm_div_num = 5;  // minimum value of 2, reset value of 4, max 256 (I²S clock divider’s integral value)
     i2s_ll_mclk_div_t clk_ = {
          .mclk_div = 2,
          .a = 20,
          .b = 17
     };
+
+    i2s_ll_tx_enable_pdm(&I2S0, false); // Enables TDM
+    i2s_ll_rx_set_active_chan_mask(&I2S0, 1);
+    i2s_ll_tx_enable_msb_shift(&I2S0, 0);
+    i2s_ll_tx_set_sample_bit(&I2S0, 32, 32); // ?
+    i2s_ll_tx_set_ws_width(&I2S0, 1);
+ // I2S0.tx_timing.tx_bck_out_dm = 1;
+    I2S0.tx_timing.tx_ws_out_dm = 1;
+
 #endif
 
+    //
+    // i2s_set_clk
+    //
+    i2s_ll_tx_set_ws_idle_pol(&I2S0, 1);
+    i2s_ll_tx_clk_set_src(&I2S0, I2S_CLK_D2CLK); // Set I2S_CLK_D2CLK as default
+    i2s_ll_mclk_use_tx_clk(&I2S0);
     i2s_ll_tx_set_clk(&I2S0, &clk_);
     i2s_ll_tx_enable_clock(&I2S0);
     i2s_ll_tx_reset(&I2S0);
@@ -948,15 +979,9 @@ bool IRAM_ATTR i2s_out_init2 (i2s_out_init_t init_param)
 //    grbl.on_execute_delay = i2s_poll_dly;
 
 #else
+
     // Create the task that will feed the buffer
-    xTaskCreatePinnedToCore(i2sOutTask,
-                            "I2SOutTask",
-                            4096,
-                            NULL,
-                            GRBLHAL_TASK_PRIORITY + 1,
-                            NULL,
-                            GRBLHAL_TASK_CORE  // must run the task on same core
-    );
+    xTaskCreatePinnedToCore(i2sOutTask, "I2SOutTask",4096, NULL, GRBLHAL_TASK_PRIORITY + 1, NULL, GRBLHAL_TASK_CORE);
 
 #endif
 
@@ -964,34 +989,26 @@ bool IRAM_ATTR i2s_out_init2 (i2s_out_init_t init_param)
 
     // Allocate and enable the I2S DMA interrupt
 
-    ret = esp_intr_alloc(gdma_periph_signals.groups[0].pairs[i2s_sr.dma.channel].tx_irq_id, /*ESP_INTR_FLAG_IRAM|ESP_INTR_FLAG_INTRDISABLED*/0, i2s_out_intr_handler, NULL, &i2s_sr.dma.intr_handle);
-/*    esp_intr_alloc_intrstatus(gdma_periph_signals.groups[0].pairs[i2s_sr.dma.channel].tx_irq_id, ESP_INTR_FLAG_INTRDISABLED,
-                                        (uint32_t)gdma_ll_tx_get_interrupt_status_reg(&GDMA, i2s_sr.dma.channel), GDMA_LL_TX_EVENT_MASK,
-                                        i2s_out_intr_handler, NULL, &i2s_sr.dma.intr_handle);*/
-//    esp_intr_enable(i2s_sr.dma.intr_handle);
+    if((ret = esp_intr_alloc(gdma_periph_signals.groups[0].pairs[i2s_sr.dma.channel].tx_irq_id, 0, i2s_out_intr_handler, NULL, &i2s_sr.dma.intr_handle))) {
 
-    // Default pulse callback period (usec)
-    i2s_sr.pulse_period = init_param.pulse_period;
-    i2s_sr.pulse_func   = init_param.pulse_func;
+        // Default pulse callback period (usec)
+        i2s_sr.pulse_period = init_param.pulse_period;
+        i2s_sr.pulse_func   = init_param.pulse_func;
 
-    // Remember GPIO pin numbers
-    i2s_sr.ws_pin      = init_param.ws_pin;
-    i2s_sr.bck_pin     = init_param.bck_pin;
-    i2s_sr.data_pin    = init_param.data_pin;
-    i2s_sr.initialized = true;
+        // Remember GPIO pin numbers
+        i2s_sr.ws_pin   = init_param.ws_pin;
+        i2s_sr.bck_pin  = init_param.bck_pin;
+        i2s_sr.data_pin = init_param.data_pin;
 
-    // Transmit recovery data to 74HC595
-    i2s_out_gpio_shiftout((pd = init_param.init_val));
+        // Transmit recovery data to 74HC595
+        i2s_out_gpio_shiftout(init_param.init_val);
+    }
 
-    // Start the I2S peripheral
-    debug_writeln("hi");
-    return i2s_out_start(PASSTHROUGH);
+    return ret == ESP_OK;
 }
 
 /*
   Initialize I2S out by default parameters.
-
-  return false ... already initialized
 */
 bool IRAM_ATTR i2s_out_init (void)
 {

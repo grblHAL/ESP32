@@ -44,14 +44,14 @@ static void digital_out (uint8_t port, bool on)
 {
     if(port < digital.out.n_ports) {
         port = ioports_map(digital.out, port);
-        gpio_set_level(aux_out[port].pin, ((settings.ioport.invert_out.mask >> port) & 0x01) ? !on : on);
+        DIGITAL_OUT(aux_out[port].pin, ((settings.ioport.invert_out.mask >> port) & 0x01) ? !on : on);
     }
 }
 
 inline static __attribute__((always_inline)) int32_t get_input (const input_signal_t *input, bool invert, wait_mode_t wait_mode, float timeout)
 {
     if(wait_mode == WaitMode_Immediate)
-        return gpio_get_level(input->pin) ^ invert;
+        return DIGITAL_IN(input->pin) ^ invert;
 
     int32_t value = -1;
     uint_fast16_t delay = (uint_fast16_t)ceilf((1000.0f / 50.0f) * timeout) + 1;
@@ -317,7 +317,7 @@ static void on_setting_changed (setting_id_t id)
                 do {
                     port--;
                     if(((settings.ioport.invert_out.mask >> port) & 0x01) != ((invert_digital_out.mask >> port) & 0x01))
-                        gpio_set_level(aux_out[port].pin, !gpio_get_level(aux_out[port].pin));
+                        DIGITAL_OUT(aux_out[port].pin, !DIGITAL_IN(aux_out[port].pin));
                 } while(port);
 
                 invert_digital_out = settings.ioport.invert_out;
@@ -354,7 +354,7 @@ static void on_settings_loaded (void)
 
     if(digital.out.n_ports) do {
         port--;
-        gpio_set_level(aux_out[port].pin, (settings.ioport.invert_out.mask >> port) & 0x01);
+        DIGITAL_OUT(aux_out[port].pin, (settings.ioport.invert_out.mask >> port) & 0x01);
     } while(port);
 
     port = digital.in.n_ports;

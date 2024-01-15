@@ -36,8 +36,9 @@
 //#define BOARD_ROOTCNC_V2          //
 //#define BOARD_ROOTCNC_V3          //
 //#define BOARD_CNC_BOOSTERPACK     //
+#define BOARD_GENERIC_I2S_S3      // Generic map for ESP32-S3 with I2S shift registers for I/O expansion
 //#define BOARD_MY_MACHINE          // Add my_machine_map.h in the boards directory before enabling this!
-
+//#define BOARD_BLOX
 // Configuration
 // Uncomment to enable, for some a value > 1 may be assigned, if so the default value is shown.
 
@@ -59,11 +60,11 @@
 //#define WEBUI_ENABLE            3 // Enable ESP3D-WEBUI plugin along with networking and SD card plugins.
 //#define WEBUI_AUTH_ENABLE       1 // Enable ESP3D-WEBUI authentication.
 //#define WEBUI_INFLASH           1 // Store WebUI files in flash instead of on SD card.
-//#define WIFI_ENABLE             1 //
+#define WIFI_ENABLE             1 //
 //#define WIFI_SOFTAP             1 // Use Soft AP mode for WiFi.
 //#define ETHERNET_ENABLE         1 // Ethernet streaming. Uses networking plugin.
 //#define BLUETOOTH_ENABLE        1 // Set to 1 for native radio, 2 for HC-05 module.
-//#define SDCARD_ENABLE           2 // Run gcode programs from SD card. Set to 2 to enable YModem upload.
+#define SDCARD_ENABLE           1 // Run gcode programs from SD card. Set to 2 to enable YModem upload.
 //#define KEYPAD_ENABLE           1 // I2C keypad for jogging etc., uses keypad plugin.
 //#define PPI_ENABLE              1 // Laser PPI plugin. To be completed.
 //#define LASER_COOLANT_ENABLE    1 // Laser coolant plugin. To be completed.
@@ -109,12 +110,12 @@
 
 #if WIFI_ENABLE || ETHERNET_ENABLE || WEBUI_ENABLE
 #define TELNET_ENABLE         1 // Telnet daemon - requires WiFi streaming enabled.
-#define WEBSOCKET_ENABLE      1 // Websocket daemon - requires WiFi streaming enabled.
+//#define WEBSOCKET_ENABLE      1 // Websocket daemon - requires WiFi streaming enabled.
 //#define MDNS_ENABLE           0 // mDNS daemon. Do NOT enable here, enable in CMakeLists.txt!
 //#define SSDP_ENABLE           1 // SSDP daemon - requires HTTP enabled.
 //#define MQTT_ENABLE           1 // MQTT client API, only enable if needed by plugin code.
 #if SDCARD_ENABLE || WEBUI_ENABLE
-//#define FTP_ENABLE            1 // Ftp daemon - requires SD card enabled.
+#define FTP_ENABLE            1 // Ftp daemon - requires SD card enabled.
 //#define HTTP_ENABLE           1 // http daemon - requires SD card enabled.
 //#define WEBDAV_ENABLE         1 // webdav protocol - requires http daemon and SD card enabled.
 #endif
