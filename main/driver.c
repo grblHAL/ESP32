@@ -55,7 +55,7 @@
 #include "grbl/machine_limits.h"
 #include "grbl/pin_bits_masks.h"
 
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
 #include "esp32s3/clk.h"
 #include "usb_serial.h"
 #endif
@@ -115,7 +115,7 @@ static bool pwmEnabled = false;
 static spindle_pwm_t spindle_pwm;
 
 static ledc_timer_config_t spindle_pwm_timer = {
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
     .speed_mode = LEDC_LOW_SPEED_MODE,
 #else
     .speed_mode = LEDC_HIGH_SPEED_MODE,
@@ -127,7 +127,7 @@ static ledc_timer_config_t spindle_pwm_timer = {
 
 static ledc_channel_config_t spindle_pwm_channel = {
     .gpio_num = SPINDLE_PWM_PIN,
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
     .speed_mode = LEDC_SPEED_MODE_MAX,
 #else
     .speed_mode = LEDC_HIGH_SPEED_MODE,
@@ -247,6 +247,12 @@ static input_signal_t inputpin[] = {
 #endif
 #ifdef AUXINPUT7_PIN
     { .id = Input_Aux7,         .pin = AUXINPUT7_PIN,       .group = PinGroup_AuxInput }
+#endif
+#ifdef AUXINPUT0_ANALOG_PIN
+    { .id = Input_Analog_Aux0,  .pin = AUXINPUT0_ANALOG_PIN, .group = PinGroup_AuxInputAnalog },
+#endif
+#ifdef AUXINPUT1_ANALOG_PIN
+    { .id = Input_Analog_Aux1,  .pin = AUXINPUT1_ANALOG_PIN, .group = PinGroup_AuxInputAnalog }
 #endif
 };
 
@@ -391,6 +397,18 @@ static output_signal_t outputpin[] = {
 #endif
 #ifdef AUXOUTPUT7_PIN
     { .id = Output_Aux7,           .pin = AUXOUTPUT7_PIN,        .group = PinGroup_AuxOutput }
+#endif
+#ifdef AUXOUTPUT0_PWM_PIN
+    { .id = Output_Analog_Aux0,    .pin = AUXOUTPUT0_PWM_PIN,    .group = PinGroup_AuxOutputAnalog, .mode = {PINMODE_PWM} },
+#endif
+#ifdef AUXOUTPUT0_ANALOG_PIN
+    { .id = Output_Analog_Aux0,    .pin = AUXOUTPUT0_ANALOG_PIN, .group = PinGroup_AuxOutputAnalog },
+#endif
+#ifdef AUXOUTPUT1_PWM_PIN
+    { .id = Output_Analog_Aux1,    .pin = AUXOUTPUT1_PWM_PIN,    .group = PinGroup_AuxOutputAnalog, .mode = {PINMODE_PWM} },
+#endif
+#ifdef AUXOUTPUT1_ANALOG_PIN
+    { .id = Output_Analog_Aux1,    .pin = AUXOUTPUT1_ANALOG_PIN, .group = PinGroup_AuxOutputAnalog }
 #endif
 };
 
@@ -589,9 +607,11 @@ IRAM_ATTR static void driver_delay_ms (uint32_t ms, void (*callback)(void))
     }
 }
 
+#if !CONFIG_IDF_TARGET_ESP32S3
+
 IRAM_ATTR static void delay_us (uint32_t us)
 {
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
     int32_t t = XTHAL_GET_CCOUNT() + hal.f_mcu * us;
 
     while((XTHAL_GET_CCOUNT() - t) < 0) {
@@ -605,6 +625,8 @@ IRAM_ATTR static void delay_us (uint32_t us)
     }
 #endif
 }
+
+#endif
 
 // Enable/disable steppers
 static void stepperEnable (axes_signals_t enable)
@@ -661,7 +683,7 @@ static void stepperWakeUp (void)
 
     timer_set_counter_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 0x00000000ULL);
 //  timer_set_alarm_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 5000ULL);
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
     TIMERG0.hw_timer[STEP_TIMER_INDEX].alarmhi.val = 0;
     TIMERG0.hw_timer[STEP_TIMER_INDEX].alarmlo.val = hal.f_step_timer / 500; // ~2ms delay to allow drivers time to wake up.
 #else
@@ -669,7 +691,7 @@ static void stepperWakeUp (void)
     TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = hal.f_step_timer / 500; // ~2ms delay to allow drivers time to wake up.
 #endif
     timer_start(STEP_TIMER_GROUP, STEP_TIMER_INDEX);
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.tn_alarm_en = TIMER_ALARM_EN;
 #else
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.alarm_en = TIMER_ALARM_EN;
@@ -680,7 +702,7 @@ static void stepperWakeUp (void)
 IRAM_ATTR static void stepperCyclesPerTick (uint32_t cycles_per_tick)
 {
 // Limit min steps/s to about 2 (hal.f_step_timer @ 20MHz)
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
   #ifdef ADAPTIVE_MULTI_AXIS_STEP_SMOOTHING
     TIMERG0.hw_timer[STEP_TIMER_INDEX].alarmlo.val = cycles_per_tick < (1UL << 18) ? cycles_per_tick : (1UL << 18) - 1UL;
   #else
@@ -703,8 +725,9 @@ inline IRAM_ATTR static void set_dir_outputs (axes_signals_t dir_outbits)
 
     DIGITAL_OUT(X_DIRECTION_PIN, dir_outbits.x);
     DIGITAL_OUT(Y_DIRECTION_PIN, dir_outbits.y);
+#ifdef Z_DIRECTION_PIN
     DIGITAL_OUT(Z_DIRECTION_PIN, dir_outbits.z);
-
+#endif
 #ifdef A_AXIS
     DIGITAL_OUT(A_DIRECTION_PIN, dir_outbits.a);
 #endif
@@ -1191,7 +1214,7 @@ static axes_signals_t getGangedAxes (bool auto_squared)
 // Sets stepper direction and pulse pins and starts a step pulse
 // Called when in I2S passthrough mode
 
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
 
 IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
 {
@@ -1246,7 +1269,7 @@ IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
 // Disables stepper driver interrupt
 IRAM_ATTR static void stepperGoIdle (bool clear_signals)
 {
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.tn_en = 0;
 #else
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.enable = 0;
@@ -1294,7 +1317,7 @@ IRAM_ATTR static void I2S_stepperGoIdle (bool clear_signals)
 
 static void i2s_set_streaming_mode (bool stream)
 {
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.tn_en = 0;
 #else
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.enable = 0;
@@ -1355,7 +1378,7 @@ static void limitsEnable (bool on, axes_signals_t homing_cycle)
                 pin = xbar_fn_to_axismask(inputpin[i].id);
                 disable = inputpin[i].group == PinGroup_Limit ? (pin.mask & homing_source.min.mask) : (pin.mask & homing_source.max.mask);
             }
-            gpio_set_intr_type(inputpin[i].pin, on ? map_intr_type(inputpin[i].irq_mode) : GPIO_INTR_DISABLE);
+            gpio_set_intr_type(inputpin[i].pin, on ? map_intr_type(inputpin[i].mode.irq_mode) : GPIO_INTR_DISABLE);
             if(disable)
                 gpio_intr_disable(inputpin[i].pin);
             else
@@ -1369,6 +1392,8 @@ static void limitsEnable (bool on, axes_signals_t homing_cycle)
 inline IRAM_ATTR static limit_signals_t limitsGetState (void)
 {
     limit_signals_t signals = {0};
+
+    signals.min.mask = settings.limits.invert.mask;
 #ifdef DUAL_LIMIT_SWITCHES
     signals.min2.mask = settings.limits.invert.mask;
 #endif
@@ -1401,7 +1426,7 @@ inline IRAM_ATTR static limit_signals_t limitsGetState (void)
     signals.min2.z = DIGITAL_IN(Z2_LIMIT_PIN);
 #endif
 
-    if (settings.limits.invert.value) {
+    if(settings.limits.invert.mask) {
         signals.min.value ^= settings.limits.invert.mask;
 #ifdef DUAL_LIMIT_SWITCHES
         signals.min2.mask ^= settings.limits.invert.mask;
@@ -1411,7 +1436,9 @@ inline IRAM_ATTR static limit_signals_t limitsGetState (void)
     return signals;
 }
 
+#if AUX_CONTROLS_ENABLED
 static bool fpu_hack = false; // Needed to avoid awakening the stupid meditating guru that is overly sensitive to floats!
+#endif
 
 // Returns system state as a control_signals_t variable.
 // Each bitfield bit indicates a control signal, where triggered is 1 and not triggered is 0.
@@ -1482,13 +1509,13 @@ IRAM_ATTR static void aux_irq_handler (uint8_t port, bool state)
 {
     uint_fast8_t i;
     control_signals_t signals = {0};
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
     for(i = 0; i < AuxCtrl_NumEntries; i++) {
         if(aux_ctrl[i].port == port) {
             if(!aux_ctrl[i].debouncing) {
 #if SAFETY_DOOR_ENABLE
                 if(i == AuxCtrl_SafetyDoor) {
-                    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
                     if((aux_ctrl[i].debouncing = door_pin->active = (xTimerStartFromISR(debounceTimer, &xHigherPriorityTaskWoken) == pdPASS)))
                         break;
                 }
@@ -1509,6 +1536,9 @@ IRAM_ATTR static void aux_irq_handler (uint8_t port, bool state)
         hal.control.interrupt_callback(signals);
         fpu_hack = false;
     }
+
+    if(xHigherPriorityTaskWoken)
+        portYIELD_FROM_ISR();
 }
 
 static bool aux_attach (xbar_t *properties, aux_ctrl_t *aux_ctrl)
@@ -1926,7 +1956,11 @@ void debounceTimerCallback (TimerHandle_t xTimer)
         portEXIT_CRITICAL(&debounce_mux);
     }
 
+#if SAFETY_DOOR_ENABLE
+    if(grp & (PinGroup_Control|PinGroup_AuxInput)) {
+#else
     if(grp & PinGroup_Control) {
+#endif
         portENTER_CRITICAL(&debounce_mux);
         hal.control.interrupt_callback(systemGetState());
         portEXIT_CRITICAL(&debounce_mux);
@@ -2013,9 +2047,6 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
         i2s_delay_samples = i2s_delay_length / I2S_OUT_USEC_PER_PULSE;
         i2s_step_samples = i2s_step_length / I2S_OUT_USEC_PER_PULSE;
 
-        debug_writeln(uitoa(i2s_delay_length));
-        debug_writeln(uitoa(i2s_step_length));
-
 //        hal.max_step_rate = 250000UL / (i2s_delay_samples + i2s_step_samples);
 
 #else
@@ -2041,7 +2072,10 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
         do {
 
             signal = &inputpin[--i];
-            signal->irq_mode = IRQ_Mode_None;
+            signal->mode.irq_mode = IRQ_Mode_None;
+
+            if(signal->group == PinGroup_AuxInputAnalog)
+                continue;
 
             switch(signal->id) {
 
@@ -2137,7 +2171,7 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
                 case PinGroup_Control:
                 case PinGroup_Limit:
                 case PinGroup_LimitMax:
-                    signal->irq_mode = signal->invert ? IRQ_Mode_Falling : IRQ_Mode_Rising;
+                    signal->mode.irq_mode = signal->invert ? IRQ_Mode_Falling : IRQ_Mode_Rising;
                     signal->debounce = hal.driver_cap.software_debounce;
 #if ETHERNET_ENABLE
                     gpio_isr_handler_add(signal->pin, (signal->group & (PinGroup_Limit|PinGroup_LimitMax)) ? gpio_limit_isr : gpio_control_isr, signal);
@@ -2162,7 +2196,7 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
 
                 config.pin_bit_mask = 1ULL << signal->pin;
                 config.mode = GPIO_MODE_INPUT;
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
                 config.pull_up_en = pullup ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
                 config.pull_down_en = pullup ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE;
                 // Early versions(?) has an internal pullup on 45 - https://github.com/espressif/esp-idf/issues/9731
@@ -2170,9 +2204,9 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
                 config.pull_up_en = pullup && signal->pin < 34 ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
                 config.pull_down_en = pullup || signal->pin >= 34 ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE;
 #endif
-                config.intr_type = (signal->group & (PinGroup_Limit|PinGroup_LimitMax)) ? GPIO_INTR_DISABLE : map_intr_type(signal->irq_mode);
+                config.intr_type = (signal->group & (PinGroup_Limit|PinGroup_LimitMax)) ? GPIO_INTR_DISABLE : map_intr_type(signal->mode.irq_mode);
 
-                signal->offset = config.pin_bit_mask > (1ULL << 31) ? 1 : 0;
+                signal->offset = signal->pin >= 32 ? 1 : 0;
                 signal->mask = signal->offset == 0 ? (uint32_t)config.pin_bit_mask : (uint32_t)(config.pin_bit_mask >> 32);
 
     //            printf("IN %d - %d - %d : %x\n", signal->pin,  signal->offset, signal->mask, signal->invert);
@@ -2209,7 +2243,8 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info, void *data)
         pin.mode.pwm = pin.group == PinGroup_SpindlePWM;
         pin.description = inputpin[i].description;
 
-        pin_info(&pin, data);
+        if(pin.group != PinGroup_AuxInputAnalog || inputpin[i].cap.analog)
+            pin_info(&pin, data);
     };
 
     pin.mode.mask = 0;
@@ -2304,7 +2339,7 @@ static char *sdcard_mount (FATFS **fs)
             .intr_flags      = ESP_INTR_FLAG_IRAM
         };
 
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
         if(spi_bus_initialize(SDSPI_DEFAULT_HOST, &bus_config, SPI_DMA_CH_AUTO) != ESP_OK)
             return NULL;
 #else
@@ -2336,7 +2371,7 @@ static char *sdcard_mount (FATFS **fs)
         };
 
         sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
         host.max_freq_khz = 10000; // higher corrupts the card... Still incredible fast: ~35 Kb/sec vs. ~1.5 Mb/sec for the Teensy4 via FTP - 20 times faster! /sarc
 #endif
 
@@ -2470,7 +2505,7 @@ static bool driver_setup (settings_t *settings)
 
 #if USE_I2S_OUT
     if(i2s_out_init()) {
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
         i2s_set_step_outputs((axes_signals_t){ .mask = AXES_BITMASK });
         i2s_set_step_mask();
 #endif
@@ -2495,13 +2530,13 @@ static bool driver_setup (settings_t *settings)
     idx = sizeof(outputpin) / sizeof(output_signal_t);
     do {
         idx--;
-        if(outputpin[idx].id == Output_SdCardCS)
+        if(outputpin[idx].id == Output_SdCardCS || outputpin[idx].group == PinGroup_AuxOutputAnalog)
             continue;
 #if USE_I2S_OUT
         else if(outputpin[idx].pin >= I2S_OUT_PIN_BASE)
-            outputpin[idx].mode = Pin_I2S;
+            outputpin[idx].type = Pin_I2S;
 #endif
-        else if((outputpin[idx].mode = outputpin[idx].group == PinGroup_StepperStep ? Pin_RMT : Pin_GPIO) == Pin_GPIO)
+        else if((outputpin[idx].type = outputpin[idx].group == PinGroup_StepperStep ? Pin_RMT : Pin_GPIO) == Pin_GPIO)
             mask |= (1ULL << outputpin[idx].pin);
 
     } while(idx);
@@ -2521,7 +2556,7 @@ static bool driver_setup (settings_t *settings)
         idx--;
         if(outputpin[idx].group == PinGroup_MotorChipSelect || outputpin[idx].group == PinGroup_MotorUART) {
 #if USE_I2S_OUT
-            if(outputpin[idx].mode == Pin_I2S)
+            if(outputpin[idx].type == Pin_I2S)
                 DIGITAL_OUT(outputpin[idx].pin, 1);
 //            else
 #endif
@@ -2692,12 +2727,12 @@ bool driver_init (void)
 
     rtc_clk_cpu_freq_get_config(&cpu);
 
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
     hal.info = "ESP32-S3";
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240114";
+    hal.driver_version = "240119";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2866,12 +2901,14 @@ bool driver_init (void)
     hal.home_cap = get_home_cap();
 
     uint32_t i;
-    static pin_group_pins_t aux_inputs = {0}, aux_outputs = {0};
+    static pin_group_pins_t aux_inputs = {0}, aux_outputs = {0},
+                            aux_analog_in = {0}, aux_analog_out = {0};
     input_signal_t *input;
     output_signal_t *output;
 
     for(i = 0 ; i < sizeof(inputpin) / sizeof(input_signal_t); i++) {
         input = &inputpin[i];
+        input->mode.input = input->cap.input = On;
         if(input->group == PinGroup_AuxInput) {
             if(aux_inputs.pins.inputs == NULL)
                 aux_inputs.pins.inputs = input;
@@ -2893,19 +2930,32 @@ bool driver_init (void)
             if(input->pin == MOTOR_WARNING_PIN && input->cap.irq_mode != IRQ_Mode_None)
                 aux_ctrl[AuxCtrl_MotorWarning].port = aux_inputs.n_pins - 1;
 #endif
+        } else if(input->group == PinGroup_AuxInputAnalog) {
+            if(aux_analog_in.pins.inputs == NULL)
+                aux_analog_in.pins.inputs = input;
+            input->mode.analog = input->cap.analog = On;
+            input->id = (pin_function_t)(Input_Analog_Aux0 + aux_analog_in.n_pins++);
         }
     }
 
     for(i = 0 ; i < sizeof(outputpin) / sizeof(output_signal_t); i++) {
         output = &outputpin[i];
+        output->mode.output = On;
         if(output->group == PinGroup_AuxOutput) {
             if(aux_outputs.pins.outputs == NULL)
                 aux_outputs.pins.outputs = output;
             aux_outputs.n_pins++;
+        } else if(output->group == PinGroup_AuxOutputAnalog) {
+            if(aux_analog_out.pins.outputs == NULL)
+                aux_analog_out.pins.outputs = output;
+            output->mode.analog = On;
+            output->id = (pin_function_t)(Output_Analog_Aux0 + aux_analog_out.n_pins++);
         }
     }
 
     ioports_init(&aux_inputs, &aux_outputs);
+    if(aux_analog_in.n_pins || aux_analog_out.n_pins)
+        ioports_init_analog(&aux_analog_in, &aux_analog_out);
 
 #if SAFETY_DOOR_ENABLE
     aux_claim_explicit(&aux_ctrl[AuxCtrl_SafetyDoor]);
@@ -2928,7 +2978,7 @@ bool driver_init (void)
 #if AUX_CONTROLS_ENABLED
     for(i = AuxCtrl_ProbeDisconnect; i < AuxCtrl_NumEntries; i++) {
         if(aux_ctrl[i].enabled) {
-            if((aux_ctrl[i].enabled = ioports_enumerate(Port_Digital, Port_Input, (pin_mode_t){ .irq_mode = aux_ctrl[i].irq_mode }, true, aux_claim, (void *)&aux_ctrl[i])))
+            if((aux_ctrl[i].enabled = ioports_enumerate(Port_Digital, Port_Input, (pin_cap_t){ .irq_mode = aux_ctrl[i].irq_mode, .claimable = On }, aux_claim, (void *)&aux_ctrl[i])))
                 hal.signals_cap.mask |= aux_ctrl[i].cap.mask;
         }
     }
@@ -2958,6 +3008,16 @@ bool driver_init (void)
 
     hal.rgb.out = rgb_out;
     hal.rgb.num_devices = NEOPIXELS_NUM;
+    hal.rgb.cap = (rgb_color_t){ .R = 255, .G = 255, .B = 255 };
+
+    const periph_pin_t neopixels = {
+        .function = Output_LED_Adressable,
+        .group = PinGroup_LED,
+        .pin = NEOPIXELS_PIN,
+        .mode = { .mask = PINMODE_OUTPUT }
+    };
+
+    hal.periph_port.register_pin(&neopixels);
 
 #endif
 
@@ -3002,7 +3062,7 @@ bool driver_init (void)
 // Main stepper driver
 IRAM_ATTR static void stepper_driver_isr (void *arg)
 {
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
     TIMERG0.int_clr_timers.t0_int_clr = 1;
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.tn_alarm_en = TIMER_ALARM_EN;
 #else
@@ -3069,10 +3129,12 @@ IRAM_ATTR static void gpio_isr (void *arg)
 {
     bool debounce = false;
     uint32_t grp = 0, intr_status[2];
-    intr_status[0] = READ_PERI_REG(GPIO_STATUS_REG);          // get interrupt status for GPIO0-31
-    intr_status[1] = READ_PERI_REG(GPIO_STATUS1_REG);         // get interrupt status for GPIO32-39
-    SET_PERI_REG_MASK(GPIO_STATUS_W1TC_REG, intr_status[0]);  // clear intr for gpio0-gpio31
-    SET_PERI_REG_MASK(GPIO_STATUS1_W1TC_REG, intr_status[1]); // clear intr for gpio32-39
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    gpio_ll_get_intr_status(&GPIO, GRBLHAL_TASK_CORE, &intr_status[0]);         // get interrupt status for GPIO0-31
+    gpio_ll_get_intr_status_high(&GPIO, GRBLHAL_TASK_CORE, &intr_status[1]);    // get interrupt status for GPIO32-39
+    gpio_ll_clear_intr_status(&GPIO, intr_status[0]);                           // clear intr for gpio0-gpio31
+    gpio_ll_clear_intr_status_high(&GPIO, intr_status[1]);                      // clear intr for gpio32-39
 
     uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
     do {
@@ -3091,10 +3153,8 @@ IRAM_ATTR static void gpio_isr (void *arg)
         }
     } while(i);
 
-    if(debounce) {
-        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    if(debounce)
         xTimerStartFromISR(debounceTimer, &xHigherPriorityTaskWoken);
-    }
 
     if(grp & (PinGroup_Limit|PinGroup_LimitMax))
         hal.limits.interrupt_callback(limitsGetState());
@@ -3117,6 +3177,9 @@ IRAM_ATTR static void gpio_isr (void *arg)
     if((grp & PinGroup_Keypad) && i2c_strobe.callback)
         i2c_strobe.callback(0, DIGITAL_IN(I2C_STROBE_PIN));
 #endif
+
+    if(xHigherPriorityTaskWoken)
+        portYIELD_FROM_ISR();
 }
 
 #endif

@@ -79,10 +79,10 @@ inline static __attribute__((always_inline)) int32_t get_input (const input_sign
             } while(--delay && !sys.abort);
 
             // Restore pin interrupt status
-            if(input->irq_mode == IRQ_Mode_None) {
+            if(input->mode.irq_mode == IRQ_Mode_None) {
                 gpio_intr_disable(input->pin);
             } else
-                gpio_set_intr_type(input->pin, map_intr_type(input->irq_mode));
+                gpio_set_intr_type(input->pin, map_intr_type(input->mode.irq_mode));
         }
 
     } else {
@@ -145,16 +145,16 @@ static bool register_interrupt_handler (uint8_t port, pin_irq_mode_t irq_mode, i
         input_signal_t *input = &aux_in[port];
 
         if((ok = (irq_mode & input->cap.irq_mode) == irq_mode && interrupt_callback != NULL)) {
-            input->irq_mode = irq_mode;
+            input->mode.irq_mode = irq_mode;
             input->interrupt_callback = interrupt_callback;
-            gpio_set_intr_type(input->pin, map_intr_type(input->irq_mode));
+            gpio_set_intr_type(input->pin, map_intr_type(input->mode.irq_mode));
             gpio_intr_enable(input->pin);
         }
 
         if(irq_mode == IRQ_Mode_None || !ok) {
             while(spin_lock);
             gpio_intr_disable(input->pin);     // Disable pin interrupt
-            input->irq_mode = IRQ_Mode_None;
+            input->mode.irq_mode = IRQ_Mode_None;
             input->interrupt_callback = NULL;
         }
     }
@@ -173,10 +173,10 @@ static xbar_t *get_pin_info (io_port_type_t type, io_port_direction_t dir, uint8
 
         if(dir == Port_Input && port < digital.in.n_ports) {
             port = ioports_map(digital.in, port);
+            pin.mode = aux_in[port].mode;
             pin.mode.input = On;
-            pin.mode.irq_mode = aux_in[port].irq_mode;
-            pin.mode.can_remap = !aux_in[port].cap.remapped;
             pin.cap = aux_in[port].cap;
+            pin.cap.claimable = !pin.mode.claimed;
             pin.function = aux_in[port].id;
             pin.group = aux_in[port].group;
             pin.pin = aux_in[port].pin;
@@ -186,8 +186,9 @@ static xbar_t *get_pin_info (io_port_type_t type, io_port_direction_t dir, uint8
 
         if(dir == Port_Output && port < digital.out.n_ports) {
             port = ioports_map(digital.out, port);
-//            pin.mode = aux_out[port].mode;
-            pin.mode.output = On;
+            pin.mode = aux_out[port].mode;
+            pin.mode.output = pin.cap.output = On;
+            pin.cap.claimable = !pin.mode.claimed;
             pin.function = aux_out[port].id;
             pin.group = aux_out[port].group;
             pin.pin = aux_out[port].pin;
@@ -217,7 +218,7 @@ static bool claim (io_port_type_t type, io_port_direction_t dir, uint8_t *port, 
 
         if(dir == Port_Input) {
 
-            if((ok = digital.in.map && *port < digital.in.n_ports && !aux_in[*port].cap.claimed)) {
+            if((ok = digital.in.map && *port < digital.in.n_ports && !aux_in[*port].mode.claimed)) {
 
                 uint8_t i;
 
@@ -228,14 +229,14 @@ static bool claim (io_port_type_t type, io_port_direction_t dir, uint8_t *port, 
                     aux_in[digital.in.map[i]].description = iports_get_pnum(digital, i);
                 }
 
-                aux_in[*port].cap.claimed = On;
+                aux_in[*port].mode.claimed = On;
                 aux_in[*port].description = description;
 
                 digital.in.map[hal.port.num_digital_in] = *port;
                 *port = hal.port.num_digital_in;
             }
 
-        } else if((ok = digital.out.map && *port < digital.out.n_ports && !aux_out[*port].claimed)) {
+        } else if((ok = digital.out.map && *port < digital.out.n_ports && !aux_out[*port].mode.claimed)) {
 
             uint8_t i;
 
@@ -246,7 +247,7 @@ static bool claim (io_port_type_t type, io_port_direction_t dir, uint8_t *port, 
                 aux_out[digital.out.map[i]].description = iports_get_pnum(digital, i);
             }
 
-            aux_out[*port].claimed = On;
+            aux_out[*port].mode.claimed = On;
             aux_out[*port].description = description;
 
             digital.out.map[hal.port.num_digital_out] = *port;

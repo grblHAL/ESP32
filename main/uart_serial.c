@@ -28,7 +28,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
-#if !GRBL_ESP32S3
+#if !CONFIG_IDF_TARGET_ESP32S3
 #include "esp32/rom/ets_sys.h"
 #include "esp32/rom/uart.h"
 #endif
@@ -58,7 +58,7 @@
 typedef void (*uart_isr_ptr)(void *arg);
 
 typedef struct {
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
    uart_dev_t *dev;
 #else
    volatile uart_dev_t *dev;
@@ -174,7 +174,7 @@ void serialRegisterStreams (void)
     static const periph_pin_t tx0 = {
         .function = Output_TX,
         .group = PinGroup_UART,
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
         .pin = 43,
 #else
         .pin = 35,
@@ -186,7 +186,7 @@ void serialRegisterStreams (void)
     static const periph_pin_t rx0 = {
         .function = Input_RX,
         .group = PinGroup_UART,
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
         .pin = 44,
 #else
         .pin = 34,
@@ -276,7 +276,7 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
 //    uart->tx_len = 128;
     uart_ll_set_mode(uart->dev, UART_MODE_UART);
 
-#if GRBL_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
 
     periph_module_reset((periph_module_t)(PERIPH_UART0_MODULE + uart->num));
     periph_module_enable((periph_module_t)(PERIPH_UART0_MODULE + uart->num));

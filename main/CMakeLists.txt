@@ -19,6 +19,7 @@ set(SRCS
  nvs.c
  uart_serial.c
  ioports.c
+ ioports_analog.c
  i2c.c
  ioexpand.c
  boards/BlackBoxX32.c
@@ -239,14 +240,7 @@ idf_component_register(SRCS "${SRCS}" INCLUDE_DIRS ".")
 
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC STEP_INJECT_ENABLE=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC GRBL_ESP32)
-
-idf_build_get_property(target IDF_TARGET)
-if("${target}" STREQUAL "esp32s3")
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC GRBL_ESP32S3=1)
-endif()
-
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC LITTLEFS_ENABLE=1)
-
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC STDIO_FS)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC LWIP_HTTPD_CUSTOM_FILES=0)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC LWIP_HTTPD_DYNAMIC_HEADERS=1)

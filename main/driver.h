@@ -27,7 +27,17 @@
 #define __DRIVER_H__
 
 #ifndef OVERRIDE_MY_MACHINE
+
 #include "my_machine.h"
+
+#if WEBUI_ENABLE && !defined(WIFI_ENABLE) && !defined(ETHERNET_ENABLE)
+#define WIFI_ENABLE 1
+#endif
+
+#endif // OVERRIDE_MY_MACHINE
+
+#if WEBUI_ENABLE && !defined(WEBUI_INFLASH)
+#define WEBUI_INFLASH 1
 #endif
 
 #include "grbl/driver_opts.h"
@@ -37,6 +47,7 @@
 #include "driver/timer.h"
 #include "driver/ledc.h"
 #include "driver/rmt.h"
+#include "driver/adc.h"
 #include "driver/i2c.h"
 #include "hal/gpio_ll.h"
 #include "esp_log.h"
@@ -280,6 +291,11 @@ typedef enum
 } esp_pin_t;
 
 typedef struct {
+    adc1_channel_t ch;
+    gpio_num_t pin;
+} adc_map_t;
+
+typedef struct {
     pin_function_t id;
     pin_group_t group;
     uint8_t pin;
@@ -288,8 +304,9 @@ typedef struct {
     bool invert;
     volatile bool active;
     volatile bool debounce;
-    pin_irq_mode_t irq_mode;
-    pin_mode_t cap;
+    pin_cap_t cap;
+    pin_mode_t mode;
+    const adc_map_t *adc;
     ioport_interrupt_callback_ptr interrupt_callback;
     aux_ctrl_t *aux_ctrl;
     const char *description;
@@ -299,8 +316,8 @@ typedef struct {
     pin_function_t id;
     pin_group_t group;
     uint8_t pin;
-    esp_pin_t mode;
-    bool claimed;
+    esp_pin_t type;
+    pin_mode_t mode;
     const char *description;
 } output_signal_t;
 
@@ -315,6 +332,7 @@ typedef struct {
 gpio_int_type_t map_intr_type (pin_irq_mode_t mode);
 void ioports_init(pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_outputs);
 void ioports_event (input_signal_t *input);
+void ioports_init_analog (pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_outputs);
 
 #ifdef HAS_BOARD_INIT
 void board_init (void);
