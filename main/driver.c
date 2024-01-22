@@ -1450,7 +1450,7 @@ inline IRAM_ATTR static control_signals_t systemGetState (void)
 
 #ifdef RESET_PIN
 #if ESTOP_ENABLE
-    signals.estop = DIGITAL_IN(RESET_PIN);
+    signals.e_stop = DIGITAL_IN(RESET_PIN);
 #else
     signals.reset = DIGITAL_IN(RESET_PIN);
 #endif
