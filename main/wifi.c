@@ -669,6 +669,8 @@ bool wifi_start (void)
         if(ap_netif == NULL)
             ap_netif = esp_netif_create_default_wifi_ap();
 
+        esp_netif_set_hostname(ap_netif, wifi.ap.network.hostname);
+
         esp_netif_dhcps_stop(ap_netif);
 
         wifi.ap.network.ip_mode = IpMode_Static; // Only mode supported
@@ -713,6 +715,8 @@ bool wifi_start (void)
         if(sta_netif == NULL)
             sta_netif = esp_netif_create_default_wifi_sta();
 
+        esp_netif_set_hostname(sta_netif, wifi.sta.network.hostname);
+
         esp_netif_dhcps_stop(sta_netif);
     
         wifi.sta.network.ip_mode = IpMode_DHCP; // For now...
@@ -743,12 +747,6 @@ bool wifi_start (void)
 
     if(esp_wifi_start() != ESP_OK)
         return false;
-
-    if(wifi.mode == WiFiMode_AP || wifi.mode == WiFiMode_APSTA)
-        esp_netif_set_hostname(ap_netif, wifi.ap.network.hostname);
-
-    if(wifi.mode == WiFiMode_STA || wifi.mode == WiFiMode_APSTA)
-        esp_netif_set_hostname(sta_netif, wifi.sta.network.hostname);
 
     if(wifi.mode == WiFiMode_APSTA)
         wifi_ap_scan();

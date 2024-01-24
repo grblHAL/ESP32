@@ -23,11 +23,19 @@
 
 #include "grbl/ioports.h"
 
-#if defined(AUXOUTPUT0_PWM_PIN) ||  defined(AUXOUTPUT1_PWM_PIN)
-#define AUX_ANALOG_OUT 1
+#ifdef AUXOUTPUT0_PWM_PIN
+#define PWM_OUT0 1
 #else
-#define AUX_ANALOG_OUT 0
+#define PWM_OUT0 0
 #endif
+
+#ifdef AUXOUTPUT1_PWM_PIN
+#define PWM_OUT1 1
+#else
+#define PWM_OUT1 0
+#endif
+
+#define AUX_ANALOG_OUT (PWM_OUT0 + PWM_OUT1)
 
 #if defined(AUXINPUT0_ANALOG_PIN) ||  defined(AUXINPUT1_ANALOG_PIN)
 #define AUX_ANALOG_IN 1
@@ -102,58 +110,67 @@ static void enumerate_pins (bool low_level, pin_info_ptr pin_info, void *data)
 
 #if AUX_ANALOG_OUT
 
-static void set_pwm_cap (xbar_t *output, bool servo_pwm)
-{
-    uint_fast8_t i = analog.out.n_ports;
+typedef struct {
+    uint32_t max_value;
+    ledc_channel_config_t ch_config;
+    ioports_pwm_t data;
+    float value;
+    void (*set_value)(uint_fast8_t ch, float value);
+} pwm_out_t;
 
-    if(output) do {
-        i--;
-        if(aux_out_analog[i].pin == output->pin) {
-            aux_out_analog[i].mode.pwm = !servo_pwm;
-            aux_out_analog[i].mode.servo_pwm = servo_pwm;
-            break;
-        }
-    } while(i);
+static pwm_out_t pwm_out[AUX_ANALOG_OUT] = {0};
+
+static float pwm_get_value (struct xbar *output)
+{
+    int_fast8_t ch = output->function - Output_Analog_Aux0;
+
+    return ch >= 0 && ch < analog.out.n_ports ? pwm_out[ch].value : -1.0f;
 }
+
+static bool analog_out (uint8_t port, float value)
+{
+    if(port < analog.out.n_ports) {
+
+        port = ioports_map(analog.out, port);
+
+        uint_fast8_t ch = aux_out_analog[port].id - Output_Analog_Aux0;
+
+        pwm_out[ch].set_value(ch, value);
+    }
+
+    return port < analog.out.n_ports;
+}
+
+static void pwm_set_value (uint_fast8_t ch, float value)
+{
+    uint_fast16_t pwm_value = ioports_compute_pwm_value(&pwm_out[ch].data, value);
+
+    pwm_out[ch].value = value;
+
+    if(pwm_value == pwm_out[ch].data.off_value) {
+        if(pwm_out[ch].data.always_on) {
+            ledc_set_duty(pwm_out[ch].ch_config.speed_mode, pwm_out[ch].ch_config.channel, pwm_out[ch].data.off_value);
+            ledc_update_duty(pwm_out[ch].ch_config.speed_mode, pwm_out[ch].ch_config.channel);
+        } else
+            ledc_stop(pwm_out[ch].ch_config.speed_mode, pwm_out[ch].ch_config.channel, 0);
+    } else {
+        ledc_set_duty(pwm_out[ch].ch_config.speed_mode, pwm_out[ch].ch_config.channel, pwm_value);
+        ledc_update_duty(pwm_out[ch].ch_config.speed_mode, pwm_out[ch].ch_config.channel);
+    }
+}
+
 #endif
 
 #ifdef AUXOUTPUT0_PWM_PIN
 
-static ioports_pwm_t pwm0;
-static uint32_t pwm0_max_value;
-static ledc_channel_config_t pwm0_ch = {
-    .gpio_num = AUXOUTPUT0_PWM_PIN,
-#if CONFIG_IDF_TARGET_ESP32S3
-    .speed_mode = LEDC_SPEED_MODE_MAX,
-#else
-    .speed_mode = LEDC_HIGH_SPEED_MODE,
-#endif
-    .channel = LEDC_CHANNEL_1,
-    .intr_type = LEDC_INTR_DISABLE,
-    .timer_sel = LEDC_TIMER_1,
-    .duty = 0,
-    .hpoint = 0
-};
-
-static void pwm0_out (float value)
-{
-    uint_fast16_t pwm_value = ioports_compute_pwm_value(&pwm0, value);
-
-    if(pwm_value == pwm0.off_value) {
-        if(pwm0.always_on) {
-            ledc_set_duty(pwm0_ch.speed_mode, pwm0_ch.channel, pwm0.off_value);
-            ledc_update_duty(pwm0_ch.speed_mode, pwm0_ch.channel);
-        } else
-            ledc_stop(pwm0_ch.speed_mode, pwm0_ch.channel, 0);
-    } else {
-        ledc_set_duty(pwm0_ch.speed_mode, pwm0_ch.channel, pwm_value);
-        ledc_update_duty(pwm0_ch.speed_mode, pwm0_ch.channel);
-    }
-}
-
 static bool init_pwm0 (xbar_t *pin, pwm_config_t *config)
 {
     static bool init_ok = false;
+
+    bool ok;
+    uint_fast8_t ch = pin->function - Output_Analog_Aux0;
+    ioports_pwm_t *pwm_data = &pwm_out[ch].data;
+    ledc_channel_config_t *ch_config = &pwm_out[ch].ch_config;
 
     static ledc_timer_config_t pwm_timer = {
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -170,9 +187,21 @@ static bool init_pwm0 (xbar_t *pin, pwm_config_t *config)
 
         init_ok = true;
 
-        pwm0_ch.speed_mode = pwm_timer.speed_mode;
+        ch_config->gpio_num = AUXOUTPUT0_PWM_PIN,
+#if CONFIG_IDF_TARGET_ESP32S3
+        ch_config->speed_mode = LEDC_SPEED_MODE_MAX;
+#else
+        ch_config->speed_mode = LEDC_HIGH_SPEED_MODE;
+#endif
+        ch_config->channel = LEDC_CHANNEL_1;
+        ch_config->intr_type = LEDC_INTR_DISABLE;
+        ch_config->timer_sel = pwm_timer.timer_num;
+        ch_config->speed_mode = pwm_timer.speed_mode;
+
         ledc_timer_config(&pwm_timer);
-        ledc_channel_config(&pwm0_ch);
+        ledc_channel_config(ch_config);
+
+        pwm_out[ch].set_value = pwm_set_value;
     }
 
     if(pwm_timer.freq_hz != (uint32_t)config->freq_hz) {
@@ -195,53 +224,32 @@ static bool init_pwm0 (xbar_t *pin, pwm_config_t *config)
         }
     }
 
-    pwm0_max_value = (1UL << pwm_timer.duty_resolution) - 1;
-    ioports_precompute_pwm_values(config, &pwm0, pwm0_max_value * config->freq_hz);
+    if((ok = ledc_set_freq(pwm_timer.speed_mode, pwm_timer.timer_num, pwm_timer.freq_hz) == ESP_OK)) {
 
-    set_pwm_cap(pin, config->servo_mode);
+        pwm_out[ch].max_value = (1UL << pwm_timer.duty_resolution) - 1;
+        ioports_precompute_pwm_values(config, pwm_data, pwm_out[ch].max_value * config->freq_hz);
 
-    return ledc_set_freq(pwm_timer.speed_mode, pwm_timer.timer_num, pwm_timer.freq_hz) == ESP_OK;
+        aux_out_analog[ch].mode.pwm = !config->servo_mode;
+        aux_out_analog[ch].mode.servo_pwm = config->servo_mode;
+
+        pwm_set_value(ch, config->min);
+    }
+
+    return ok;
 }
 
 #endif // AUXOUTPUT0_PWM_PIN
 
 #ifdef AUXOUTPUT1_PWM_PIN
 
-static ioports_pwm_t pwm1;
-static uint32_t pwm1_max_value;
-static ledc_channel_config_t pwm1_ch = {
-    .gpio_num = AUXOUTPUT1_PWM_PIN,
-#if CONFIG_IDF_TARGET_ESP32S3
-    .speed_mode = LEDC_SPEED_MODE_MAX,
-#else
-    .speed_mode = LEDC_HIGH_SPEED_MODE,
-#endif
-    .channel = LEDC_CHANNEL_2,
-    .intr_type = LEDC_INTR_DISABLE,
-    .timer_sel = LEDC_TIMER_2,
-    .duty = 0,
-    .hpoint = 0
-};
-
-static void pwm1_out (float value)
-{
-    uint_fast16_t pwm_value = ioports_compute_pwm_value(&pwm1, value);
-
-    if(pwm_value == pwm1.off_value) {
-        if(pwm1.always_on) {
-            ledc_set_duty(pwm1_ch.speed_mode, pwm1_ch.channel, pwm1.off_value);
-            ledc_update_duty(pwm1_ch.speed_mode, pwm1_ch.channel);
-        } else
-            ledc_stop(pwm1_ch.speed_mode, pwm1_ch.channel, 0);
-    } else {
-        ledc_set_duty(pwm1_ch.speed_mode, pwm1_ch.channel, pwm_value);
-        ledc_update_duty(pwm1_ch.speed_mode, pwm1_ch.channel);
-    }
-}
-
 static bool init_pwm1 (xbar_t *pin, pwm_config_t *config)
 {
     static bool init_ok = false;
+
+    bool ok;
+    uint_fast8_t ch = pin->function - Output_Analog_Aux0;
+    ioports_pwm_t *pwm_data = &pwm_out[ch].data;
+    ledc_channel_config_t *ch_config = &pwm_out[ch].ch_config;
 
     static ledc_timer_config_t pwm_timer = {
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -258,9 +266,21 @@ static bool init_pwm1 (xbar_t *pin, pwm_config_t *config)
 
         init_ok = true;
 
-        pwm1_ch.speed_mode = pwm_timer.speed_mode;
+        ch_config->gpio_num = AUXOUTPUT1_PWM_PIN,
+#if CONFIG_IDF_TARGET_ESP32S3
+        ch_config->speed_mode = LEDC_SPEED_MODE_MAX;
+#else
+        ch_config->speed_mode = LEDC_HIGH_SPEED_MODE;
+#endif
+        ch_config->channel = LEDC_CHANNEL_2;
+        ch_config->intr_type = LEDC_INTR_DISABLE;
+        ch_config->timer_sel = pwm_timer.timer_num;
+        ch_config->speed_mode = pwm_timer.speed_mode;
+
         ledc_timer_config(&pwm_timer);
-        ledc_channel_config(&pwm1_ch);
+        ledc_channel_config(ch_config);
+
+        pwm_out[ch].set_value = pwm_set_value;
     }
 
     if(pwm_timer.freq_hz != (uint32_t)config->freq_hz) {
@@ -283,36 +303,21 @@ static bool init_pwm1 (xbar_t *pin, pwm_config_t *config)
         }
     }
 
-    pwm1_max_value = (1UL << pwm_timer.duty_resolution) - 1;
-    ioports_precompute_pwm_values(config, &pwm1, pwm1_max_value * config->freq_hz);
+    if((ok = ledc_set_freq(pwm_timer.speed_mode, pwm_timer.timer_num, pwm_timer.freq_hz) == ESP_OK)) {
 
-    set_pwm_cap(pin, config->servo_mode);
+        pwm_out[ch].max_value = (1UL << pwm_timer.duty_resolution) - 1;
+        ioports_precompute_pwm_values(config, pwm_data, pwm_out[ch].max_value * config->freq_hz);
 
-    return ledc_set_freq(pwm_timer.speed_mode, pwm_timer.timer_num, pwm_timer.freq_hz) == ESP_OK;
+        aux_out_analog[ch].mode.pwm = !config->servo_mode;
+        aux_out_analog[ch].mode.servo_pwm = config->servo_mode;
+
+        pwm_set_value(ch, config->min);
+    }
+
+    return ok;
 }
 
 #endif // AUXOUTPUT1_PWM_PIN
-
-#if AUX_ANALOG_OUT
-
-static bool analog_out (uint8_t port, float value)
-{
-    if(port < analog.out.n_ports) {
-        port = ioports_map(analog.out, port);
-#ifdef AUXOUTPUT0_PWM_PIN
-        if(aux_out_analog[port].pin == AUXOUTPUT0_PWM_PIN)
-            pwm0_out(value);
-#endif
-#ifdef AUXOUTPUT1_PWM_PIN
-        if(aux_out_analog[port].pin == AUXOUTPUT1_PWM_PIN)
-            pwm1_out(value);
-#endif
-    }
-
-    return port < analog.out.n_ports;
-}
-
-#endif
 
 #if AUX_ANALOG_IN
 
@@ -390,6 +395,7 @@ static xbar_t *get_pin_info (io_port_type_t type, io_port_direction_t dir, uint8
                 pin.pin = aux_out_analog[port].pin;
                 pin.bit = 1 << aux_out_analog[port].pin;
                 pin.description = aux_out_analog[port].description;
+                pin.get_value = pwm_get_value;
     #ifdef AUXOUTPUT0_PWM_PIN
                 if(aux_out_analog[port].pin == AUXOUTPUT0_PWM_PIN)
                     pin.config = (xbar_config_ptr)init_pwm0;
@@ -571,8 +577,8 @@ void ioports_init_analog (pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_ou
 
         if(analog.out.n_ports) {
 
+            xbar_t *pin;
             uint_fast8_t i;
-
             pwm_config_t config = {
                 .freq_hz = 5000.0f,
                 .min = 0.0f,
@@ -586,14 +592,8 @@ void ioports_init_analog (pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_ou
             hal.port.analog_out = analog_out;
 
             for(i = 0; i < analog.out.n_ports; i++) {
-#ifdef AUXOUTPUT0_PWM_PIN
-                if(aux_out_analog[i].pin == AUXOUTPUT0_PWM_PIN)
-                    init_pwm0(NULL, &config);
-#endif
-#ifdef AUXOUTPUT1_PWM_PIN
-                if(aux_out_analog[i].pin == AUXOUTPUT1_PWM_PIN)
-                    init_pwm1(NULL, &config);
-#endif
+                if((pin = get_pin_info(Port_Analog, Port_Output, i)))
+                    pin->config(pin, &config);
             }
         }
 

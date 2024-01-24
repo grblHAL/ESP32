@@ -1,23 +1,15 @@
 {
   "caps": {
     "axes": 6,
-    "usb_cdc": 0,
     "uart": 1,
     "serial_ports": 1,
-    "eeprom": 1,
-    "ganged_axes": 1,
-    "auto_square": 1,
     "littlefs": 1,
-    "digital_in": 2,
-    "digital_out": 2,
     "probe": 1,
     "safety_door": 1,
-    "estop": 0,
-    "mpg_mode": 1,
-    "sdcard": 1,
+    "estop": 1,
     "wifi": 1,
-    "ethernet": 0,
     "bluetooth": 1,
+    "pwm_spindle_aux": 3,
     "pio_board": "esp32dev",
     "plugins": [
       { "id": "bluetooth" },
@@ -36,8 +28,10 @@
       { "id": "embroidery" }
     ]
   },
+  "symbols": {
+    "OVERRIDE_MY_MACHINE": 1
+  },
   "symbols_networking": {
-    "STDIO_FS": " ",
     "LWIP_HTTPD_CUSTOM_FILES": 0,
     "LWIP_HTTPD_DYNAMIC_HEADERS": 1,
     "LWIP_HTTPD_SUPPORT_V09": 0,
@@ -53,12 +47,9 @@
       "MAP": "main/boards/BlackBoxX32_map.h",
       "caps": {
         "axes": 4,
-        "digital_in": 0,
-        "digital_out": 0,
+        "auto_square": 1,
+        "digital_in": 2,
         "safety_door": 1,
-        "eeprom": 0,
-        "fram": 0,
-        "i2c": 0,
         "sdcard": 1
       },
       "symbols": {
@@ -77,13 +68,7 @@
       "MAP": "main/boards/bdring_i2s_6_axis_map.h",
       "caps": {
         "axes": 6,
-        "digital_in": 0,
-        "digital_out": 0,
         "serial_ports": 2,
-        "eeprom": 0,
-        "fram": 0,
-        "i2c": 0,
-        "sdcard": 0,
         "trinamic_spi_cs": 1,
         "trinamic_spi_chain": 1,
         "trinamic_uart_n": 0,
@@ -97,12 +82,11 @@
       "URL": "",
       "caps": {
         "axes": 3,
-        "digital_in": 0,
-        "digital_out": 0,
+        "serial_ports": 2,
+        "sdcard": 1,
+        "probe": 1,
         "safety_door": 0,
-        "eeprom": 0,
-        "fram": 0,
-        "i2c": 0
+        "pwm_spindle_aux": 2
       }
     },
     {
@@ -112,13 +96,9 @@
       "MAP": "main/boards/mks_tinybee_1_0_map.h",
       "caps": {
         "axes": 5,
-        "digital_in": 0,
-        "digital_out": 0,
         "serial_ports": 2,
-        "eeprom": 0,
-        "fram": 0,
-        "i2c": 0,
-        "sdcard": 1
+        "sdcard": 1,
+        "estop": 0
       }
     },
     {
@@ -129,13 +109,21 @@
       "caps": {
         "axes": 4,
         "auto_square": 0,
-        "digital_in": 0,
-        "digital_out": 0,
         "safety_door": 0,
-        "eeprom": 0,
-        "fram": 0,
-        "i2c": 0,
-        "sdcard": 0
+        "estop": 0,
+        "pwm_spindle_aux": 1
+      }
+    },
+    {
+      "name": "SourceRabbit 4-axis CNC v1.2",
+      "symbol": "BOARD_SOURCERABBIT_4AXIS_12",
+      "URL": "https://www.sourcerabbit.com/",
+      "MAP": "main/boards/sourcerabbit_4axis.h",
+      "caps": {
+        "axes": 4,
+        "auto_square": 0,
+        "safety_door": 0,
+        "estop": 0
       }
     },
     {
@@ -145,13 +133,7 @@
       "MAP": "main/boards/protoneer_3.xx_map.h",
       "caps": {
         "axes": 3,
-        "digital_in": 0,
-        "digital_out": 0,
-        "safety_door": 0,
-        "eeprom": 0,
-        "fram": 0,
-        "i2c": 0,
-        "sdcard": 0
+        "pwm_spindle_aux": 2
       }
     },
     {
@@ -161,11 +143,9 @@
       "MAP": "main/boards/fysetc_e4_map.h",
       "caps": {
         "axes": 4,
-        "digital_in": 0,
-        "digital_out": 0,
-        "safety_door": 0,
-        "eeprom": 0,
-        "fram": 0,
+        "auto_square": 0,
+        "pwm_spindle_aux": 2,
+        "sdcard": 1,
         "i2c": 1
       }
     },
@@ -175,13 +155,10 @@
       "URL": "https://www.spark-concepts.com/cnc-xpro-v5/",
       "MAP": "main/boards/xPro_v5_map.h",
       "caps": {
-        "axes": 3,
+        "axes": 4,
         "digital_in": 2,
-        "digital_out": 0,
         "serial_ports": 2,
-        "eeprom": 0,
-        "fram": 0,
-        "i2c": 0,
+        "sdcard": 1,
         "trinamic": 5160,
         "trinamic_spi_chain": 1
       }
@@ -195,10 +172,36 @@
         "axes": 3,
         "digital_in": 1,
         "digital_out": 4,
-        "safety_door": 0,
-        "eeprom": 0,
-        "fram": 0,
-        "i2c": 0,
+        "pwm_spindle_aux": 2,
+        "sdcard": 1,
+        "i2c": 1
+      }
+    },
+    {
+      "name": "Root CNC v2.x",
+      "notes": "Not tested!",
+      "symbol": "BOARD_ROOTCNC_V2",
+      "URL": "https://wiki.rootcnc.com/en/Root-Controller-ISO/DetailedInfo",
+      "MAP": "main/boards/root_cnc_v2_map.h",
+      "caps": {
+        "axes": 6,
+        "digital_in": 1,
+        "serial_ports": 2,
+        "estop": 0,
+        "sdcard": 1
+      }
+    },
+    {
+      "name": "Root CNC v3",
+      "notes": "Not tested!",
+      "symbol": "BOARD_ROOTCNC_V3",
+      "URL": "https://wiki.rootcnc.com/en/Root-Controller-ISO/DetailedInfo",
+      "MAP": "main/boards/root_cnc_v3_map.h",
+      "caps": {
+        "axes": 6,
+        "digital_in": 1,
+        "serial_ports": 2,
+        "estop": 0,
         "sdcard": 1
       }
     },
@@ -209,17 +212,11 @@
       "MAP": "main/boards/cnc3040_map.h",
       "caps": {
         "axes": 4,
+        "auto_square": 0,
         "serial_ports": 2,
-        "eeprom": 1,
-        "digital_in": 0,
-        "digital_out": 0,
-        "probe": 1,
-        "safety_door": 1,
-        "mpg_mode": 0,
-        "sdcard": 0,
-        "wifi": 1,
-        "fram": 1,
-        "i2c": 0
+        "estop": 0,
+        "pwm_spindle_aux": 2,
+        "safety_door": 1
       }
     },
     {
@@ -229,12 +226,9 @@
       "MAP": "main/boards/bdring_v3.5_map.h",
       "caps": {
         "axes": 3,
-        "digital_in": 0,
-        "digital_out": 0,
+        "digital_in": 1,
         "serial_ports": 1,
-        "eeprom": 0,
-        "fram": 0,
-        "i2c": 0
+        "sdcard": 1
       }
     },
     {
@@ -244,12 +238,9 @@
       "MAP": "main/boards/bdring_v4_map.h",
       "caps": {
         "axes": 3,
-        "digital_in": 0,
-        "digital_out": 0,
         "serial_ports": 2,
-        "eeprom": 0,
-        "fram": 0,
-        "i2c": 0
+        "digital_in": 1,
+        "sdcard": 1
       }
     },
     {
@@ -259,12 +250,12 @@
       "MAP": "main/boards/boosterpack_map.h",
       "caps": {
         "axes": 3,
-        "digital_in": 0,
-        "digital_out": 0,
         "serial_ports": 2,
+        "digital_in": 1,
         "eeprom": 1,
         "fram": 1,
-        "i2c": 1
+        "i2c": 1,
+        "sdcard": 1
       }
     }
   ]

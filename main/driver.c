@@ -2425,6 +2425,8 @@ static rmt_config_t neo_config = RMT_DEFAULT_CONFIG_TX(NEOPIXELS_PIN, 3); // TOD
 #define WS2812_T1H_NS (1200)
 #define WS2812_T1L_NS (1300)
 */
+
+static uint8_t pixels[NEOPIXELS_NUM * 3] = {0};
 static uint32_t t0h_ticks = 0, t1h_ticks = 0, t0l_ticks = 0, t1l_ticks = 0;
 
 static void IRAM_ATTR ws2812_rmt_adapter (const void *src, rmt_item32_t *dest, size_t src_size,
@@ -2459,23 +2461,39 @@ static void IRAM_ATTR ws2812_rmt_adapter (const void *src, rmt_item32_t *dest, s
     *item_num = num;
 }
 
-static void rgb_out (uint8_t device, rgb_color_t color)
+void neopixels_write (void)
 {
-    static uint8_t pixels[NEOPIXELS_NUM * 3] = {0};
+    rmt_write_sample(neo_config.channel, pixels, sizeof(pixels), true);
+}
 
+static void neopixel_out_masked (uint16_t device, rgb_color_t color, rgb_color_mask_t mask)
+{
     if(device < NEOPIXELS_NUM) {
 
         device *= 3;
-        pixels[device++] = color.G;
-        pixels[device++] = color.R;
-        pixels[device] = color.B;
-
+        if(mask.G)
+            pixels[device++] = color.G;
+        else
+            device++;
+        if(mask.R)
+            pixels[device++] = color.R;
+        else
+            device++;
+        if(mask.B)
+            pixels[device] = color.B;
+#if NEOPIXELS_NUM == 1
         rmt_write_sample(neo_config.channel, pixels, sizeof(pixels), true);
+#endif
 //??        rmt_wait_tx_done(neo_config.channel, pdMS_TO_TICKS(100));
     }
 }
 
-#endif
+static void neopixel_out (uint8_t device, rgb_color_t color)
+{
+    neopixel_out_masked(device, color, (rgb_color_mask_t){ .mask = 0xFF });
+}
+
+#endif // NEOPIXELS_PIN
 
 // Initializes MCU peripherals for Grbl use
 static bool driver_setup (settings_t *settings)
@@ -3006,7 +3024,11 @@ bool driver_init (void)
     // Initialize automatic timing translator
     rmt_translator_init(neo_config.channel, ws2812_rmt_adapter);
 
-    hal.rgb.out = rgb_out;
+    hal.rgb.out = neopixel_out;
+    hal.rgb.out_masked = neopixel_out_masked;
+#if NEOPIXELS_NUM > 1
+    hal.rgb.write = neopixels_write;
+#endif
     hal.rgb.num_devices = NEOPIXELS_NUM;
     hal.rgb.cap = (rgb_color_t){ .R = 255, .G = 255, .B = 255 };
 

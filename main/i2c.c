@@ -101,7 +101,7 @@ void I2CInit (void)
 
         TaskHandle_t I2CTaskHandle;
 
-        xTaskCreatePinnedToCore(I2CTask, "I2C", 2048, (void *)i2cQueue, configMAX_PRIORITIES - 1, &I2CTaskHandle, 1);
+        xTaskCreatePinnedToCore(I2CTask, "I2C", 2048, (void *)i2cQueue, GRBLHAL_TASK_PRIORITY + 1, &I2CTaskHandle, 1);
 
         xSemaphoreGive(i2cBusy);
 

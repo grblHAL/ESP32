@@ -14,7 +14,7 @@ platform = espressif32 @ ~4.0.0
 framework = espidf
 board =%board%
 board_build.partitions = partitions.csv
-board_build.cmake_extra_args = %cmake_flags%
+#board_build.cmake_extra_args = %cmake_flags%
 board_build.embed_files =
   main/embedded/favicon.ico
   main/embedded/ap_login.html
