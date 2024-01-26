@@ -1922,12 +1922,12 @@ static inline uint64_t getElapsedMicros (void)
 
 #if MPG_MODE == 1
 
-static void modeChange(sys_state_t state)
+static void modeChange (void *data)
 {
     stream_mpg_enable(!DIGITAL_IN(MPG_ENABLE_PIN));
 }
 
-static void modeEnable (sys_state_t state)
+static void modeEnable (void *data)
 {
     if(sys.mpg_mode == DIGITAL_IN(MPG_ENABLE_PIN))
         stream_mpg_enable(true);
@@ -3050,10 +3050,10 @@ bool driver_init (void)
 #if MPG_MODE == 1
   #if KEYPAD_ENABLE == 2
     if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), MPG_STREAM_DUPLEX, keypad_enqueue_keycode)))
-        protocol_enqueue_rt_command(modeEnable);
+        protocol_enqueue_foreground_task(modeEnable, NULL);
   #else
     if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), MPG_STREAM_DUPLEX, NULL)))
-        protocol_enqueue_rt_command(modeEnable);
+        protocol_enqueue_foreground_task(modeEnable, NULL);
   #endif
 #elif MPG_MODE == 2
     hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), 0, keypad_enqueue_keycode);
@@ -3129,7 +3129,7 @@ IRAM_ATTR static void gpio_mpg_isr (void *signal)
 
     if(!mpg_mutex) {
         mpg_mutex = true;
-        protocol_enqueue_rt_command(modeChange);
+        protocol_enqueue_foreground_task(modeChange, NULL);
         mpg_mutex = false;
     }
 }
@@ -3190,7 +3190,7 @@ IRAM_ATTR static void gpio_isr (void *arg)
 
     if((grp & PinGroup_MPG) && !mpg_mutex) {
         mpg_mutex = true;
-        protocol_enqueue_rt_command(modeChange);
+        protocol_enqueue_foreground_task(modeChange, NULL);
         mpg_mutex = false;
     }
 #endif

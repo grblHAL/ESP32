@@ -19,7 +19,7 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#if N_ABC_MOTORS > 0
+#if N_ABC_MOTORS > 1
 #error "Axis configuration is not supported!"
 #endif
 

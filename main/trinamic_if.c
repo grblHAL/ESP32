@@ -263,6 +263,8 @@ void board_init (void)
 
     if((stream = stream_open_instance(TRINAMIC_STREAM, 230400, NULL)) == NULL)
         stream = stream_null_init(230400);
+    else
+        stream_set_description(stream, "Trinamic UART");
 
     if(stream) {
         memcpy(&tmc_uart, stream, sizeof(io_stream_t));

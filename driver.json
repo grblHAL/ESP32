@@ -83,6 +83,7 @@
       "caps": {
         "axes": 3,
         "serial_ports": 2,
+        "safety_door": 0,
         "sdcard": 1,
         "probe": 1,
         "safety_door": 0,

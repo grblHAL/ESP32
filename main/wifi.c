@@ -385,38 +385,13 @@ void wifi_ap_scan (void)
         xEventGroupSetBits(wifi_event_group, SCANNING_BIT);
 }
 
-static void msg_ap_ready (sys_state_t state)
-{
-    hal.stream.write_all("[MSG:WIFI AP READY]" ASCII_EOL);
-}
-
-static void msg_ap_connected (sys_state_t state)
-{
-    hal.stream.write_all("[MSG:WIFI AP CONNECTED]" ASCII_EOL);
-}
-
-static void msg_ap_scan_completed (sys_state_t state)
-{
-    hal.stream.write_all("[MSG:WIFI AP SCAN COMPLETED]" ASCII_EOL);
-}
-
-static void msg_ap_disconnected (sys_state_t state)
-{
-    hal.stream.write_all("[MSG:WIFI AP DISCONNECTED]" ASCII_EOL);
-}
-
-static void msg_sta_active (sys_state_t state)
+static void msg_sta_active (void *data)
 {
     char buf[50 + 45]; // + 45 due to compiler issue?
 
     sprintf(buf, "[MSG:WIFI STA ACTIVE, IP=%s]" ASCII_EOL, iptoa(&ap_list.ip_addr));
 
     hal.stream.write_all(buf);
-}
-
-static void msg_sta_disconnected (sys_state_t state)
-{
-    hal.stream.write_all("[MSG:WIFI STA DISCONNECTED]" ASCII_EOL);
 }
 
 static void ip_event_handler (void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
@@ -440,7 +415,7 @@ static void ip_event_handler (void *arg, esp_event_base_t event_base, int32_t ev
                 // commit to EEPROM?
             } else
                 wifi_ap_scan();
-            protocol_enqueue_rt_command(msg_sta_active);
+            protocol_enqueue_foreground_task(msg_sta_active, NULL);
             break;
 
         default:
@@ -453,7 +428,7 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
     if(event_base == WIFI_EVENT) switch(event_id) {
 
         case WIFI_EVENT_AP_START:
-            protocol_enqueue_rt_command(msg_ap_ready);
+            protocol_enqueue_foreground_task(report_plain, "WIFI AP READY");
             if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT) {
                 start_services(false);
                 services.dns = dns_server_start(sta_netif);
@@ -462,12 +437,12 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
             break;
 /*??
         case WIFI_EVENT_AP_STOP:
-            protocol_enqueue_rt_command(msg_ap_disconnected);
+            protocol_enqueue_foreground_task(report_plain, "WIFI AP SCAN COMPLETED");
             wifi_stop();
             break;
 */
         case WIFI_EVENT_AP_STACONNECTED:
-            protocol_enqueue_rt_command(msg_ap_connected);
+            protocol_enqueue_foreground_task(report_plain, "WIFI AP CONNECTED");
             if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT) {
                 if(!(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT)) {
                     /* // screws up dns?
@@ -496,7 +471,7 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
             else if(!(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT))
                 ssdp_stop();
 #endif
-            protocol_enqueue_rt_command(msg_ap_disconnected);
+            protocol_enqueue_foreground_task(report_plain, "WIFI AP DISCONNECTED");
             break;
                 
         case WIFI_EVENT_STA_START:
@@ -512,7 +487,7 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
 #if WEBSOCKET_ENABLE
             websocketd_close_connections();
 #endif
-            protocol_enqueue_rt_command(msg_sta_disconnected);
+            protocol_enqueue_foreground_task(report_plain, "WIFI STA DISCONNECTED");
             memset(&wifi_sta_config, 0, sizeof(wifi_config_t));
             esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_sta_config);
             if((xEventGroupGetBits(wifi_event_group) & APSTA_BIT) && !(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT)) {
@@ -562,7 +537,7 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
                 if((ap_list.ap_records = (wifi_ap_record_t *)malloc(sizeof(wifi_ap_record_t) * ap_list.ap_num)) != NULL)
                     esp_wifi_scan_get_ap_records(&ap_list.ap_num, ap_list.ap_records);
 
-                protocol_enqueue_rt_command(msg_ap_scan_completed);
+                protocol_enqueue_foreground_task(report_plain, "WIFI AP SCAN COMPLETED");
 
                 xSemaphoreGive(aplist_mutex);
             }

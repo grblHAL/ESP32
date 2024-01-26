@@ -28,7 +28,7 @@
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
 
-#define SERIAL2_ENABLE      1
+//#define SERIAL2_ENABLE      1
 #define UART2_RX_PIN        GPIO_NUM_16 // EXP_1
 #define UART2_TX_PIN        GPIO_NUM_17 // EXP_1
 
