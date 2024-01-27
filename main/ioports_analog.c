@@ -398,11 +398,11 @@ static xbar_t *get_pin_info (io_port_type_t type, io_port_direction_t dir, uint8
                 pin.get_value = pwm_get_value;
     #ifdef AUXOUTPUT0_PWM_PIN
                 if(aux_out_analog[port].pin == AUXOUTPUT0_PWM_PIN)
-                    pin.config = (xbar_config_ptr)init_pwm0;
+                    pin.config = init_pwm0;
     #endif
     #ifdef AUXOUTPUT1_PWM_PIN
                 if(aux_out_analog[port].pin == AUXOUTPUT1_PWM_PIN)
-                    pin.config = (xbar_config_ptr)init_pwm1;
+                    pin.config = init_pwm1;
     #endif
                 info = &pin;
             }

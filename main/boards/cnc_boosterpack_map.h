@@ -39,8 +39,8 @@
 #endif
 
 #if !EEPROM_ENABLE
-#undef EEPROM_ENABLE
-#define EEPROM_ENABLE 1 // I2C EEPROM (24LC16) support.
+//#undef EEPROM_ENABLE
+//#define EEPROM_ENABLE 1 // I2C EEPROM (24LC16) support.
 #endif
 
 #if !IOEXPAND_ENABLE
@@ -105,6 +105,9 @@
 
 #if I2C_STROBE_ENABLE
 #define I2C_STROBE_PIN          GPIO_NUM_33
+#elif NEOPIXELS_ENABLE
+#define NEOPIXELS_PIN           GPIO_NUM_33
+#define NEOPIXELS_NUM           NEOPIXELS_ENABLE
 #else
 #define AUXINPUT0_PIN           GPIO_NUM_33
 #endif

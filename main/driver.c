@@ -420,19 +420,6 @@ static probe_state_t probe = {
 };
 #endif
 
-#ifdef SQUARING_ENABLED
-static axes_signals_t motors_1 = {AXES_BITMASK}, motors_2 = {AXES_BITMASK};
-#endif
-
-#if USE_I2S_OUT
-static bool goIdlePending = false;
-static uint32_t i2s_step_length = I2S_OUT_USEC_PER_PULSE, i2s_delay_length = I2S_OUT_USEC_PER_PULSE, i2s_delay_samples = 1, i2s_step_samples = 1;
-static bool laser_mode = false;
-#if DRIVER_SPINDLE_ENABLE
-static on_spindle_selected_ptr on_spindle_selected;
-#endif
-#endif // USE_I2S_OUT
-
 #if IOEXPAND_ENABLE
 static ioexpand_t iopins = {0};
 #endif
@@ -471,106 +458,6 @@ static void stepper_driver_isr (void *arg);
 
 static TimerHandle_t xDelayTimer = NULL, debounceTimer = NULL;
 
-#if USE_I2S_OUT
-
-// Set stepper pulse output pins
-inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits_1);
-
-#else
-
-void initRMT (settings_t *settings)
-{
-    rmt_item32_t rmtItem[2];
-
-    rmt_config_t rmtConfig = {
-        .rmt_mode = RMT_MODE_TX,
-        .clk_div = 20,
-        .mem_block_num = 1,
-        .tx_config.loop_en = false,
-        .tx_config.carrier_en = false,
-        .tx_config.carrier_freq_hz = 0,
-        .tx_config.carrier_duty_percent = 50,
-        .tx_config.carrier_level = RMT_CARRIER_LEVEL_LOW,
-        .tx_config.idle_output_en = true
-    };
-
-    rmtItem[0].duration0 = (uint32_t)(settings->steppers.pulse_delay_microseconds > 0.0f ? 4.0f * settings->steppers.pulse_delay_microseconds : 1.0f);
-    rmtItem[0].duration1 = (uint32_t)(4.0f * settings->steppers.pulse_microseconds);
-    rmtItem[1].duration0 = 0;
-    rmtItem[1].duration1 = 0;
-
-//    hal.max_step_rate = 4000000UL / (rmtItem[0].duration0 + rmtItem[0].duration1); // + latency
-
-    uint32_t channel;
-    for(channel = 0; channel < (N_AXIS + N_GANGED); channel++) {
-
-        rmtConfig.channel = channel;
-
-        switch(channel) {
-            case X_AXIS:
-                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.x;
-                rmtConfig.gpio_num = X_STEP_PIN;
-                break;
-            case Y_AXIS:
-                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.y;
-                rmtConfig.gpio_num = Y_STEP_PIN;
-                break;
-#ifdef Z_STEP_PIN
-            case Z_AXIS:
-                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.z;
-                rmtConfig.gpio_num = Z_STEP_PIN;
-                break;
-#endif
-#ifdef A_STEP_PIN
-            case A_AXIS:
-                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.a;
-                rmtConfig.gpio_num = A_STEP_PIN;
-                break;
-#endif
-#ifdef B_STEP_PIN
-            case B_AXIS:
-                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.b;
-                rmtConfig.gpio_num = B_STEP_PIN;
-                break;
-#endif
-#ifdef C_STEP_PIN
-            case C_AXIS:
-                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.c;
-                rmtConfig.gpio_num = C_STEP_PIN;
-                break;
-#endif
-#ifdef X2_STEP_PIN
-            case X2_MOTOR:
-                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.x;
-                rmtConfig.gpio_num = X2_STEP_PIN;
-                break;
-#endif
-#ifdef Y2_STEP_PIN
-            case Y2_MOTOR:
-                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.y;
-                rmtConfig.gpio_num = Y2_STEP_PIN;
-                break;
-#endif
-#ifdef Z2_STEP_PIN
-            case Z2_MOTOR:
-                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.z;
-                rmtConfig.gpio_num = Z2_STEP_PIN;
-                break;
-#endif
-        }
-#ifndef Z_STEP_PIN
-        if(channel == Z_AXIS)
-        	continue;
-#endif
-        rmtItem[0].level0 = rmtConfig.tx_config.idle_level;
-        rmtItem[0].level1 = !rmtConfig.tx_config.idle_level;
-        rmt_config(&rmtConfig);
-        rmt_fill_tx_items(rmtConfig.channel, &rmtItem[0], 2, 0);
-    }
-}
-
-#endif
-
 void vTimerCallback (TimerHandle_t xTimer)
 {
     void (*callback)(void) = (void (*)(void))pvTimerGetTimerID(xTimer);
@@ -607,71 +494,48 @@ IRAM_ATTR static void driver_delay_ms (uint32_t ms, void (*callback)(void))
     }
 }
 
-#if !CONFIG_IDF_TARGET_ESP32S3
-
-IRAM_ATTR static void delay_us (uint32_t us)
-{
-#if CONFIG_IDF_TARGET_ESP32S3
-    int32_t t = XTHAL_GET_CCOUNT() + hal.f_mcu * us;
-
-    while((XTHAL_GET_CCOUNT() - t) < 0) {
-        __asm__ __volatile__ ("nop");
-    }
-#else
-    uint64_t start_time = esp_timer_get_time();
-
-    while (esp_timer_get_time() - start_time < us) {
-        __asm__ __volatile__ ("nop");
-    }
-#endif
-}
-
-#endif
-
 // Enable/disable steppers
 static void stepperEnable (axes_signals_t enable)
 {
     enable.mask ^= settings.steppers.enable_invert.mask;
 
 #if !TRINAMIC_MOTOR_ENABLE
-  #if IOEXPAND_ENABLE // TODO: read from expander?
+ #if IOEXPAND_ENABLE // TODO: read from expander?
     iopins.stepper_enable_x = enable.x;
     iopins.stepper_enable_y = enable.y;
     iopins.stepper_enable_z = enable.z;
     ioexpand_out(iopins);
-  #else
-    #if defined(STEPPERS_ENABLE_PIN)
-        DIGITAL_OUT(STEPPERS_ENABLE_PIN, enable.x);
-    #else
-      #ifdef X_ENABLE_PIN
-            DIGITAL_OUT(X_ENABLE_PIN, enable.x);
-      #endif
-      #ifdef Y_ENABLE_PIN
-            DIGITAL_OUT(Y_ENABLE_PIN, enable.y);
-      #endif
-      #ifdef Z_ENABLE_PIN
-            DIGITAL_OUT(Z_ENABLE_PIN, enable.z);
-      #endif
-      #ifdef A_ENABLE_PIN
-            DIGITAL_OUT(A_ENABLE_PIN, enable.a);
-      #endif
-      #ifdef B_ENABLE_PIN
-            DIGITAL_OUT(B_ENABLE_PIN, enable.b);
-      #endif
-      #ifdef C_ENABLE_PIN
-            DIGITAL_OUT(C_ENABLE_PIN, enable.c);
-      #endif
-      #ifdef X2_ENABLE_PIN
-            DIGITAL_OUT(X2_ENABLE_PIN, enable.x);
-      #endif
-      #ifdef Y2_ENABLE_PIN
-            DIGITAL_OUT(Y2_ENABLE_PIN, enable.y);
-      #endif
-      #ifdef Z2_ENABLE_PIN
-            DIGITAL_OUT(Z2_ENABLE_PIN, enable.z);
-      #endif
-    #endif
+ #elif defined(STEPPERS_ENABLE_PIN)
+    DIGITAL_OUT(STEPPERS_ENABLE_PIN, enable.x);
+ #else
+  #ifdef X_ENABLE_PIN
+    DIGITAL_OUT(X_ENABLE_PIN, enable.x);
   #endif
+  #ifdef X2_ENABLE_PIN
+    DIGITAL_OUT(X2_ENABLE_PIN, enable.x);
+  #endif
+  #ifdef Y_ENABLE_PIN
+    DIGITAL_OUT(Y_ENABLE_PIN, enable.y);
+  #endif
+  #ifdef Y2_ENABLE_PIN
+    DIGITAL_OUT(Y2_ENABLE_PIN, enable.y);
+  #endif
+  #ifdef Z_ENABLE_PIN
+    DIGITAL_OUT(Z_ENABLE_PIN, enable.z);
+  #endif
+  #ifdef Z2_ENABLE_PIN
+    DIGITAL_OUT(Z2_ENABLE_PIN, enable.z);
+  #endif
+  #ifdef A_ENABLE_PIN
+    DIGITAL_OUT(A_ENABLE_PIN, enable.a);
+  #endif
+  #ifdef B_ENABLE_PIN
+    DIGITAL_OUT(B_ENABLE_PIN, enable.b);
+  #endif
+  #ifdef C_ENABLE_PIN
+    DIGITAL_OUT(C_ENABLE_PIN, enable.c);
+  #endif
+ #endif
 #endif
 }
 
@@ -751,16 +615,60 @@ inline IRAM_ATTR static void set_dir_outputs (axes_signals_t dir_outbits)
 #endif
 }
 
+#ifdef SQUARING_ENABLED
+
+static axes_signals_t motors_1 = {AXES_BITMASK}, motors_2 = {AXES_BITMASK};
+
+// Enable/disable motors for auto squaring of ganged axes
+static void StepperDisableMotors (axes_signals_t axes, squaring_mode_t mode)
+{
+    motors_1.mask = (mode == SquaringMode_A || mode == SquaringMode_Both ? axes.mask : 0) ^ AXES_BITMASK;
+    motors_2.mask = (mode == SquaringMode_B || mode == SquaringMode_Both ? axes.mask : 0) ^ AXES_BITMASK;
+}
+
+#endif // SQUARING_ENABLED
+
 #if USE_I2S_OUT
 
-IRAM_ATTR static void I2S_stepperCyclesPerTick (uint32_t cycles_per_tick)
+static bool goIdlePending = false;
+static uint32_t i2s_step_length = I2S_OUT_USEC_PER_PULSE, i2s_delay_length = I2S_OUT_USEC_PER_PULSE, i2s_delay_samples = 1, i2s_step_samples = 1;
+static bool laser_mode = false;
+#if DRIVER_SPINDLE_ENABLE
+static on_spindle_selected_ptr on_spindle_selected;
+#endif
+
+// Set stepper pulse output pins
+inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits_1);
+
+#if !CONFIG_IDF_TARGET_ESP32S3
+
+IRAM_ATTR static void delay_us (uint32_t us)
+{
+#if CONFIG_IDF_TARGET_ESP32S3
+    int32_t t = XTHAL_GET_CCOUNT() + hal.f_mcu * us;
+
+    while((XTHAL_GET_CCOUNT() - t) < 0) {
+        __asm__ __volatile__ ("nop");
+    }
+#else
+    uint64_t start_time = esp_timer_get_time();
+
+    while (esp_timer_get_time() - start_time < us) {
+        __asm__ __volatile__ ("nop");
+    }
+#endif
+}
+
+#endif // !CONFIG_IDF_TARGET_ESP32S3
+
+IRAM_ATTR static void I2SStepperCyclesPerTick (uint32_t cycles_per_tick)
 {
     i2s_out_set_pulse_period((cycles_per_tick < (1UL << 18) ? cycles_per_tick : (1UL << 18) - 1UL) / (hal.f_step_timer / 1000000));
 }
 
 // Sets stepper direction and pulse pins and starts a step pulse
 // Called when in I2S stepping mode
-IRAM_ATTR static void I2S_stepperPulseStart (stepper_t *stepper)
+IRAM_ATTR static void I2SStepperPulseStart (stepper_t *stepper)
 {
     if(stepper->dir_change) {
         set_dir_outputs(stepper->dir_outbits);
@@ -776,18 +684,14 @@ IRAM_ATTR static void I2S_stepperPulseStart (stepper_t *stepper)
 }
 
 // Starts stepper driver ISR timer and forces a stepper driver interrupt callback
-static void I2S_stepperWakeUp (void)
+static void I2SStepperWakeUp (void)
 {
     // Enable stepper drivers.
     stepperEnable((axes_signals_t){AXES_BITMASK});
     i2s_out_set_stepping();
 }
 
-#endif // USE_I2S_OUT
-
 #ifdef SQUARING_ENABLED
-
-#if USE_I2S_OUT
 
 // Set stepper pulse output pins
 inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits_1)
@@ -821,84 +725,7 @@ inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs
 #endif
 }
 
-#else // RMT
-
-// Set stepper pulse output pins
-inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_outbits_1)
-{
-    axes_signals_t step_outbits_2;
-    step_outbits_2.mask = (step_outbits_1.mask & motors_2.mask) ^ settings.steppers.step_invert.mask;
-    step_outbits_1.mask = (step_outbits_1.mask & motors_1.mask) ^ settings.steppers.step_invert.mask;
-
-    if(step_outbits_1.x) {
-        rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
-        rmt_ll_tx_start(&RMT, X_AXIS);
-    }
-#ifdef X2_STEP_PIN
-    if(step_outbits_2.x) {
-        rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR);
-        rmt_ll_tx_start(&RMT, X2_MOTOR);
-    }
-#endif
-
-    if(step_outbits_1.y) {
-        rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
-        rmt_ll_tx_start(&RMT, Y_AXIS);
-    }
-#ifdef Y2_STEP_PIN
-    if(step_outbits_2.y) {
-        rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR);
-        rmt_ll_tx_start(&RMT, Y2_MOTOR);
-    }
-#endif
-
-#ifdef Z_STEP_PIN
-    if(step_outbits_1.z) {
-        rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
-        rmt_ll_tx_start(&RMT, Z_AXIS);
-    }
-  #ifdef Z2_STEP_PIN
-    if(step_outbits_2.z) {
-        rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR);
-        rmt_ll_tx_start(&RMT, Z2_MOTOR);
-    }
-  #endif
-#endif // Z_STEP_PIN
-
-#ifdef A_STEP_PIN
-    if(step_outbits_1.a) {
-        rmt_ll_tx_reset_pointer(&RMT, A_AXIS);
-        rmt_ll_tx_start(&RMT, A_AXIS);
-    }
-#endif
-
-#ifdef B_STEP_PIN
-    if(step_outbits_1.b) {
-        rmt_ll_tx_reset_pointer(&RMT, B_AXIS);
-        rmt_ll_tx_start(&RMT, B_AXIS);
-    }
-#endif
-
-#ifdef C_STEP_PIN
-    if(step_outbits_1.c) {
-        rmt_ll_tx_reset_pointer(&RMT, C_AXIS);
-        rmt_ll_tx_start(&RMT, C_AXIS);
-    }
-#endif
-}
-
-#endif // SQUARING_ENABLED
-
-// Enable/disable motors for auto squaring of ganged axes
-static void StepperDisableMotors (axes_signals_t axes, squaring_mode_t mode)
-{
-    motors_1.mask = (mode == SquaringMode_A || mode == SquaringMode_Both ? axes.mask : 0) ^ AXES_BITMASK;
-    motors_2.mask = (mode == SquaringMode_B || mode == SquaringMode_Both ? axes.mask : 0) ^ AXES_BITMASK;
-}
-
-#else // SQUARING DISABLED
-
-#if USE_I2S_OUT
+#else // !SQUARING_ENABLED
 
 // Set stepper pulse output pins
 inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits)
@@ -928,6 +755,8 @@ inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs
     DIGITAL_OUT(C_STEP_PIN, step_outbits.c);
 #endif
 }
+
+#endif // !SQUARING_ENABLED
 
 #if STEP_INJECT_ENABLE
 
@@ -1014,9 +843,198 @@ void stepperOutputStep (axes_signals_t step_outbits, axes_signals_t dir_outbits)
         i2s_set_step_outputs((axes_signals_t){0});
     }
 }
+
 #endif // STEP_INJECT_ENABLE
 
+void i2s_step_sink (void)
+{
+    //NOOP
+}
+
+void I2SReset (void)
+{
+    if(goIdlePending) {
+        i2s_out_set_passthrough();
+        i2s_out_delay();
+//      i2s_out_reset();
+        goIdlePending = false;
+    }
+}
+
+IRAM_ATTR static void I2SStepperGoIdle (bool clear_signals)
+{
+    if(clear_signals) {
+        i2s_set_step_outputs((axes_signals_t){0});
+        set_dir_outputs((axes_signals_t){0});
+        i2s_out_reset();
+    }
+
+    if(!(goIdlePending = xPortInIsrContext())) {
+        i2s_out_set_passthrough();
+        i2s_out_delay();
+    }
+}
+
 #else // RMT stepping
+
+void initRMT (settings_t *settings)
+{
+    rmt_item32_t rmtItem[2];
+
+    rmt_config_t rmtConfig = {
+        .rmt_mode = RMT_MODE_TX,
+        .clk_div = 20,
+        .mem_block_num = 1,
+        .tx_config.loop_en = false,
+        .tx_config.carrier_en = false,
+        .tx_config.carrier_freq_hz = 0,
+        .tx_config.carrier_duty_percent = 50,
+        .tx_config.carrier_level = RMT_CARRIER_LEVEL_LOW,
+        .tx_config.idle_output_en = true
+    };
+
+    rmtItem[0].duration0 = (uint32_t)(settings->steppers.pulse_delay_microseconds > 0.0f ? 4.0f * settings->steppers.pulse_delay_microseconds : 1.0f);
+    rmtItem[0].duration1 = (uint32_t)(4.0f * settings->steppers.pulse_microseconds);
+    rmtItem[1].duration0 = 0;
+    rmtItem[1].duration1 = 0;
+
+//    hal.max_step_rate = 4000000UL / (rmtItem[0].duration0 + rmtItem[0].duration1); // + latency
+
+    uint32_t channel;
+    for(channel = 0; channel < (N_AXIS + N_GANGED); channel++) {
+
+        rmtConfig.channel = channel;
+
+        switch(channel) {
+            case X_AXIS:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.x;
+                rmtConfig.gpio_num = X_STEP_PIN;
+                break;
+            case Y_AXIS:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.y;
+                rmtConfig.gpio_num = Y_STEP_PIN;
+                break;
+#ifdef Z_STEP_PIN
+            case Z_AXIS:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.z;
+                rmtConfig.gpio_num = Z_STEP_PIN;
+                break;
+#endif
+#ifdef A_STEP_PIN
+            case A_AXIS:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.a;
+                rmtConfig.gpio_num = A_STEP_PIN;
+                break;
+#endif
+#ifdef B_STEP_PIN
+            case B_AXIS:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.b;
+                rmtConfig.gpio_num = B_STEP_PIN;
+                break;
+#endif
+#ifdef C_STEP_PIN
+            case C_AXIS:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.c;
+                rmtConfig.gpio_num = C_STEP_PIN;
+                break;
+#endif
+#ifdef X2_STEP_PIN
+            case X2_MOTOR:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.x;
+                rmtConfig.gpio_num = X2_STEP_PIN;
+                break;
+#endif
+#ifdef Y2_STEP_PIN
+            case Y2_MOTOR:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.y;
+                rmtConfig.gpio_num = Y2_STEP_PIN;
+                break;
+#endif
+#ifdef Z2_STEP_PIN
+            case Z2_MOTOR:
+                rmtConfig.tx_config.idle_level = settings->steppers.step_invert.z;
+                rmtConfig.gpio_num = Z2_STEP_PIN;
+                break;
+#endif
+        }
+#ifndef Z_STEP_PIN
+        if(channel == Z_AXIS)
+            continue;
+#endif
+        rmtItem[0].level0 = rmtConfig.tx_config.idle_level;
+        rmtItem[0].level1 = !rmtConfig.tx_config.idle_level;
+        rmt_config(&rmtConfig);
+        rmt_fill_tx_items(rmtConfig.channel, &rmtItem[0], 2, 0);
+    }
+}
+
+#ifdef SQUARING_ENABLED
+
+// Set stepper pulse output pins
+inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_outbits_1)
+{
+    axes_signals_t step_outbits_2;
+    step_outbits_2.mask = (step_outbits_1.mask & motors_2.mask) ^ settings.steppers.step_invert.mask;
+    step_outbits_1.mask = (step_outbits_1.mask & motors_1.mask) ^ settings.steppers.step_invert.mask;
+
+    if(step_outbits_1.x) {
+        rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
+        rmt_ll_tx_start(&RMT, X_AXIS);
+    }
+#ifdef X2_STEP_PIN
+    if(step_outbits_2.x) {
+        rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR);
+        rmt_ll_tx_start(&RMT, X2_MOTOR);
+    }
+#endif
+
+    if(step_outbits_1.y) {
+        rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
+        rmt_ll_tx_start(&RMT, Y_AXIS);
+    }
+#ifdef Y2_STEP_PIN
+    if(step_outbits_2.y) {
+        rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR);
+        rmt_ll_tx_start(&RMT, Y2_MOTOR);
+    }
+#endif
+
+#ifdef Z_STEP_PIN
+    if(step_outbits_1.z) {
+        rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
+        rmt_ll_tx_start(&RMT, Z_AXIS);
+    }
+  #ifdef Z2_STEP_PIN
+    if(step_outbits_2.z) {
+        rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR);
+        rmt_ll_tx_start(&RMT, Z2_MOTOR);
+    }
+  #endif
+#endif // Z_STEP_PIN
+
+#ifdef A_STEP_PIN
+    if(step_outbits_1.a) {
+        rmt_ll_tx_reset_pointer(&RMT, A_AXIS);
+        rmt_ll_tx_start(&RMT, A_AXIS);
+    }
+#endif
+
+#ifdef B_STEP_PIN
+    if(step_outbits_1.b) {
+        rmt_ll_tx_reset_pointer(&RMT, B_AXIS);
+        rmt_ll_tx_start(&RMT, B_AXIS);
+    }
+#endif
+
+#ifdef C_STEP_PIN
+    if(step_outbits_1.c) {
+        rmt_ll_tx_reset_pointer(&RMT, C_AXIS);
+        rmt_ll_tx_start(&RMT, C_AXIS);
+    }
+#endif
+}
+
+#else // !SQUARING_ENABLED
 
 // Set stepper pulse output pins
 inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_outbits)
@@ -1069,6 +1087,8 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_outbits)
     }
 #endif
 }
+
+#endif // !SQUARING_ENABLED
 
 #if STEP_INJECT_ENABLE
 
@@ -1171,8 +1191,6 @@ void stepperOutputStep (axes_signals_t step_outbits, axes_signals_t dir_outbits)
 #endif // STEP_INJECT_ENABLE
 
 #endif // RMT Stepping
-
-#endif // SQUARING DISABLED
 
 #ifdef GANGING_ENABLED
 
@@ -1286,35 +1304,6 @@ IRAM_ATTR static void stepperGoIdle (bool clear_signals)
 
 #if USE_I2S_OUT
 
-void i2s_step_sink (void)
-{
-    //NOOP
-}
-
-void I2S_reset (void)
-{
-    if(goIdlePending) {
-        i2s_out_set_passthrough();
-        i2s_out_delay();
-//      i2s_out_reset();
-        goIdlePending = false;
-    }
-}
-
-IRAM_ATTR static void I2S_stepperGoIdle (bool clear_signals)
-{
-    if(clear_signals) {
-        i2s_set_step_outputs((axes_signals_t){0});
-        set_dir_outputs((axes_signals_t){0});
-        i2s_out_reset();
-    }
-
-    if(!(goIdlePending = xPortInIsrContext())) {
-        i2s_out_set_passthrough();
-        i2s_out_delay();
-    }
-}
-
 static void i2s_set_streaming_mode (bool stream)
 {
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -1323,17 +1312,17 @@ static void i2s_set_streaming_mode (bool stream)
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.enable = 0;
 #endif
 
-    if(!stream && hal.stepper.wake_up == I2S_stepperWakeUp && i2s_out_get_pulser_status() == STEPPING) {
+    if(!stream && hal.stepper.wake_up == I2SStepperWakeUp && i2s_out_get_pulser_status() == STEPPING) {
        i2s_out_set_passthrough();
        i2s_out_delay();
     }
 
     if(stream) {
-        if(hal.stepper.wake_up != I2S_stepperWakeUp) {
-            hal.stepper.wake_up = I2S_stepperWakeUp;
-            hal.stepper.go_idle = I2S_stepperGoIdle;
-            hal.stepper.cycles_per_tick = I2S_stepperCyclesPerTick;
-            hal.stepper.pulse_start = I2S_stepperPulseStart;
+        if(hal.stepper.wake_up != I2SStepperWakeUp) {
+            hal.stepper.wake_up = I2SStepperWakeUp;
+            hal.stepper.go_idle = I2SStepperGoIdle;
+            hal.stepper.cycles_per_tick = I2SStepperCyclesPerTick;
+            hal.stepper.pulse_start = I2SStepperPulseStart;
             i2s_out_set_pulse_callback(hal.stepper.interrupt_callback);
         }
     } else if(hal.stepper.wake_up != stepperWakeUp) {
@@ -2371,10 +2360,6 @@ static char *sdcard_mount (FATFS **fs)
         };
 
         sdmmc_host_t host = SDSPI_HOST_DEFAULT();
-#if CONFIG_IDF_TARGET_ESP32S3
-        host.max_freq_khz = 10000; // higher corrupts the card... Still incredible fast: ~35 Kb/sec vs. ~1.5 Mb/sec for the Teensy4 via FTP - 20 times faster! /sarc
-#endif
-
         sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
         slot_config.gpio_cs = PIN_NUM_CS;
         slot_config.host_id = host.slot;
@@ -2488,7 +2473,7 @@ static void neopixel_out_masked (uint16_t device, rgb_color_t color, rgb_color_m
     }
 }
 
-static void neopixel_out (uint8_t device, rgb_color_t color)
+static void neopixel_out (uint16_t device, rgb_color_t color)
 {
     neopixel_out_masked(device, color, (rgb_color_mask_t){ .mask = 0xFF });
 }
@@ -2750,7 +2735,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240119";
+    hal.driver_version = "240127";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2767,22 +2752,22 @@ bool driver_init (void)
     hal.delay_ms = driver_delay_ms;
     hal.settings_changed = settings_changed;
 
-#if !USE_I2S_OUT
+#if USE_I2S_OUT
+    hal.driver_reset = I2SReset;
+    hal.stepper.wake_up = I2SStepperWakeUp;
+    hal.stepper.go_idle = I2SStepperGoIdle;
+    hal.stepper.enable = stepperEnable;
+    hal.stepper.cycles_per_tick = I2SStepperCyclesPerTick;
+    hal.stepper.pulse_start = I2SStepperPulseStart;
+#else
     hal.stepper.wake_up = stepperWakeUp;
     hal.stepper.go_idle = stepperGoIdle;
     hal.stepper.enable = stepperEnable;
     hal.stepper.cycles_per_tick = stepperCyclesPerTick;
     hal.stepper.pulse_start = stepperPulseStart;
-  #if STEP_INJECT_ENABLE
+#endif
+#if STEP_INJECT_ENABLE
     hal.stepper.output_step = stepperOutputStep;
-  #endif
-#else
-    hal.driver_reset = I2S_reset;
-    hal.stepper.wake_up = I2S_stepperWakeUp;
-    hal.stepper.go_idle = I2S_stepperGoIdle;
-    hal.stepper.enable = stepperEnable;
-    hal.stepper.cycles_per_tick = I2S_stepperCyclesPerTick;
-    hal.stepper.pulse_start = I2S_stepperPulseStart;
 #endif
     hal.stepper.motor_iterator = motor_iterator;
 #ifdef GANGING_ENABLED
@@ -3007,7 +2992,7 @@ bool driver_init (void)
     neo_config.clk_div = 2;
 
     rmt_config(&neo_config);
-    rmt_driver_install(neo_config.channel, 0, 0);
+    rmt_driver_install(neo_config.channel, RMT_CHANNEL_MAX - 1, 0);
 
     uint32_t counter_clk_hz = 0;
 
@@ -3036,7 +3021,8 @@ bool driver_init (void)
         .function = Output_LED_Adressable,
         .group = PinGroup_LED,
         .pin = NEOPIXELS_PIN,
-        .mode = { .mask = PINMODE_OUTPUT }
+        .mode = { .mask = PINMODE_OUTPUT },
+        .description = "NeoPixels"
     };
 
     hal.periph_port.register_pin(&neopixels);
