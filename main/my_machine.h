@@ -1,6 +1,4 @@
 /*
-  my_machine.h - configuration for ESP32 processors
-
   Part of grblHAL
 
   Copyright (c) 2020-2024 Terje Io
@@ -24,6 +22,7 @@
 //#define BOARD_BDRING_V3P5         //
 //#define BOARD_BDRING_V4           //
 //#define BOARD_BDRING_I2S6A        //
+#define BOARD_BDRING_6X           //
 //#define BOARD_ESPDUINO32          //
 //#define BOARD_SOURCERABBIT_4AXIS  //
 //#define BOARD_PROTONEER_3XX       //
@@ -42,9 +41,10 @@
 // Configuration
 // Uncomment to enable, for some a value > 1 may be assigned, if so the default value is shown.
 
-#if CONFIG_IDF_TARGET_ESP32S3
-#define USB_SERIAL_CDC          1 // Serial communication via native USB.
-#endif
+// #if CONFIG_IDF_TARGET_ESP32S3
+// #define USB_SERIAL_CDC          1 // Serial communication via native USB.
+// #endif
+
 // Spindle selection:
 // Up to four specific spindle drivers can be instantiated at a time
 // depending on N_SPINDLE and N_SYS_SPINDLE definitions in grbl/config.h.
@@ -52,7 +52,7 @@
 // Spindle definitions can be found in grbl/spindle_control.h.
 // More here https://github.com/grblHAL/Plugins_spindle
 //#define SPINDLE0_ENABLE         SPINDLE_HUANYANG1
-//#define SPINDLE0_ENABLE         SPINDLE_PWM0_NODIR
+#define SPINDLE0_ENABLE         SPINDLE_PWM0_NODIR
 //#define SPINDLE2_ENABLE         SPINDLE_NONE
 //#define SPINDLE3_ENABLE         SPINDLE_NONE
 // **********************
@@ -63,7 +63,7 @@
 //#define WIFI_SOFTAP             1 // Use Soft AP mode for WiFi.
 //#define ETHERNET_ENABLE         1 // Ethernet streaming. Uses networking plugin.
 //#define BLUETOOTH_ENABLE        1 // Set to 1 for native radio, 2 for HC-05 module.
-//#define SDCARD_ENABLE           1 // Run gcode programs from SD card. Set to 2 to enable YModem upload.
+#define SDCARD_ENABLE           1 // Run gcode programs from SD card. Set to 2 to enable YModem upload.
 //#define KEYPAD_ENABLE           1 // I2C keypad for jogging etc., uses keypad plugin.
 //#define PPI_ENABLE              1 // Laser PPI plugin. To be completed.
 //#define LASER_COOLANT_ENABLE    1 // Laser coolant plugin. To be completed.
@@ -97,7 +97,7 @@
 //#define X_GANGED            1
 //#define X_AUTO_SQUARE       1
 //#define Y_GANGED            1
-//#define Y_AUTO_SQUARE       1
+#define Y_AUTO_SQUARE       1
 //#define Z_GANGED            1
 //#define Z_AUTO_SQUARE       1
 // For ganged axes the limit switch input (if available) can be configured to act as a max travel limit switch.
