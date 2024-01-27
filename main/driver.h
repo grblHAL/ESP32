@@ -122,7 +122,7 @@ typedef struct {
 #elif defined(BOARD_BDRING_I2S6A)
   #include "boards/bdring_i2s_6_axis_map.h"
 #elif defined(BOARD_BDRING_6X)
-  #include "boards/bdring_i2s_6x_map.h"
+  #include "boards/bdring_i2s_6x_v1_map.h"
 #elif defined(BOARD_ESPDUINO32)
   #include "boards/espduino-32_wemos_d1_r32_uno_map.h"
 #elif defined(BOARD_SOURCERABBIT_4AXIS)
