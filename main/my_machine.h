@@ -52,7 +52,7 @@
 // Spindle definitions can be found in grbl/spindle_control.h.
 // More here https://github.com/grblHAL/Plugins_spindle
 //#define SPINDLE0_ENABLE         SPINDLE_HUANYANG1
-#define SPINDLE0_ENABLE         SPINDLE_PWM0_NODIR
+//#define SPINDLE0_ENABLE         SPINDLE_PWM0_NODIR
 //#define SPINDLE2_ENABLE         SPINDLE_NONE
 //#define SPINDLE3_ENABLE         SPINDLE_NONE
 // **********************
@@ -63,7 +63,7 @@
 //#define WIFI_SOFTAP             1 // Use Soft AP mode for WiFi.
 //#define ETHERNET_ENABLE         1 // Ethernet streaming. Uses networking plugin.
 //#define BLUETOOTH_ENABLE        1 // Set to 1 for native radio, 2 for HC-05 module.
-#define SDCARD_ENABLE           1 // Run gcode programs from SD card. Set to 2 to enable YModem upload.
+#define SDCARD_ENABLE           2 // Run gcode programs from SD card. Set to 2 to enable YModem upload.
 //#define KEYPAD_ENABLE           1 // I2C keypad for jogging etc., uses keypad plugin.
 //#define PPI_ENABLE              1 // Laser PPI plugin. To be completed.
 //#define LASER_COOLANT_ENABLE    1 // Laser coolant plugin. To be completed.
@@ -120,12 +120,12 @@
 //#define WEBDAV_ENABLE         1 // webdav protocol - requires http daemon and SD card enabled.
 #endif
 // The following symbols have the default values as shown, uncomment and change as needed.
-//#define NETWORK_STA_HOSTNAME    "grblHAL"
+//#define NETWORK_STA_HOSTNAME    "grblHAL_6x"
 //#define NETWORK_STA_IPMODE      1 // 0 = static, 1 = DHCP, 2 = AutoIP
 //#define NETWORK_STA_IP          "192.168.5.1"
 //#define NETWORK_STA_GATEWAY     "192.168.5.1"
 //#define NETWORK_STA_MASK        "255.255.255.0"
-#if WIFI_SOFTAP > 0
+#if WIFI_SOFTAP
 //#define NETWORK_AP_SSID         "grblHAL_AP"
 //#define NETWORK_AP_PASSWORD     "grblHALap"
 //#define NETWORK_AP_HOSTNAME     "grblHAL_AP"
@@ -141,5 +141,5 @@
 //#define NETWORK_WEBSOCKET_PORT  81
 #else
 //#define NETWORK_WEBSOCKET_PORT  80
-#endif
+#endif // HTTP_ENABLE
 #endif // WIFI_ENABLE

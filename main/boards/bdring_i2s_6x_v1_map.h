@@ -116,7 +116,7 @@
 
 // Define probe switch input pin.
 #if PROBE_ENABLE
-#define PROBE_PIN               GPIO_NUM_26
+#define PROBE_PIN               GPIO_NUM_2
 #endif
 
 #if KEYPAD_ENABLE
