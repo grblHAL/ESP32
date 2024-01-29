@@ -24,6 +24,10 @@
 #define BOARD_NAME "Jackpot"
 #define BOARD_URL "https://docs.v1e.com/electronics/jackpot/"
 
+#if KEYPAD_ENABLE == 1
+#error No free pins for I2C keypad!
+#endif
+
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
 
@@ -120,16 +124,13 @@
 #define PIN_NUM_CS          GPIO_NUM_5
 #endif
 
-#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
-#define UART2_RX_PIN            GPIO_NUM_4
-#define UART2_TX_PIN            GPIO_NUM_0
+#ifdef ADD_SERIAL2
+#define UART2_RX_PIN        GPIO_NUM_4
+#define UART2_TX_PIN        GPIO_NUM_0
 #endif
 
 // Define probe switch input pin.
 #if PROBE_ENABLE
-#define PROBE_PIN               GPIO_NUM_36
+#define PROBE_PIN           GPIO_NUM_36
 #endif
 
-#if KEYPAD_ENABLE
-#error No free pins for keypad!
-#endif

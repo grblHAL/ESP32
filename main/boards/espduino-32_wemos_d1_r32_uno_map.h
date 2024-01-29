@@ -90,7 +90,7 @@
 #define PROBE_PIN           GPIO_NUM_39
 #endif
 
-#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
+#ifdef ADD_SERIAL2
 #define UART2_RX_PIN            GPIO_NUM_33
 #define UART2_TX_PIN            GPIO_NUM_32
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED

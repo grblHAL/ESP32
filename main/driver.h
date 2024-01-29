@@ -113,6 +113,10 @@ typedef struct {
 
 // End configuration
 
+#if !USB_SERIAL_CDC && ((MODBUS_ENABLE & MODBUS_RTU_ENABLED) || TRINAMIC_UART_ENABLE || MPG_ENABLE || (KEYPAD_ENABLE == 2 && MPG_ENABLE == 0))
+#define ADD_SERIAL2
+#endif
+
 #ifdef BOARD_CNC_BOOSTERPACK
   #include "boards/cnc_boosterpack_map.h"
 #elif defined(BOARD_BDRING_V4)
@@ -166,6 +170,12 @@ typedef struct {
 #warning "PWM spindle is not supported by board map!"
 #undef DRIVER_SPINDLE_PWM_ENABLE
 #define DRIVER_SPINDLE_PWM_ENABLE 0
+#endif
+
+#if SAFETY_DOOR_ENABLE && !defined(SAFETY_DOOR_PIN)
+#warning "Safety door input is not available!"
+#undef SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_ENABLE 0
 #endif
 
 #if IOEXPAND_ENABLE || EEPROM_ENABLE || KEYPAD_ENABLE == 1 || I2C_STROBE_ENABLE || (TRINAMIC_ENABLE && TRINAMIC_I2C)

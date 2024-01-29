@@ -24,6 +24,10 @@
 #define BOARD_NAME "Root CNC v2.x"
 #define BOARD_URL "https://wiki.rootcnc.com/en/Root-Controller-ISO/DetailedInfo"
 
+#if KEYPAD_ENABLE == 1
+#error No free pins for I2C keypad!
+#endif
+
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
 
@@ -119,7 +123,7 @@
 
 // N/A
 
-#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
+#ifdef ADD_SERIAL2
 #define UART2_RX_PIN            GPIO_NUM_16
 #define UART2_TX_PIN            GPIO_NUM_17
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
@@ -130,8 +134,4 @@
 // Define probe switch input pin.
 #if PROBE_ENABLE
 #define PROBE_PIN               GPIO_NUM_27
-#endif
-
-#if KEYPAD_ENABLE
-#error No free pins for keypad!
 #endif

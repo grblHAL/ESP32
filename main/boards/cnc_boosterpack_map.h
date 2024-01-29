@@ -112,17 +112,16 @@
 #define AUXINPUT0_PIN           GPIO_NUM_33
 #endif
 
-#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
+#ifdef ADD_SERIAL2
 #define UART2_RX_PIN            GPIO_NUM_33
-#define UART2_TX_PIN            GPIO_NUM_25
-#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
-#define MODBUS_DIRECTION_PIN    GPIO_NUM_25
-#endif
-#endif
-
 #if MPG_MODE == 1
-#define UART2_RX_PIN            GPIO_NUM_33
 #define MPG_ENABLE_PIN          GPIO_NUM_25
+#else
+#define UART2_TX_PIN            GPIO_NUM_25
+#endif
+#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
+#define MODBUS_DIRECTION_PIN    GPIO_NUM_25 //??
+#endif
 #endif
 
 // Define I2C port/pins

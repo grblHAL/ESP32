@@ -25,6 +25,10 @@
 #error "Axis configuration is not supported!"
 #endif
 
+#if KEYPAD_ENABLE == 1
+#error No free pins for I2C keypad!
+#endif
+
 #define BOARD_NAME "x-Pro v5"
 #define HAS_BOARD_INIT
 #if TRINAMIC_ENABLE != 5160
@@ -100,11 +104,7 @@
 #define PIN_NUM_CS          GPIO_NUM_5
 #endif
 
-#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
+#ifdef ADD_SERIAL2
 #define UART2_RX_PIN        GPIO_NUM_25
 #define UART2_TX_PIN        GPIO_NUM_4
-#endif
-
-#if KEYPAD_ENABLE
-#error No free pins for keypad!
 #endif

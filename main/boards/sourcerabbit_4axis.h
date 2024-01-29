@@ -111,10 +111,9 @@
 #endif
 
 #ifdef BOARD_SOURCERABBIT_4AXIS_12
-#if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN     GPIO_NUM_5  // ATC Door
-#else
 #define AUXINPUT0_PIN       GPIO_NUM_5  // ATC Door
+#if SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_PIN     AUXINPUT0_PIN  // ATC Door
 #endif
 #define AUXOUTPUT0_PIN      GPIO_NUM_19 // ATC Lock
 #define AUXOUTPUT1_PIN      GPIO_NUM_18 // ATC Blow

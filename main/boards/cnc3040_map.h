@@ -25,6 +25,14 @@
 #error "Axis configuration is not supported!"
 #endif
 
+#if KEYPAD_ENABLE == 1
+#error No free pins for I2C keypad!
+#endif
+
+#if SDCARD_ENABLE
+#error SD card not supported!
+#endif
+
 #define BOARD_NAME "CNC3040 4-axis CNC"
 #define BOARD_URL "https://github.com/shaise/GrblCNC/tree/master/Hardware/GrblCnc3040"
 
@@ -32,19 +40,9 @@
 #define STEP_TIMER_GROUP TIMER_GROUP_0
 #define STEP_TIMER_INDEX TIMER_0
 
-#if MODBUS_ENABLE
-#error VFD Spindle not supported!
-#endif
-
-#if KEYPAD_ENABLE == 2
-#define UART2_TX_PIN      GPIO_NUM_17
-#define UART2_RX_PIN      GPIO_NUM_16
-#elif KEYPAD_ENABLE == 1
-#error I2C Keypad not supported!
-#endif
-
-#if SDCARD_ENABLE
-#error SD card not supported!
+#ifdef ADD_SERIAL2
+#define UART2_TX_PIN        GPIO_NUM_17
+#define UART2_RX_PIN        GPIO_NUM_16
 #endif
 
 // Define step pulse output pins.

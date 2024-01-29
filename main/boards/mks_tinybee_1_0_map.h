@@ -25,10 +25,13 @@
 #define BOARD_NAME "MKS Tinybee V1.0"
 #define BOARD_URL "https://github.com/makerbase-mks/MKS-TinyBee"
 
+#if KEYPAD_ENABLE == 1
+#error No free pins for I2C keypad!
+#endif
+
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
 
-//#define SERIAL2_ENABLE      1
 #define UART2_RX_PIN        GPIO_NUM_16 // EXP_1
 #define UART2_TX_PIN        GPIO_NUM_17 // EXP_1
 
@@ -79,6 +82,8 @@
 #endif
 #endif
 
+#define AUXINPUT0_PIN           GPIO_NUM_39 // TB
+
 // Define driver spindle pins
 
 #if DRIVER_SPINDLE_PWM_ENABLE
@@ -109,7 +114,7 @@
 #define FEED_HOLD_PIN           GPIO_NUM_34 // TH2
 //#define RESET_PIN             (use board hardware)
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN         GPIO_NUM_39 // TB
+#define SAFETY_DOOR_PIN         AUXINPUT0_PIN // TB
 #endif
 
 // Define probe switch input pin.

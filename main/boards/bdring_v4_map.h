@@ -25,6 +25,10 @@
 #error "Axis configuration is not supported!"
 #endif
 
+#if KEYPAD_ENABLE == 1
+#error No free pins for I2C keypad!
+#endif
+
 #define BOARD_NAME "BDRING v4"
 
 // timer definitions
@@ -91,7 +95,7 @@
 #define PIN_NUM_CS          GPIO_NUM_5
 #endif
 
-#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
+#ifdef ADD_SERIAL2
 #define UART2_RX_PIN            GPIO_NUM_22
 #define UART2_TX_PIN            GPIO_NUM_21
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
@@ -99,6 +103,3 @@
 #endif
 #endif
 
-#if KEYPAD_ENABLE
-#error No free pins for keypad!
-#endif
