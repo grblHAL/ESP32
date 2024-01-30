@@ -112,6 +112,7 @@
       "MAP": "main/boards/mks_tinybee_1_0_map.h",
       "caps": {
         "axes": 5,
+        "auto_square": 2,
         "serial_ports": 2,
         "sdcard": 1,
         "estop": 0
