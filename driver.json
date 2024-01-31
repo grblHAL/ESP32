@@ -2,13 +2,15 @@
   "caps": {
     "axes": 6,
     "uart": 1,
-    "serial_ports": 1,
+    "serial_ports": 3,
+    "sdcard": 1,
     "littlefs": 1,
     "probe": 1,
     "safety_door": 1,
     "estop": 1,
     "wifi": 1,
     "bluetooth": 1,
+    "neopixels": 1,
     "pwm_spindle_aux": 3,
     "pio_board": "esp32dev",
     "plugins": [
@@ -50,6 +52,7 @@
         "auto_square": 1,
         "digital_in": 2,
         "safety_door": 1,
+        "serial_ports": 1,
         "sdcard": 1
       },
       "symbols": {
@@ -70,9 +73,7 @@
         "axes": 6,
         "serial_ports": 2,
         "trinamic_spi_cs": 1,
-        "trinamic_spi_chain": 1,
-        "trinamic_uart_n": 0,
-        "trinamic_uart_addr": 0
+        "trinamic_spi_chain": 1
       }
     },
     {
@@ -86,7 +87,6 @@
         "safety_door": 0,
         "sdcard": 1,
         "probe": 1,
-        "safety_door": 0,
         "pwm_spindle_aux": 2
       }
     },
@@ -100,9 +100,9 @@
         "digital_in": 1,
         "digital_out": 4,
         "safety_door": 0,
+        "serial_ports": 1,
         "pwm_spindle_aux": 2,
-        "sdcard": 1,
-        "i2c": 0
+        "sdcard": 1
       }
     },
     {
@@ -128,6 +128,7 @@
         "auto_square": 0,
         "safety_door": 0,
         "estop": 0,
+        "serial_ports": 1,
         "pwm_spindle_aux": 1
       }
     },
@@ -140,7 +141,8 @@
         "axes": 4,
         "auto_square": 0,
         "safety_door": 0,
-        "estop": 0
+        "estop": 0,
+        "serial_ports": 1
       }
     },
     {
@@ -150,7 +152,8 @@
       "MAP": "main/boards/protoneer_3.xx_map.h",
       "caps": {
         "axes": 3,
-        "pwm_spindle_aux": 2
+        "pwm_spindle_aux": 2,
+        "serial_ports": 1
       }
     },
     {
@@ -163,7 +166,8 @@
         "auto_square": 0,
         "pwm_spindle_aux": 2,
         "sdcard": 1,
-        "i2c": 1
+        "i2c": 1,
+        "serial_ports": 1
       }
     },
     {
