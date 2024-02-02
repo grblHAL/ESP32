@@ -477,10 +477,13 @@ IRAM_ATTR static void driver_delay_ms (uint32_t ms, void (*callback)(void))
             xTimerDelete(xDelayTimer, 3);
             xDelayTimer = NULL;
         }
-        xDelayTimer = xTimerCreate("msDelay", pdMS_TO_TICKS(ms), pdFALSE, callback, vTimerCallback);
-        xTimerStartFromISR(xDelayTimer, &xHigherPriorityTaskWoken);
-        if(xHigherPriorityTaskWoken)
-            portYIELD_FROM_ISR();
+        if(ms) {
+            xDelayTimer = xTimerCreate("msDelay", pdMS_TO_TICKS(ms), pdFALSE, callback, vTimerCallback);
+            xTimerStartFromISR(xDelayTimer, &xHigherPriorityTaskWoken);
+            if(xHigherPriorityTaskWoken)
+                portYIELD_FROM_ISR();
+        } else
+            callback();
     } else {
         if(xDelayTimer) {
             xTimerDelete(xDelayTimer, 3);
@@ -2735,7 +2738,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240127";
+    hal.driver_version = "240202";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
