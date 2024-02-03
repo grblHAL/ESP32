@@ -54,7 +54,9 @@
         "digital_in": 2,
         "safety_door": 1,
         "serial_ports": 1,
-        "sdcard": 1
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
       },
       "symbols": {
         "DEFAULT_LIMIT_SIGNALS_INVERT_MASK": "N_AXIS",
@@ -74,7 +76,9 @@
         "axes": 6,
         "serial_ports": 2,
         "trinamic_spi_cs": 1,
-        "trinamic_spi_chain": 1
+        "trinamic_spi_chain": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -88,7 +92,9 @@
         "safety_door": 0,
         "sdcard": 1,
         "probe": 1,
-        "pwm_spindle_aux": 2
+        "pwm_spindle_aux": 2,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -103,7 +109,9 @@
         "safety_door": 0,
         "serial_ports": 1,
         "pwm_spindle_aux": 2,
-        "sdcard": 1
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -116,7 +124,9 @@
         "auto_square": 2,
         "serial_ports": 2,
         "sdcard": 1,
-        "estop": 0
+        "estop": 0,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -130,7 +140,9 @@
         "safety_door": 0,
         "estop": 0,
         "serial_ports": 1,
-        "pwm_spindle_aux": 1
+        "pwm_spindle_aux": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -143,7 +155,9 @@
         "auto_square": 0,
         "safety_door": 0,
         "estop": 0,
-        "serial_ports": 1
+        "serial_ports": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -154,7 +168,9 @@
       "caps": {
         "axes": 3,
         "pwm_spindle_aux": 2,
-        "serial_ports": 1
+        "serial_ports": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -168,7 +184,9 @@
         "pwm_spindle_aux": 2,
         "sdcard": 1,
         "i2c": 1,
-        "serial_ports": 1
+        "serial_ports": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -182,7 +200,9 @@
         "serial_ports": 2,
         "sdcard": 1,
         "trinamic": 5160,
-        "trinamic_spi_chain": 1
+        "trinamic_spi_chain": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -196,7 +216,9 @@
         "digital_in": 1,
         "serial_ports": 2,
         "estop": 0,
-        "sdcard": 1
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -210,7 +232,9 @@
         "digital_in": 1,
         "serial_ports": 2,
         "estop": 0,
-        "sdcard": 1
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -236,7 +260,9 @@
         "axes": 3,
         "digital_in": 1,
         "serial_ports": 1,
-        "sdcard": 1
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -248,7 +274,9 @@
         "axes": 3,
         "serial_ports": 2,
         "digital_in": 1,
-        "sdcard": 1
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -263,7 +291,9 @@
         "eeprom": 1,
         "fram": 1,
         "i2c": 1,
-        "sdcard": 1
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     }
   ]
