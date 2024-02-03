@@ -1,6 +1,6 @@
 {
   "caps": {
-    "informal": 1
+    "informal": 1,
     "axes": 6,
     "uart": 1,
     "serial_ports": 3,
