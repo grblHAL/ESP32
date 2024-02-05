@@ -261,10 +261,8 @@ void board_init (void)
 
     const io_stream_t *stream;
 
-    if((stream = stream_open_instance(TRINAMIC_STREAM, 230400, NULL)) == NULL)
+    if((stream = stream_open_instance(TRINAMIC_STREAM, 230400, NULL, "Trinamic UART")) == NULL)
         stream = stream_null_init(230400);
-    else
-        stream_set_description(stream, "Trinamic UART");
 
     if(stream) {
         memcpy(&tmc_uart, stream, sizeof(io_stream_t));

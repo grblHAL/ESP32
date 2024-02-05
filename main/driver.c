@@ -11,18 +11,18 @@
    Copyright (c) 2011-2015 Sungeun K. Jeon
    Copyright (c) 2009-2011 Simen Svale Skogsrud
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <stdint.h>
@@ -422,6 +422,10 @@ static probe_state_t probe = {
 
 #if IOEXPAND_ENABLE
 static ioexpand_t iopins = {0};
+#endif
+
+#ifdef NEOPIXELS_PIN
+neopixel_cfg_t neopixel = { .intensity = 255 };
 #endif
 
 #if I2C_STROBE_ENABLE
@@ -1919,7 +1923,7 @@ static void modeChange (void *data)
     stream_mpg_enable(!DIGITAL_IN(MPG_ENABLE_PIN));
 }
 
-static void modeEnable (void *data)
+static void mpg_enable (void *data)
 {
     if(sys.mpg_mode == DIGITAL_IN(MPG_ENABLE_PIN))
         stream_mpg_enable(true);
@@ -1991,6 +1995,31 @@ gpio_int_type_t map_intr_type (pin_irq_mode_t mode)
 static void settings_changed (settings_t *settings, settings_changed_flags_t changed)
 {
     if(IOInitDone) {
+
+#ifdef NEOPIXELS_PIN
+
+    if(neopixel.leds == NULL || hal.rgb.num_devices != settings->rgb_strip0_length) {
+
+        if(settings->rgb_strip0_length == 0)
+            settings->rgb_strip0_length = hal.rgb.num_devices;
+        else
+            hal.rgb.num_devices = settings->rgb_strip0_length;
+
+        if(neopixel.leds) {
+            free(neopixel.leds);
+            neopixel.leds = NULL;
+        }
+
+        if(hal.rgb.num_devices) {
+            neopixel.num_bytes = hal.rgb.num_devices * 3;
+            if((neopixel.leds = calloc(neopixel.num_bytes, sizeof(uint8_t))) == NULL)
+                hal.rgb.num_devices = 0;
+        }
+
+        neopixel.num_leds = hal.rgb.num_devices;
+    }
+
+#endif
 
 #if DRIVER_SPINDLE_PWM_ENABLE
         if(changed.spindle) {
@@ -2396,7 +2425,11 @@ static char *sdcard_mount (FATFS **fs)
 #define NEOPIXELS_NUM 1
 #endif
 
-static rmt_config_t neo_config = RMT_DEFAULT_CONFIG_TX(NEOPIXELS_PIN, 3); // TODO: sort out channel allocation
+#if CONFIG_IDF_TARGET_ESP32S3
+static rmt_config_t neo_config = RMT_DEFAULT_CONFIG_TX(NEOPIXELS_PIN, 3);
+#else
+static rmt_config_t neo_config = RMT_DEFAULT_CONFIG_TX(NEOPIXELS_PIN, 7);
+#endif
 
 #define WS2812_T0H_NS (450)
 #define WS2812_T0L_NS (850)
@@ -2414,71 +2447,94 @@ static rmt_config_t neo_config = RMT_DEFAULT_CONFIG_TX(NEOPIXELS_PIN, 3); // TOD
 #define WS2812_T1L_NS (1300)
 */
 
-static uint8_t pixels[NEOPIXELS_NUM * 3] = {0};
 static uint32_t t0h_ticks = 0, t1h_ticks = 0, t0l_ticks = 0, t1l_ticks = 0;
 
 static void IRAM_ATTR ws2812_rmt_adapter (const void *src, rmt_item32_t *dest, size_t src_size,
                                            size_t wanted_num, size_t *translated_size, size_t *item_num)
 {
-    if (src == NULL || dest == NULL) {
-        *translated_size = 0;
-        *item_num = 0;
-        return;
-    }
     const rmt_item32_t bit0 = {{{ t0h_ticks, 1, t0l_ticks, 0 }}}; //Logical 0
     const rmt_item32_t bit1 = {{{ t1h_ticks, 1, t1l_ticks, 0 }}}; //Logical 1
-    size_t size = 0;
-    size_t num = 0;
-    uint8_t *psrc = (uint8_t *)src;
-    rmt_item32_t *pdest = dest;
-    while (size < src_size && num < wanted_num) {
-        for (int i = 0; i < 8; i++) {
-            // MSB first
-            if (*psrc & (1 << (7 - i))) {
-                pdest->val =  bit1.val;
-            } else {
-                pdest->val =  bit0.val;
-            }
-            num++;
-            pdest++;
+
+    rgb_color_t color = {0};
+    size_t size = 0, num = 0;
+    uint8_t *psrc = (uint8_t *)src, bitmask;
+
+    if(!(src == NULL || dest == NULL)) {
+        while(size < src_size && num < wanted_num) {
+
+            color.G = *psrc++;
+            color.R = *psrc++;
+            color.B = *psrc++;
+            color = rgb_set_intensity(color, neopixel.intensity);
+
+            bitmask = 0b10000000;
+            do {
+                dest->val = color.G & bitmask ? bit1.val : bit0.val;
+                dest++;
+            } while(bitmask >>= 1);
+
+            bitmask = 0b10000000;
+            do {
+                dest->val = color.R & bitmask ? bit1.val : bit0.val;
+                dest++;
+            } while(bitmask >>= 1);
+
+            bitmask = 0b10000000;
+            do {
+                dest->val = color.B & bitmask ? bit1.val : bit0.val;
+                dest++;
+            } while(bitmask >>= 1);
+
+            num += 24;
+            size += 3;
         }
-        size++;
-        psrc++;
     }
+
     *translated_size = size;
     *item_num = num;
 }
 
 void neopixels_write (void)
 {
-    rmt_write_sample(neo_config.channel, pixels, sizeof(pixels), true);
+    uint8_t *buf = neopixel.leds;
+    size_t size = neopixel.num_bytes;
+
+    if(buf) do {
+        rmt_write_sample(neo_config.channel, buf, size > 6 ? 6 : size, true);
+        buf += size > 6 ? 6 : size;
+        size -= size > 6 ? 6 : size;
+    } while(size);
 }
 
 static void neopixel_out_masked (uint16_t device, rgb_color_t color, rgb_color_mask_t mask)
 {
-    if(device < NEOPIXELS_NUM) {
+    if(neopixel.num_leds && device < neopixel.num_leds) {
 
-        device *= 3;
-        if(mask.G)
-            pixels[device++] = color.G;
-        else
-            device++;
-        if(mask.R)
-            pixels[device++] = color.R;
-        else
-            device++;
-        if(mask.B)
-            pixels[device] = color.B;
+        rgb_1bpp_assign(&neopixel.leds[device * 3], color, mask);
+
 #if NEOPIXELS_NUM == 1
-        rmt_write_sample(neo_config.channel, pixels, sizeof(pixels), true);
+        neopixels_write();
 #endif
-//??        rmt_wait_tx_done(neo_config.channel, pdMS_TO_TICKS(100));
     }
 }
 
 static void neopixel_out (uint16_t device, rgb_color_t color)
 {
     neopixel_out_masked(device, color, (rgb_color_mask_t){ .mask = 0xFF });
+}
+
+uint8_t neopixels_set_intensity (uint8_t value)
+{
+    uint8_t prev = neopixel.intensity;
+
+    if(neopixel.intensity != value) {
+
+        neopixel.intensity = value;
+
+//        neopixels_write();
+    }
+
+    return prev;
 }
 
 #endif // NEOPIXELS_PIN
@@ -2738,7 +2794,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240202";
+    hal.driver_version = "240205";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2995,7 +3051,7 @@ bool driver_init (void)
     neo_config.clk_div = 2;
 
     rmt_config(&neo_config);
-    rmt_driver_install(neo_config.channel, RMT_CHANNEL_MAX - 1, 0);
+    rmt_driver_install(neo_config.channel, 0, 0);
 
     uint32_t counter_clk_hz = 0;
 
@@ -3017,6 +3073,7 @@ bool driver_init (void)
 #if NEOPIXELS_NUM > 1
     hal.rgb.write = neopixels_write;
 #endif
+    hal.rgb.set_intensity = neopixels_set_intensity;
     hal.rgb.num_devices = NEOPIXELS_NUM;
     hal.rgb.cap = (rgb_color_t){ .R = 255, .G = 255, .B = 255 };
 
@@ -3038,16 +3095,18 @@ bool driver_init (void)
 
 #if MPG_MODE == 1
   #if KEYPAD_ENABLE == 2
-    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), MPG_STREAM_DUPLEX, keypad_enqueue_keycode)))
-        protocol_enqueue_foreground_task(modeEnable, NULL);
+    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, keypad_enqueue_keycode)))
+        protocol_enqueue_foreground_task(mpg_enable, NULL);
   #else
-    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), MPG_STREAM_DUPLEX, NULL)))
-        protocol_enqueue_foreground_task(modeEnable, NULL);
+    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, NULL)))
+        protocol_enqueue_foreground_task(mpg_enable, NULL);
   #endif
 #elif MPG_MODE == 2
-    hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL), 0, keypad_enqueue_keycode);
+    hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, keypad_enqueue_keycode);
+#elif MPG_MODE == 3
+    hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, stream_mpg_check_enable);
 #elif KEYPAD_ENABLE == 2
-    stream_open_instance(KEYPAD_STREAM, 115200, keypad_enqueue_keycode);
+    stream_open_instance(KEYPAD_STREAM, 115200, keypad_enqueue_keycode, "Keypad");
 #endif
 
 #if WIFI_ENABLE
