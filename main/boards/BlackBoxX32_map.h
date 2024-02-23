@@ -7,18 +7,18 @@
 
   Copyright (c) 2022 Peter van der Walt
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 
   Pin Definitions for the OpenBuilds BlackBox X32 Controller from https://openbuilds.com
 
@@ -80,12 +80,6 @@
 #define Y_LIMIT_PIN           GPIO_NUM_34
 #define Z_LIMIT_PIN           GPIO_NUM_39
 
-// Define probe switch input pin.
-// NOTE: probe input is not available when an auto-squared axis is enabled.
-#if PROBE_ENABLE
-  #define PROBE_PIN           GPIO_NUM_22
-#endif
-
 // Define driver spindle pins
 
 #if DRIVER_SPINDLE_PWM_ENABLE
@@ -111,10 +105,16 @@
 #define COOLANT_FLOOD_PIN   GPIO_NUM_21 // coolant
 //#define COOLANT_MIST_PIN  GPIO_NUM_21 // or mist
 
+// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
+
 #define AUXINPUT0_PIN       GPIO_NUM_0 // Mode button on front panel
 #define AUXINPUT1_PIN       GPIO_NUM_16
+#define AUXINPUT2_PIN       GPIO_NUM_22
 
-// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
+#if PROBE_ENABLE
+ #define PROBE_PIN          AUXINPUT2_PIN
+#endif
+
 #if SAFETY_DOOR_ENABLE
   #define SAFETY_DOOR_PIN   AUXINPUT1_PIN
 #endif

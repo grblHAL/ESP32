@@ -7,18 +7,18 @@
 
   Copyright (c) 2020-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #define BOARD_NAME "BDRING 6-Pack External drives V2.0"
@@ -116,17 +116,18 @@
 
 // N/A
 
+#define AUXINPUT0_PIN           GPIO_NUM_25
+
+#if PROBE_ENABLE
+#define PROBE_PIN               AUXINPUT0_PIN
+#endif
+
 #ifdef ADD_SERIAL2
 #define UART2_RX_PIN            GPIO_NUM_15
 #define UART2_TX_PIN            GPIO_NUM_14
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_13
 #endif
-#endif
-
-// Define probe switch input pin.
-#if PROBE_ENABLE
-#define PROBE_PIN               GPIO_NUM_25
 #endif
 
 #if KEYPAD_ENABLE

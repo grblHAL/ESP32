@@ -5,18 +5,18 @@
 
   Copyright (c) 2020-2023 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #if N_ABC_MOTORS > 0
@@ -60,8 +60,6 @@
 #define SPINDLEPWMPIN           GPIO_NUM_17
 #endif
 
-#define AUXINPUT0_PIN           GPIO_NUM_35
-
 // Define driver spindle pins
 
 #if DRIVER_SPINDLE_PWM_ENABLE
@@ -91,13 +89,16 @@
 #define RESET_PIN               GPIO_NUM_34
 #define FEED_HOLD_PIN           GPIO_NUM_36
 #define CYCLE_START_PIN         GPIO_NUM_39
-#if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN         AUXINPUT0_PIN
+
+#define AUXINPUT0_PIN           GPIO_NUM_35
+#define AUXINPUT1_PIN           GPIO_NUM_32
+
+#if PROBE_ENABLE
+#define PROBE_PIN               AUXINPUT1_PIN
 #endif
 
-// Define probe switch input pin.
-#if PROBE_ENABLE
-#define PROBE_PIN               GPIO_NUM_32
+#if SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_PIN         AUXINPUT0_PIN
 #endif
 
 #if I2C_ENABLE

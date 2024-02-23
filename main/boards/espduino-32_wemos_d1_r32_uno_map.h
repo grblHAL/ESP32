@@ -85,9 +85,10 @@
 #define FEED_HOLD_PIN       GPIO_NUM_4
 #define CYCLE_START_PIN     GPIO_NUM_35
 
-// Define probe switch input pin.
+#define AUXINPUT0_PIN       GPIO_NUM_39
+
 #if PROBE_ENABLE
-#define PROBE_PIN           GPIO_NUM_39
+#define PROBE_PIN           AUXINPUT0_PIN
 #endif
 
 #ifdef ADD_SERIAL2

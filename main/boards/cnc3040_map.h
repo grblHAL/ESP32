@@ -5,20 +5,20 @@
 
   Part of grblHAL
 
-  Copyright (c) 2021-2022 Terje Io
+  Copyright (c) 2021-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #if N_ABC_MOTORS > 1
@@ -73,15 +73,15 @@
 // Define driver spindle pins
 
 #if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_21
+#define SPINDLE_PWM_PIN     GPIO_NUM_21
 #else
-#define AUXOUTPUT0_PIN          GPIO_NUM_21
+#define AUXOUTPUT0_PIN      GPIO_NUM_21
 #endif
 
 #if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN      GPIO_NUM_2
+#define SPINDLE_ENABLE_PIN  GPIO_NUM_2
 #else
-#define AUXOUTPUT1_PIN          GPIO_NUM_2
+#define AUXOUTPUT1_PIN      GPIO_NUM_2
 #endif
 
 // Define flood and mist coolant enable output pins.
@@ -92,14 +92,13 @@
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 // N/A
 
-// Define probe switch input pin.
+#define AUXINPUT0_PIN       GPIO_NUM_35  // ATC Door
+#define AUXINPUT1_PIN       GPIO_NUM_25
+
 #if PROBE_ENABLE
-#define PROBE_PIN           GPIO_NUM_19
+#define PROBE_PIN           AUXINPUT1_PIN
 #endif
 
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN     GPIO_NUM_35  // ATC Door
-#else
-#define AUXINPUT0_PIN       GPIO_NUM_35  // ATC Door
+#define SAFETY_DOOR_PIN     AUXINPUT0_PIN  // ATC Door
 #endif
-
