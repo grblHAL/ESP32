@@ -2367,8 +2367,8 @@ static char *sdcard_mount (FATFS **fs)
 
         gpio_set_drive_capability(PIN_NUM_CS, GPIO_DRIVE_CAP_3);
 
-        if ((ret = esp_vfs_fat_sdspi_mount("/sdcard", &host, &slot_config, &mount_config, &card)) != ESP_OK)
-            report_message(ret == ESP_FAIL ? "Failed to mount filesystem" : "Failed to initialize SD card", Message_Warning);
+        if((ret = esp_vfs_fat_sdspi_mount("/sdcard", &host, &slot_config, &mount_config, &card)) != ESP_OK)
+            protocol_enqueue_foreground_task(report_warning, ret == ESP_FAIL ? "Failed to mount filesystem" : "Failed to initialize SD card");
     }
 
     if(card && fs) {
@@ -2755,7 +2755,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240223";
+    hal.driver_version = "240224";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
