@@ -187,11 +187,17 @@ static input_signal_t inputpin[] = {
 #ifdef X2_LIMIT_PIN
     { .id = Input_LimitX_2,     .pin = X2_LIMIT_PIN,      .group = PinGroup_Limit },
 #endif
+#ifdef X_LIMIT_PIN_MAX
+    { .id = Input_LimitX_Max,   .pin = X_LIMIT_PIN_MAX,   .group = PinGroup_LimitMax },
+#endif
 #ifdef Y_LIMIT_PIN
     { .id = Input_LimitY,       .pin = Y_LIMIT_PIN,       .group = PinGroup_Limit },
 #endif
 #ifdef Y2_LIMIT_PIN
     { .id = Input_LimitY_2,     .pin = Y2_LIMIT_PIN,      .group = PinGroup_Limit },
+#endif
+#ifdef Y_LIMIT_PIN_MAX
+    { .id = Input_LimitY_Max,   .pin = Y_LIMIT_PIN_MAX,   .group = PinGroup_LimitMax },
 #endif
 #ifdef Z_LIMIT_PIN
     { .id = Input_LimitZ,       .pin = Z_LIMIT_PIN,       .group = PinGroup_Limit },
@@ -199,14 +205,26 @@ static input_signal_t inputpin[] = {
 #ifdef Z2_LIMIT_PIN
     { .id = Input_LimitZ_2,     .pin = Z2_LIMIT_PIN,      .group = PinGroup_Limit },
 #endif
+#ifdef Z_LIMIT_PIN_MAX
+    { .id = Input_LimitZ_Max,   .pin = Z_LIMIT_PIN_MAX,   .group = PinGroup_LimitMax },
+#endif
 #ifdef A_LIMIT_PIN
     { .id = Input_LimitA,       .pin = A_LIMIT_PIN,       .group = PinGroup_Limit },
+#endif
+#ifdef A_LIMIT_PIN_MAX
+    { .id = Input_LimitA_Max,   .pin = A_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
 #endif
 #ifdef B_LIMIT_PIN
     { .id = Input_LimitB,       .pin = B_LIMIT_PIN,       .group = PinGroup_Limit },
 #endif
+#ifdef B_LIMIT_PIN_MAX
+    { .id = Input_LimitB_Max,   .pin = B_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
+#endif
 #ifdef C_LIMIT_PIN
     { .id = Input_LimitC,       .pin = C_LIMIT_PIN,       .group = PinGroup_Limit },
+#endif
+#ifdef C_LIMIT_PIN_MAX
+    { .id = Input_LimitC_Max,   .pin = C_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
 #endif
 #ifndef AUX_DEVICES
   #if SAFETY_DOOR_BIT
@@ -1401,6 +1419,10 @@ inline IRAM_ATTR static limit_signals_t limitsGetState (void)
 #ifdef DUAL_LIMIT_SWITCHES
     signals.min2.mask = settings.limits.invert.mask;
 #endif
+#ifdef MAX_LIMIT_SWITCHES
+    signals.max.mask = settings.limits.invert.mask;
+#endif
+
 #ifdef X_LIMIT_PIN
     signals.min.x = DIGITAL_IN(X_LIMIT_PIN);
 #endif
@@ -1430,10 +1452,32 @@ inline IRAM_ATTR static limit_signals_t limitsGetState (void)
     signals.min2.z = DIGITAL_IN(Z2_LIMIT_PIN);
 #endif
 
+#ifdef X_LIMIT_PIN_MAX
+    signals.max.x = DIGITAL_IN(X_LIMIT_PIN_MAX);
+#endif
+#ifdef Y_LIMIT_PIN_MAX
+    signals.max.y = DIGITAL_IN(Y_LIMIT_PIN_MAX);
+#endif
+#ifdef Z_LIMIT_PIN_MAX
+    signals.max.z = DIGITAL_IN(Z_LIMIT_PIN_MAX);
+#endif
+#ifdef A_LIMIT_PIN_MAX
+    signals.max.a = DIGITAL_IN(A_LIMIT_PIN_MAX);
+#endif
+#ifdef B_LIMIT_PIN_MAX
+    signals.max.b = DIGITAL_IN(B_LIMIT_PIN_MAX);
+#endif
+#ifdef C_LIMIT_PIN_MAX
+    signals.max.c = DIGITAL_IN(C_LIMIT_PIN_MAX);
+#endif
+
     if(settings.limits.invert.mask) {
         signals.min.value ^= settings.limits.invert.mask;
 #ifdef DUAL_LIMIT_SWITCHES
         signals.min2.mask ^= settings.limits.invert.mask;
+#endif
+#ifdef MAX_LIMIT_SWITCHES
+        signals.max.value ^= settings.limits.invert.mask;
 #endif
     }
 
@@ -2115,18 +2159,21 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
                    break;
 #ifdef A_LIMIT_PIN
                 case Input_LimitA:
+                case Input_LimitA_Max:
                     signal->mode.pull_mode = settings->limits.disable_pullup.a ? PullMode_Down : PullMode_Up;
                     signal->mode.inverted = limit_fei.a;
                     break;
 #endif
 #ifdef B_LIMIT_PIN
                 case Input_LimitB:
+                case Input_LimitB_Max:
                     signal->mode.pull_mode = settings->limits.disable_pullup.b ? PullMode_Down : PullMode_Up;
                     signal->mode.inverted = limit_fei.b;
                     break;
 #endif
 #ifdef C_LIMIT_PIN
                 case Input_LimitC:
+                case Input_LimitC_Max:
                     signal->mode.pull_mode = settings->limits.disable_pullup.c ? PullMode_Down : PullMode_Up;
                     signal->mode.inverted = limit_fei.c;
                     break;
@@ -2755,7 +2802,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240224";
+    hal.driver_version = "240304";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
