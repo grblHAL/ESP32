@@ -92,20 +92,14 @@
 
 #if DRIVER_SPINDLE_PWM_ENABLE
 #define SPINDLE_PWM_PIN         GPIO_NUM_26
-#else
-#define AUXOUTPUT0_PIN          GPIO_NUM_26
 #endif
 
 #if DRIVER_SPINDLE_DIR_ENABLE
 #define SPINDLE_DIRECTION_PIN   GPIO_NUM_16
-#else
-#define AUXOUTPUT1_PIN          GPIO_NUM_16
 #endif
 
 #if DRIVER_SPINDLE_ENABLE
 #define SPINDLE_ENABLE_PIN      GPIO_NUM_4
-#else
-#define AUXOUTPUT2_PIN          GPIO_NUM_4
 #endif
 
 // Define flood and mist coolant enable output pins.
