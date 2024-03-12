@@ -7,22 +7,26 @@
 
   Copyright (c) 2020-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #if N_ABC_MOTORS > 0
 #error "Axis configuration is not supported!"
+#endif
+
+#if KEYPAD_ENABLE == 1
+#error No free pins for I2C keypad!
 #endif
 
 #define BOARD_NAME "BDRING v4"
@@ -59,8 +63,6 @@
 #define SPINDLE_ENABLE_PIN  GPIO_NUM_22
 #endif
 
-#define AUXINPUT0_PIN       GPIO_NUM_35
-
 // Define flood and mist coolant enable output pins.
 
 #define COOLANT_FLOOD_PIN   GPIO_NUM_25
@@ -72,13 +74,16 @@
 #define RESET_PIN           GPIO_NUM_34
 #define FEED_HOLD_PIN       GPIO_NUM_36
 #define CYCLE_START_PIN     GPIO_NUM_39
-#if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN     AUXINPUT0_PIN
+
+#define AUXINPUT0_PIN       GPIO_NUM_35
+#define AUXINPUT1_PIN       GPIO_NUM_32
+
+#if PROBE_ENABLE
+#define PROBE_PIN           AUXINPUT1_PIN
 #endif
 
-// Define probe switch input pin.
-#if PROBE_ENABLE
-#define PROBE_PIN           GPIO_NUM_32
+#if SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_PIN     AUXINPUT0_PIN
 #endif
 
 #if SDCARD_ENABLE
@@ -91,7 +96,7 @@
 #define PIN_NUM_CS          GPIO_NUM_5
 #endif
 
-#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
+#ifdef ADD_SERIAL2
 #define UART2_RX_PIN            GPIO_NUM_22
 #define UART2_TX_PIN            GPIO_NUM_21
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
@@ -99,6 +104,3 @@
 #endif
 #endif
 
-#if KEYPAD_ENABLE
-#error No free pins for keypad!
-#endif

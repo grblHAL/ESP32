@@ -8,18 +8,18 @@
   Copyright (c) 2023 Terje Io
   Copyright (c) 2022 Lucio Tarantino
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #if VFD_SPINDLE
@@ -97,15 +97,17 @@
 #endif
 
 #define AUXINPUT0_PIN       GPIO_NUM_33 // EXP_1,8 (LCD_RS)
+#define AUXINPUT1_PIN       GPIO_NUM_22
+
+// Define probe switch input pin.
+#if PROBE_ENABLE
+#define PROBE_PIN           AUXINPUT1_PIN
+#endif
+
 #define AUXOUTPUT0_PIN      GPIO_NUM_25 // EXP_1,7 (LCD_CS_0)
 #define AUXOUTPUT1_PIN      GPIO_NUM_26 // EXP_1,5 (LCD_TOUCH_CS_0)
 #define AUXOUTPUT2_PIN      GPIO_NUM_27 // EXP_1,4 (LCD_RST_0)
 #define AUXOUTPUT3_PIN      GPIO_NUM_5  // EXP_1,3 (LCD_EN_0)
-
-// Define probe switch input pin.
-#if PROBE_ENABLE
-#define PROBE_PIN           GPIO_NUM_22
-#endif
 
 #if I2C_ENABLE
 // Define I2C port/pins

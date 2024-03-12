@@ -118,7 +118,7 @@ uint8_t spi_get_byte (void)
 
 uint8_t spi_put_byte (uint8_t byte)
 { 
-    esp_err_t err;
+//    esp_err_t err;
 
 //    err = spi_device_acquire_bus(handle, portMAX_DELAY);
 //    if (err != ESP_OK) return err;

@@ -4,22 +4,22 @@
 
   I2C I/O expander, PCA9654E - with address pins to GND. PCA9654EA has a different address!
 
-  Part of Grbl
+  Part of grblHAL
 
-  Copyright (c) 2018-2023 Terje Io
+  Copyright (c) 2018-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
@@ -45,6 +45,39 @@ void ioexpand_init (void)
             .stepper_enable_y = 0,
             .reserved = 1
         };
+
+        periph_pin_t pin = {
+            .pin = 0,
+            .mode.output = On,
+            .description = "PCA9654"
+        };
+
+        const pin_function_t function[] = {
+                Output_SpindleOn,
+                Output_SpindleDir,
+                Output_CoolantMist,
+                Output_CoolantFlood,
+                Output_StepperEnableX,
+                Output_StepperEnableY,
+                Output_StepperEnableZ
+        };
+
+        const pin_group_t group[] = {
+                PinGroup_SpindleControl,
+                PinGroup_SpindleControl,
+                PinGroup_Coolant,
+                PinGroup_Coolant,
+                PinGroup_StepperEnable,
+                PinGroup_StepperEnable,
+                PinGroup_StepperEnable
+        };
+
+        for(uint32_t i = 0; i < 7; i++) {
+            pin.group = group[i];
+            pin.function = function[i];
+            hal.periph_port.register_pin(&pin);
+            pin.pin++;
+        }
 
         i2c_cmd_handle_t cmd = i2c_cmd_link_create();
         i2c_master_start(cmd);

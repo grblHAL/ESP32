@@ -5,18 +5,18 @@
 
   Copyright (c) 2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public Licens
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "driver.h"
@@ -163,7 +163,7 @@ static void pwm_set_value (uint_fast8_t ch, float value)
 
 #ifdef AUXOUTPUT0_PWM_PIN
 
-static bool init_pwm0 (xbar_t *pin, pwm_config_t *config)
+static bool init_pwm0 (xbar_t *pin, pwm_config_t *config, bool persistent)
 {
     static bool init_ok = false;
 
@@ -242,7 +242,7 @@ static bool init_pwm0 (xbar_t *pin, pwm_config_t *config)
 
 #ifdef AUXOUTPUT1_PWM_PIN
 
-static bool init_pwm1 (xbar_t *pin, pwm_config_t *config)
+static bool init_pwm1 (xbar_t *pin, pwm_config_t *config, bool persistent)
 {
     static bool init_ok = false;
 
@@ -368,14 +368,14 @@ static xbar_t *get_pin_info (io_port_type_t type, io_port_direction_t dir, uint8
                 else
 #endif
                 if(aux_in_analog[port].cap.analog) {
-                    pin.mode = aux_in_analog[port].mode;
-                    pin.cap = aux_in_analog[port].cap;
+                    pin.id = port;
+                    pin.mode = aux_in_analog[pin.id].mode;
+                    pin.cap = aux_in_analog[pin.id].cap;
                     pin.cap.claimable = !pin.mode.claimed;
-                    pin.function = aux_in_analog[port].id;
-                    pin.group = aux_in_analog[port].group;
-                    pin.pin = aux_in_analog[port].pin;
-                    pin.bit = 1 << aux_in_analog[port].pin;
-                    pin.description = aux_in_analog[port].description;
+                    pin.function = aux_in_analog[pin.id].id;
+                    pin.group = aux_in_analog[pin.id].group;
+                    pin.pin = aux_in_analog[pin.id].pin;
+                    pin.description = aux_in_analog[pin.id].description;
                     info = &pin;
                 }
             }
@@ -386,23 +386,22 @@ static xbar_t *get_pin_info (io_port_type_t type, io_port_direction_t dir, uint8
             memset(&pin, 0, sizeof(xbar_t));
 
             if(port < analog.out.n_ports) {
-                port = ioports_map(analog.out, port);
-                pin.mode = aux_out_analog[port].mode;
+                pin.id = ioports_map(analog.out, port);
+                pin.mode = aux_out_analog[pin.id].mode;
                 pin.mode.pwm = !pin.mode.servo_pwm; //?? for easy filtering
                 XBAR_SET_CAP(pin.cap, pin.mode);
-                pin.function = aux_out_analog[port].id;
-                pin.group = aux_out_analog[port].group;
-                pin.pin = aux_out_analog[port].pin;
-                pin.bit = 1 << aux_out_analog[port].pin;
-                pin.description = aux_out_analog[port].description;
+                pin.function = aux_out_analog[pin.id].id;
+                pin.group = aux_out_analog[pin.id].group;
+                pin.pin = aux_out_analog[pin.id].pin;
+                pin.description = aux_out_analog[pin.id].description;
                 pin.get_value = pwm_get_value;
     #ifdef AUXOUTPUT0_PWM_PIN
-                if(aux_out_analog[port].pin == AUXOUTPUT0_PWM_PIN)
-                    pin.config = (xbar_config_ptr)init_pwm0;
+                if(aux_out_analog[pin.id].pin == AUXOUTPUT0_PWM_PIN)
+                    pin.config = init_pwm0;
     #endif
     #ifdef AUXOUTPUT1_PWM_PIN
-                if(aux_out_analog[port].pin == AUXOUTPUT1_PWM_PIN)
-                    pin.config = (xbar_config_ptr)init_pwm1;
+                if(aux_out_analog[pin.id].pin == AUXOUTPUT1_PWM_PIN)
+                    pin.config = init_pwm1;
     #endif
                 info = &pin;
             }
@@ -593,7 +592,7 @@ void ioports_init_analog (pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_ou
 
             for(i = 0; i < analog.out.n_ports; i++) {
                 if((pin = get_pin_info(Port_Analog, Port_Output, i)))
-                    pin->config(pin, &config);
+                    pin->config(pin, &config, false);
             }
         }
 

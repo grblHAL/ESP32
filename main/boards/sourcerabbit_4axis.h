@@ -7,18 +7,18 @@
 
   Copyright (c) 2021-2022 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #if N_ABC_MOTORS > 1
@@ -97,6 +97,12 @@
 #endif
 #endif
 
+#ifdef BOARD_SOURCERABBIT_4AXIS_12
+#define AUXINPUT1_PIN       GPIO_NUM_5  // ATC Door
+#define AUXOUTPUT0_PIN      GPIO_NUM_19 // ATC Lock
+#define AUXOUTPUT1_PIN      GPIO_NUM_18 // ATC Blow
+#endif
+
 // Define flood and mist coolant enable output pins.
 
 #define COOLANT_FLOOD_PIN   GPIO_NUM_22
@@ -105,17 +111,12 @@
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 // N/A
 
-// Define probe switch input pin.
+#define AUXINPUT0_PIN       GPIO_NUM_32
+
 #if PROBE_ENABLE
-#define PROBE_PIN           GPIO_NUM_32
+#define PROBE_PIN           AUXINPUT0_PIN
 #endif
 
-#ifdef BOARD_SOURCERABBIT_4AXIS_12
-#if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN     GPIO_NUM_5  // ATC Door
-#else
-#define AUXINPUT0_PIN       GPIO_NUM_5  // ATC Door
-#endif
-#define AUXOUTPUT0_PIN      GPIO_NUM_19 // ATC Lock
-#define AUXOUTPUT1_PIN      GPIO_NUM_18 // ATC Blow
+#if SAFETY_DOOR_ENABLE && defined(AUXINPUT1_PIN)
+#define SAFETY_DOOR_PIN     AUXINPUT1_PIN
 #endif

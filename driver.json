@@ -1,14 +1,17 @@
 {
   "caps": {
+    "informal": 1,
     "axes": 6,
     "uart": 1,
-    "serial_ports": 1,
+    "serial_ports": 3,
+    "sdcard": 1,
     "littlefs": 1,
     "probe": 1,
     "safety_door": 1,
     "estop": 1,
     "wifi": 1,
     "bluetooth": 1,
+    "neopixels": 1,
     "pwm_spindle_aux": 3,
     "pio_board": "esp32dev",
     "plugins": [
@@ -50,7 +53,10 @@
         "auto_square": 1,
         "digital_in": 2,
         "safety_door": 1,
-        "sdcard": 1
+        "serial_ports": 1,
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
       },
       "symbols": {
         "DEFAULT_LIMIT_SIGNALS_INVERT_MASK": "N_AXIS",
@@ -71,8 +77,8 @@
         "serial_ports": 2,
         "trinamic_spi_cs": 1,
         "trinamic_spi_chain": 1,
-        "trinamic_uart_n": 0,
-        "trinamic_uart_addr": 0
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -86,8 +92,26 @@
         "safety_door": 0,
         "sdcard": 1,
         "probe": 1,
+        "pwm_spindle_aux": 2,
+        "wifi": 1,
+        "bluetooth": 1
+      }
+    },
+    {
+      "name": "MKS DLC32 2.0",
+      "symbol": "BOARD_MKS_DLC32_V2P0",
+      "URL": "https://github.com/makerbase-mks/MKS-DLC32",
+      "MAP": "main/boards/mks_dlc32_2_0_map.h",
+      "caps": {
+        "axes": 3,
+        "digital_in": 1,
+        "digital_out": 4,
         "safety_door": 0,
-        "pwm_spindle_aux": 2
+        "serial_ports": 1,
+        "pwm_spindle_aux": 2,
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -97,9 +121,12 @@
       "MAP": "main/boards/mks_tinybee_1_0_map.h",
       "caps": {
         "axes": 5,
+        "auto_square": 2,
         "serial_ports": 2,
         "sdcard": 1,
-        "estop": 0
+        "estop": 0,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -112,7 +139,10 @@
         "auto_square": 0,
         "safety_door": 0,
         "estop": 0,
-        "pwm_spindle_aux": 1
+        "serial_ports": 1,
+        "pwm_spindle_aux": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -124,7 +154,10 @@
         "axes": 4,
         "auto_square": 0,
         "safety_door": 0,
-        "estop": 0
+        "estop": 0,
+        "serial_ports": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -134,7 +167,10 @@
       "MAP": "main/boards/protoneer_3.xx_map.h",
       "caps": {
         "axes": 3,
-        "pwm_spindle_aux": 2
+        "pwm_spindle_aux": 2,
+        "serial_ports": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -147,7 +183,10 @@
         "auto_square": 0,
         "pwm_spindle_aux": 2,
         "sdcard": 1,
-        "i2c": 1
+        "i2c": 1,
+        "serial_ports": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -161,21 +200,9 @@
         "serial_ports": 2,
         "sdcard": 1,
         "trinamic": 5160,
-        "trinamic_spi_chain": 1
-      }
-    },
-    {
-      "name": "MKS DLC32 2.0",
-      "symbol": "BOARD_MKS_DLC32_V2P0",
-      "URL": "https://github.com/makerbase-mks/MKS-DLC32",
-      "MAP": "main/boards/mks_dlc32_2_0_map.h",
-      "caps": {
-        "axes": 3,
-        "digital_in": 1,
-        "digital_out": 4,
-        "pwm_spindle_aux": 2,
-        "sdcard": 1,
-        "i2c": 1
+        "trinamic_spi_chain": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -189,7 +216,9 @@
         "digital_in": 1,
         "serial_ports": 2,
         "estop": 0,
-        "sdcard": 1
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -203,7 +232,9 @@
         "digital_in": 1,
         "serial_ports": 2,
         "estop": 0,
-        "sdcard": 1
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -229,7 +260,9 @@
         "axes": 3,
         "digital_in": 1,
         "serial_ports": 1,
-        "sdcard": 1
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -241,7 +274,9 @@
         "axes": 3,
         "serial_ports": 2,
         "digital_in": 1,
-        "sdcard": 1
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     },
     {
@@ -256,7 +291,9 @@
         "eeprom": 1,
         "fram": 1,
         "i2c": 1,
-        "sdcard": 1
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
       }
     }
   ]

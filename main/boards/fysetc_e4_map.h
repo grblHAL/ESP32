@@ -3,20 +3,20 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2022 Terje Io
+  Copyright (c) 2020-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #if N_ABC_MOTORS > 1
@@ -25,6 +25,10 @@
 
 #if VFD_SPINDLE
 #error "Fystec E4 board does not have support for VFD spindle."
+#endif
+
+#if KEYPAD_ENABLE
+#error No free pins for I2C keypad!
 #endif
 
 #define BOARD_NAME "Fysetc E4 v1.0"
@@ -87,33 +91,24 @@
 #define RESET_PIN           GPIO_NUM_34
 #define FEED_HOLD_PIN       GPIO_NUM_36
 #define CYCLE_START_PIN     GPIO_NUM_39
-#if SAFETY_DOOR_ENABLE
-#if !I2C_ENABLE
-#define SAFETY_DOOR_PIN     GPIO_NUM_22
-#else
-#warning No free pin for safety door input!
-#endif
-#endif
-
-// Define probe switch input pin.
-#if PROBE_ENABLE
-#if !I2C_ENABLE
-#define PROBE_PIN   GPIO_NUM_21
-#else
-#warning No free pin for probe input!
-#endif
-#endif
-
-#if KEYPAD_ENABLE
-#error No free pins for keypad!
-#endif
 
 #if I2C_ENABLE
 // Define I2C port/pins
-#define I2C_PORT  I2C_NUM_1
-#define I2C_SDA   GPIO_NUM_21
-#define I2C_SCL   GPIO_NUM_22
-#define I2C_CLOCK 100000
+#define I2C_PORT            I2C_NUM_1
+#define I2C_SDA             GPIO_NUM_21
+#define I2C_SCL             GPIO_NUM_22
+#define I2C_CLOCK           100000
+#else
+#define AUXINPUT0_PIN       GPIO_NUM_21
+#define AUXINPUT1_PIN       GPIO_NUM_22
+#endif
+
+#if PROBE_ENABLE && defined(AUXINPUT0_PIN)
+#define PROBE_PIN           AUXINPUT0_PIN
+#endif
+
+#if SAFETY_DOOR_ENABLE && defined(AUXINPUT1_PIN)
+#define SAFETY_DOOR_PIN     AUXINPUT1_PIN
 #endif
 
 #if SDCARD_ENABLE

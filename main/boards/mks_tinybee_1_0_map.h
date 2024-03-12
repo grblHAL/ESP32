@@ -8,27 +8,34 @@
   Copyright (c) 2022 Ennio Sesana
   Copyright (c) 2023-2024 Terje Io (added SD card, ModBus and MPG options)
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #define BOARD_NAME "MKS Tinybee V1.0"
 #define BOARD_URL "https://github.com/makerbase-mks/MKS-TinyBee"
 
+#if N_ABC_MOTORS > 2
+#error "Axis configuration is not supported!"
+#endif
+
+#if KEYPAD_ENABLE == 1
+#error "No free pins for I2C keypad!"
+#endif
+
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
 
-//#define SERIAL2_ENABLE      1
 #define UART2_RX_PIN        GPIO_NUM_16 // EXP_1
 #define UART2_TX_PIN        GPIO_NUM_17 // EXP_1
 
@@ -55,19 +62,25 @@
 #define Z_ENABLE_PIN        I2SO(6)
 #define Z_LIMIT_PIN         GPIO_NUM_22
 
+#if PROBE_ENABLE || N_ABC_MOTORS == 0
+#define AUXINPUT1_PIN       GPIO_NUM_35 // MT_DET
+#endif
+
 #if N_ABC_MOTORS >= 1
 #define M3_AVAILABLE        // E0
 #define M3_STEP_PIN         I2SO(10)
 #define M3_DIRECTION_PIN    I2SO(11)
 #define M3_ENABLE_PIN       I2SO(9)
-#if SDCARD_ENABLE
+#ifndef AUXINPUT1_PIN
+#define M3_LIMIT_PIN        GPIO_NUM_35 // MT_DET
+#elif SDCARD_ENABLE
 #define M3_LIMIT_PIN        GPIO_NUM_12 // EXP2
 #else
 #define M3_LIMIT_PIN        GPIO_NUM_19 // EXP2
 #endif
 #endif
 
-#if N_ABC_MOTORS >= 2
+#if N_ABC_MOTORS == 2
 #define M4_AVAILABLE        // E1
 #define M4_STEP_PIN         I2SO(13)
 #define M4_DIRECTION_PIN    I2SO(14)
@@ -78,6 +91,8 @@
 #define M4_LIMIT_PIN        GPIO_NUM_18 // EXP2
 #endif
 #endif
+
+#define AUXINPUT0_PIN       GPIO_NUM_39 // TB
 
 // Define driver spindle pins
 
@@ -108,13 +123,14 @@
 #define CYCLE_START_PIN         GPIO_NUM_36 // TH1
 #define FEED_HOLD_PIN           GPIO_NUM_34 // TH2
 //#define RESET_PIN             (use board hardware)
-#if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN         GPIO_NUM_39 // TB
-#endif
 
 // Define probe switch input pin.
 #if PROBE_ENABLE
-#define PROBE_PIN               GPIO_NUM_35 // MT_DET
+#define PROBE_PIN               AUXINPUT1_PIN // MT_DET
+#endif
+
+#if SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_PIN         AUXINPUT0_PIN // TB
 #endif
 
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED

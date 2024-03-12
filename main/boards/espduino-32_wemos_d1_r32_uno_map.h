@@ -85,12 +85,13 @@
 #define FEED_HOLD_PIN       GPIO_NUM_4
 #define CYCLE_START_PIN     GPIO_NUM_35
 
-// Define probe switch input pin.
+#define AUXINPUT0_PIN       GPIO_NUM_39
+
 #if PROBE_ENABLE
-#define PROBE_PIN           GPIO_NUM_39
+#define PROBE_PIN           AUXINPUT0_PIN
 #endif
 
-#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
+#ifdef ADD_SERIAL2
 #define UART2_RX_PIN            GPIO_NUM_33
 #define UART2_TX_PIN            GPIO_NUM_32
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED

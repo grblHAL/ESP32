@@ -7,22 +7,26 @@
 
   Copyright (c) 2021-2022 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #if N_ABC_MOTORS > 1
 #error "Axis configuration is not supported!"
+#endif
+
+#if KEYPAD_ENABLE == 1
+#error No free pins for I2C keypad!
 #endif
 
 #define BOARD_NAME "x-Pro v5"
@@ -74,6 +78,7 @@
 
 #define AUXINPUT0_PIN       GPIO_NUM_13
 #define AUXINPUT1_PIN       GPIO_NUM_0
+#define AUXINPUT2_PIN       GPIO_NUM_22
 
 // Define flood and mist coolant enable output pins.
 // Only one can be enabled!
@@ -86,7 +91,7 @@
 
 // Define probe switch input pin.
 #if PROBE_ENABLE
-#define PROBE_PIN           GPIO_NUM_22
+#define PROBE_PIN           AUXINPUT2_PIN
 #endif
 
 // Pin mapping when using SPI mode.
@@ -100,11 +105,7 @@
 #define PIN_NUM_CS          GPIO_NUM_5
 #endif
 
-#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
+#ifdef ADD_SERIAL2
 #define UART2_RX_PIN        GPIO_NUM_25
 #define UART2_TX_PIN        GPIO_NUM_4
-#endif
-
-#if KEYPAD_ENABLE
-#error No free pins for keypad!
 #endif

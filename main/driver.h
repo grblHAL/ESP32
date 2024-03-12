@@ -9,18 +9,18 @@
   Copyright (c) 2011-2015 Sungeun K. Jeon
   Copyright (c) 2009-2011 Simen Svale Skogsrud
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef __DRIVER_H__
@@ -114,6 +114,10 @@ typedef struct {
 
 // End configuration
 
+#if !USB_SERIAL_CDC && ((MODBUS_ENABLE & MODBUS_RTU_ENABLED) || TRINAMIC_UART_ENABLE || MPG_ENABLE || (KEYPAD_ENABLE == 2 && MPG_ENABLE == 0))
+#define ADD_SERIAL2
+#endif
+
 #ifdef BOARD_CNC_BOOSTERPACK
   #include "boards/cnc_boosterpack_map.h"
 #elif defined(BOARD_BDRING_V4)
@@ -128,7 +132,7 @@ typedef struct {
   #include "boards/bdring_i2s_6pack_ext_v2_map.h"
 #elif defined(BOARD_ESPDUINO32)
   #include "boards/espduino-32_wemos_d1_r32_uno_map.h"
-#elif defined(BOARD_SOURCERABBIT_4AXIS)
+#elif defined(BOARD_SOURCERABBIT_4AXIS) || defined(BOARD_SOURCERABBIT_4AXIS_12)
   #include "boards/sourcerabbit_4axis.h"
 #elif defined(BOARD_PROTONEER_3XX)
   #include "boards/protoneer_3.xx_map.h"
@@ -155,7 +159,9 @@ typedef struct {
 #elif defined(BOARD_GENERIC_I2S_S3)
   #include "boards/generic_i2s_s3_map.h"
 #else // default board - NOTE: NOT FINAL VERSION!
+ #ifndef WEB_BUILD
   #warning "Compiling for generic board!"
+ #endif
   #include "boards/generic_map.h"
 #endif
 
@@ -171,6 +177,12 @@ typedef struct {
 #warning "PWM spindle is not supported by board map!"
 #undef DRIVER_SPINDLE_PWM_ENABLE
 #define DRIVER_SPINDLE_PWM_ENABLE 0
+#endif
+
+#if SAFETY_DOOR_ENABLE && !defined(SAFETY_DOOR_PIN)
+#warning "Safety door input is not available!"
+#undef SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_ENABLE 0
 #endif
 
 #if IOEXPAND_ENABLE || EEPROM_ENABLE || KEYPAD_ENABLE == 1 || I2C_STROBE_ENABLE || (TRINAMIC_ENABLE && TRINAMIC_I2C)
@@ -301,25 +313,24 @@ typedef struct {
 } adc_map_t;
 
 typedef struct {
-    pin_function_t id;
-    pin_group_t group;
     uint8_t pin;
-    uint32_t mask;
+    uint8_t user_port;
     uint8_t offset;
-    bool invert;
-    volatile bool active;
-    volatile bool debounce;
+    pin_group_t group;
+    void *port;
+    uint32_t mask;
     pin_cap_t cap;
     pin_mode_t mode;
+    pin_function_t id;
     const adc_map_t *adc;
     ioport_interrupt_callback_ptr interrupt_callback;
-    aux_ctrl_t *aux_ctrl;
     const char *description;
 } input_signal_t;
 
 typedef struct {
     pin_function_t id;
     pin_group_t group;
+    void *port;
     uint8_t pin;
     esp_pin_t type;
     pin_mode_t mode;

@@ -7,18 +7,18 @@
 
   Copyright (c) 2020-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 #if N_ABC_MOTORS > 0
 #error "Axis configuration is not supported!"
@@ -39,8 +39,8 @@
 #endif
 
 #if !EEPROM_ENABLE
-#undef EEPROM_ENABLE
-#define EEPROM_ENABLE 1 // I2C EEPROM (24LC16) support.
+//#undef EEPROM_ENABLE
+//#define EEPROM_ENABLE 1 // I2C EEPROM (24LC16) support.
 #endif
 
 #if !IOEXPAND_ENABLE
@@ -90,36 +90,48 @@
 #define COOLANT_FLOOD_PIN       IOEXPAND
 #define COOLANT_MIST_PIN        IOEXPAND
 
+#ifdef ADD_SERIAL2
+#define UART2_RX_PIN            GPIO_NUM_33
+#else
+#define AUXINPUT0_PIN           GPIO_NUM_33
+#endif
 #define AUXINPUT1_PIN           GPIO_NUM_34
+#define AUXINPUT2_PIN           GPIO_NUM_13
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 #define RESET_PIN               GPIO_NUM_35
 #define FEED_HOLD_PIN           GPIO_NUM_39
 #define CYCLE_START_PIN         GPIO_NUM_36
+
+// Define probe switch input pin.
+#if PROBE_ENABLE
+#define PROBE_PIN               AUXINPUT2_PIN
+#endif
+
 #if SAFETY_DOOR_ENABLE
 #define SAFETY_DOOR_PIN         AUXINPUT1_PIN
 #endif
 
-// Define probe switch input pin.
-#define PROBE_PIN               GPIO_NUM_13
-
-#if I2C_STROBE_ENABLE
-#define I2C_STROBE_PIN          GPIO_NUM_33
-#else
-#define AUXINPUT0_PIN           GPIO_NUM_33
+#if I2C_STROBE_ENABLE && defined(AUXINPUT0_PIN)
+#define I2C_STROBE_PIN          AUXINPUT0_PIN
 #endif
 
-#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
-#define UART2_RX_PIN            GPIO_NUM_33
-#define UART2_TX_PIN            GPIO_NUM_25
-#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
-#define MODBUS_DIRECTION_PIN    GPIO_NUM_25
-#endif
+#if NEOPIXELS_ENABLE && !I2C_STROBE_ENABLE && defined(AUXINPUT0_PIN)
+#define NEOPIXELS_PIN           AUXINPUT0_PIN
+#define NEOPIXELS_NUM           NEOPIXELS_ENABLE
 #endif
 
+#ifdef ADD_SERIAL2
 #if MPG_MODE == 1
-#define UART2_RX_PIN            GPIO_NUM_33
 #define MPG_ENABLE_PIN          GPIO_NUM_25
+#else
+#define UART2_TX_PIN            GPIO_NUM_25
+#endif
+#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
+#define MODBUS_DIRECTION_PIN    GPIO_NUM_25 //??
+#endif
+#else
+#define AUXOUTPUT0_PIN          GPIO_NUM_25
 #endif
 
 // Define I2C port/pins
