@@ -49,17 +49,17 @@
 #define X_STEP_PIN              I2SO(2)
 #define X_DIRECTION_PIN         I2SO(1)
 #define X_ENABLE_PIN            I2SO(0)
-#define X_LIMIT_PIN             GPIO_NUM_39
+#define X_LIMIT_PIN             GPIO_NUM_33
 
 #define Y_STEP_PIN              I2SO(5)
 #define Y_DIRECTION_PIN         I2SO(4)
 #define Y_ENABLE_PIN            I2SO(7)
-#define Y_LIMIT_PIN             GPIO_NUM_36
+#define Y_LIMIT_PIN             GPIO_NUM_32
 
 #define Z_STEP_PIN              I2SO(10)
 #define Z_DIRECTION_PIN         I2SO(9)
 #define Z_ENABLE_PIN            I2SO(8)
-#define Z_LIMIT_PIN             GPIO_NUM_33
+#define Z_LIMIT_PIN             GPIO_NUM_35
 
 // Define ganged axis or A axis step pulse and step direction output pins.
 #if N_ABC_MOTORS >= 1
