@@ -64,6 +64,7 @@
 #ifndef GRBLHAL_TASK_PRIORITY
 #define GRBLHAL_TASK_PRIORITY 5
 #endif
+
 #ifndef GRBLHAL_TASK_CORE
 #define GRBLHAL_TASK_CORE 1
 #endif
@@ -125,6 +126,10 @@ typedef struct {
   #include "boards/bdring_v3.5_map.h"
 #elif defined(BOARD_BDRING_I2S6A)
   #include "boards/bdring_i2s_6_axis_map.h"
+#elif defined(BOARD_BDRING_6X)
+  #include "boards/bdring_i2s_6x_v1_map.h"
+#elif defined(BOARD_BDRING_I2S_6PACK_EXT_V2)
+  #include "boards/bdring_i2s_6pack_ext_v2_map.h"
 #elif defined(BOARD_ESPDUINO32)
   #include "boards/espduino-32_wemos_d1_r32_uno_map.h"
 #elif defined(BOARD_SOURCERABBIT_4AXIS) || defined(BOARD_SOURCERABBIT_4AXIS_12)

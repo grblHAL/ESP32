@@ -1,6 +1,4 @@
 /*
-  my_machine.h - configuration for ESP32 processors
-
   Part of grblHAL
 
   Copyright (c) 2020-2024 Terje Io
@@ -24,6 +22,8 @@
 //#define BOARD_BDRING_V3P5         //
 //#define BOARD_BDRING_V4           //
 //#define BOARD_BDRING_I2S6A        //
+//#define BOARD_BDRING_6X           //
+#define BOARD_BDRING_I2S_6PACK_EXT_V2  //
 //#define BOARD_ESPDUINO32          //
 //#define BOARD_SOURCERABBIT_4AXIS  //
 //#define BOARD_PROTONEER_3XX       //
@@ -42,9 +42,10 @@
 // Configuration
 // Uncomment to enable, for some a value > 1 may be assigned, if so the default value is shown.
 
-#if CONFIG_IDF_TARGET_ESP32S3
-#define USB_SERIAL_CDC          1 // Serial communication via native USB.
-#endif
+// #if CONFIG_IDF_TARGET_ESP32S3
+// #define USB_SERIAL_CDC          1 // Serial communication via native USB.
+// #endif
+
 // Spindle selection:
 // Up to four specific spindle drivers can be instantiated at a time
 // depending on N_SPINDLE and N_SYS_SPINDLE definitions in grbl/config.h.
@@ -101,7 +102,7 @@
 // of axes can be enabled here.
 //#define X_GANGED            1
 //#define X_AUTO_SQUARE       1
-//#define Y_GANGED            1
+#define Y_GANGED            1
 //#define Y_AUTO_SQUARE       1
 //#define Z_GANGED            1
 //#define Z_AUTO_SQUARE       1
@@ -125,12 +126,12 @@
 //#define WEBDAV_ENABLE         1 // webdav protocol - requires http daemon and SD card enabled.
 #endif
 // The following symbols have the default values as shown, uncomment and change as needed.
-//#define NETWORK_STA_HOSTNAME    "grblHAL"
+//#define NETWORK_STA_HOSTNAME    "grblHAL_6x"
 //#define NETWORK_STA_IPMODE      1 // 0 = static, 1 = DHCP, 2 = AutoIP
 //#define NETWORK_STA_IP          "192.168.5.1"
 //#define NETWORK_STA_GATEWAY     "192.168.5.1"
 //#define NETWORK_STA_MASK        "255.255.255.0"
-#if WIFI_SOFTAP > 0
+#if WIFI_SOFTAP
 //#define NETWORK_AP_SSID         "grblHAL_AP"
 //#define NETWORK_AP_PASSWORD     "grblHALap"
 //#define NETWORK_AP_HOSTNAME     "grblHAL_AP"
@@ -146,5 +147,5 @@
 //#define NETWORK_WEBSOCKET_PORT  81
 #else
 //#define NETWORK_WEBSOCKET_PORT  80
-#endif
+#endif // HTTP_ENABLE
 #endif // WIFI_ENABLE
