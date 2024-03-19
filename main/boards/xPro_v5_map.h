@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2021-2022 Terje Io
+  Copyright (c) 2021-2024 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,6 +34,8 @@
 #if TRINAMIC_ENABLE != 5160
 #error BOARD_XPRO_V5 has soldered TMC5160 drivers.
 #endif
+
+#define TRINAMIC_MIXED_DRIVERS 0
 
 // timer definitions
 #define STEP_TIMER_GROUP TIMER_GROUP_0

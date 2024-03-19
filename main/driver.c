@@ -2014,25 +2014,25 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
 
 #ifdef NEOPIXELS_PIN
 
-    if(neopixel.leds == NULL || hal.rgb.num_devices != settings->rgb_strip0_length) {
+    if(neopixel.leds == NULL || hal.rgb0.num_devices != settings->rgb_strip0_length) {
 
         if(settings->rgb_strip0_length == 0)
-            settings->rgb_strip0_length = hal.rgb.num_devices;
+            settings->rgb_strip0_length = hal.rgb0.num_devices;
         else
-            hal.rgb.num_devices = settings->rgb_strip0_length;
+            hal.rgb0.num_devices = settings->rgb_strip0_length;
 
         if(neopixel.leds) {
             free(neopixel.leds);
             neopixel.leds = NULL;
         }
 
-        if(hal.rgb.num_devices) {
-            neopixel.num_bytes = hal.rgb.num_devices * 3;
+        if(hal.rgb0.num_devices) {
+            neopixel.num_bytes = hal.rgb0.num_devices * 3;
             if((neopixel.leds = calloc(neopixel.num_bytes, sizeof(uint8_t))) == NULL)
-                hal.rgb.num_devices = 0;
+                hal.rgb0.num_devices = 0;
         }
 
-        neopixel.num_leds = hal.rgb.num_devices;
+        neopixel.num_leds = hal.rgb0.num_devices;
     }
 
 #endif
@@ -2120,6 +2120,11 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
                 case Input_Reset:
                     signal->mode.pull_mode = settings->control_disable_pullup.reset ? PullMode_Down : PullMode_Up;
                     signal->mode.inverted = control_fei.reset;
+                    break;
+
+                case Input_EStop:
+                    signal->mode.pull_mode = settings->control_disable_pullup.e_stop ? PullMode_Down : PullMode_Up;
+                    signal->mode.inverted = control_fei.e_stop;
                     break;
 
                 case Input_FeedHold:
@@ -2744,8 +2749,8 @@ static bool driver_setup (settings_t *settings)
     enet_start();
 #endif
 
-//    if(hal.rgb.out)
-//        hal.rgb.out(0, (rgb_color_t){ .R = 5, .G = 100, .B = 5 });
+//    if(hal.rgb0.out)
+//        hal.rgb0.out(0, (rgb_color_t){ .R = 5, .G = 100, .B = 5 });
 
     return IOInitDone;
 }
@@ -2802,7 +2807,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240304";
+    hal.driver_version = "240310";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3060,12 +3065,12 @@ bool driver_init (void)
     // Initialize automatic timing translator
     rmt_translator_init(neo_config.channel, ws2812_rmt_adapter);
 
-    hal.rgb.out = neopixel_out;
-    hal.rgb.out_masked = neopixel_out_masked;
-    hal.rgb.write = neopixels_write;
-    hal.rgb.set_intensity = neopixels_set_intensity;
-    hal.rgb.num_devices = NEOPIXELS_NUM;
-    hal.rgb.cap = (rgb_color_t){ .R = 255, .G = 255, .B = 255 };
+    hal.rgb0.out = neopixel_out;
+    hal.rgb0.out_masked = neopixel_out_masked;
+    hal.rgb0.write = neopixels_write;
+    hal.rgb0.set_intensity = neopixels_set_intensity;
+    hal.rgb0.num_devices = NEOPIXELS_NUM;
+    hal.rgb0.cap = (rgb_color_t){ .R = 255, .G = 255, .B = 255 };
 
     const periph_pin_t neopixels = {
         .function = Output_LED_Adressable,

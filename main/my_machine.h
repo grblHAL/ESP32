@@ -19,32 +19,32 @@
 
 // NOTE: Only one board may be enabled!
 // If none is enabled pin mappings from generic_map.h will be used
-//#define BOARD_BDRING_V3P5         //
-//#define BOARD_BDRING_V4           //
-//#define BOARD_BDRING_I2S6A        //
-//#define BOARD_BDRING_6X           //
-#define BOARD_BDRING_I2S_6PACK_EXT_V2  //
-//#define BOARD_ESPDUINO32          //
-//#define BOARD_SOURCERABBIT_4AXIS  //
-//#define BOARD_PROTONEER_3XX       //
-//#define BOARD_FYSETC_E4           //
-//#define BOARD_XPRO_V5             //
-//#define BOARD_MKS_DLC32_V2P0      //
-//#define BOARD_MKS_TINYBEE_V1      //
-//#define BOARD_CNC3040             //
-//#define BOARD_BLACKBOX_X32        // NOTE: Enable in CMakeLists.txt to set board specific defaults for the core!
-//#define BOARD_ROOTCNC_V2          //
-//#define BOARD_ROOTCNC_V3          //
-//#define BOARD_CNC_BOOSTERPACK     //
-//#define BOARD_GENERIC_I2S_S3      // Generic map for ESP32-S3 with I2S shift registers for I/O expansion
-//#define BOARD_MY_MACHINE          // Add my_machine_map.h in the boards directory before enabling this!
+//#define BOARD_BDRING_V3P5             //
+//#define BOARD_BDRING_V4               //
+//#define BOARD_BDRING_I2S6A            //
+//#define BOARD_BDRING_6X               //
+//#define BOARD_BDRING_I2S_6PACK_EXT_V2 //
+//#define BOARD_ESPDUINO32              //
+//#define BOARD_SOURCERABBIT_4AXIS      //
+//#define BOARD_PROTONEER_3XX           //
+//#define BOARD_FYSETC_E4               //
+//#define BOARD_XPRO_V5                 //
+//#define BOARD_MKS_DLC32_V2P0          //
+//#define BOARD_MKS_TINYBEE_V1          //
+//#define BOARD_CNC3040                 //
+//#define BOARD_BLACKBOX_X32            // NOTE: Enable in CMakeLists.txt to set board specific defaults for the core!
+//#define BOARD_ROOTCNC_V2              //
+//#define BOARD_ROOTCNC_V3              //
+//#define BOARD_CNC_BOOSTERPACK         //
+//#define BOARD_GENERIC_I2S_S3          // Generic map for ESP32-S3 with I2S shift registers for I/O expansion
+//#define BOARD_MY_MACHINE              // Add my_machine_map.h in the boards directory before enabling this!
 //#define BOARD_BLOX
 // Configuration
 // Uncomment to enable, for some a value > 1 may be assigned, if so the default value is shown.
 
-// #if CONFIG_IDF_TARGET_ESP32S3
-// #define USB_SERIAL_CDC          1 // Serial communication via native USB.
-// #endif
+#if CONFIG_IDF_TARGET_ESP32S3
+#define USB_SERIAL_CDC          1 // Serial communication via native USB.
+#endif
 
 // Spindle selection:
 // Up to four specific spindle drivers can be instantiated at a time
@@ -102,7 +102,7 @@
 // of axes can be enabled here.
 //#define X_GANGED            1
 //#define X_AUTO_SQUARE       1
-#define Y_GANGED            1
+//#define Y_GANGED            1
 //#define Y_AUTO_SQUARE       1
 //#define Z_GANGED            1
 //#define Z_AUTO_SQUARE       1
@@ -126,7 +126,7 @@
 //#define WEBDAV_ENABLE         1 // webdav protocol - requires http daemon and SD card enabled.
 #endif
 // The following symbols have the default values as shown, uncomment and change as needed.
-//#define NETWORK_STA_HOSTNAME    "grblHAL_6x"
+//#define NETWORK_STA_HOSTNAME    "grblHAL"
 //#define NETWORK_STA_IPMODE      1 // 0 = static, 1 = DHCP, 2 = AutoIP
 //#define NETWORK_STA_IP          "192.168.5.1"
 //#define NETWORK_STA_GATEWAY     "192.168.5.1"

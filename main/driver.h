@@ -98,14 +98,6 @@ static const DRAM_ATTR float FZERO = 0.0f;
 
 // End configuration
 
-#if TRINAMIC_ENABLE
-#ifndef TRINAMIC_MIXED_DRIVERS
-#define TRINAMIC_MIXED_DRIVERS 1
-#endif
-#include "motors/trinamic.h"
-#include "trinamic/common.h"
-#endif
-
 typedef struct {
     uint8_t action;
     uint_fast16_t address;
@@ -197,6 +189,14 @@ extern QueueHandle_t i2cQueue;
 extern SemaphoreHandle_t i2cBusy;
 #elif I2C_ENABLE == 1
 #error "I2C port not available!"
+#endif
+
+#if TRINAMIC_ENABLE
+#ifndef TRINAMIC_MIXED_DRIVERS
+#define TRINAMIC_MIXED_DRIVERS 1
+#endif
+#include "motors/trinamic.h"
+#include "trinamic/common.h"
 #endif
 
 #if USB_SERIAL_CDC
