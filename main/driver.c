@@ -2807,7 +2807,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240310";
+    hal.driver_version = "240330";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2962,9 +2962,12 @@ bool driver_init (void)
 
   // driver capabilities, used for announcing and negotiating (with the core) driver functionality
 
-  #if IOEXPAND_ENABLE || defined(COOLANT_MIST_PIN)
-    hal.driver_cap.mist_control = On;
-  #endif
+#if IOEXPAND_ENABLE || defined(COOLANT_FLOOD_PIN)
+    hal.coolant_cap.flood = On;
+#endif
+#if IOEXPAND_ENABLE || defined(COOLANT_MIST_PIN)
+    hal.coolant_cap.mist = On;
+#endif
     hal.driver_cap.software_debounce = On;
     hal.driver_cap.step_pulse_delay = On;
     hal.driver_cap.amass_level = 3;
