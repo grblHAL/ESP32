@@ -83,6 +83,8 @@
 
 // Define driver spindle pins
 
+#define AUXOUTPUT0_PIN          GPIO_NUM_27
+
 #if DRIVER_SPINDLE_PWM_ENABLE
 #define SPINDLE_PWM_PIN         GPIO_NUM_26
 #else
@@ -116,16 +118,12 @@
 #define PROBE_PIN           AUXINPUT0_PIN
 #endif
 
-#define AUXOUTPUT0_PIN      GPIO_NUM_26
-#define AUXOUTPUT1_PIN      GPIO_NUM_27
-
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
 // Note that a pull-up on CS line is required in SD mode.
 #define PIN_NUM_MISO        GPIO_NUM_19
 #define PIN_NUM_MOSI        GPIO_NUM_23
 #define PIN_NUM_CLK         GPIO_NUM_18
-#define MOTOR_CS_PIN        GPIO_NUM_17
 #if SDCARD_ENABLE
 #define PIN_NUM_CS          GPIO_NUM_5
 #endif

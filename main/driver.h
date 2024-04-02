@@ -146,6 +146,8 @@ typedef struct {
   #include "boards/blox_map.h"
 #elif defined(BOARD_CNC3040)
   #include "boards/cnc3040_map.h"
+#elif defined(BOARD_JACKPOT)
+  #include "boards/jackpot_map.h"
 #elif defined(BOARD_MY_MACHINE)
   #include "boards/my_machine_map.h"
 #elif defined(BOARD_GENERIC_I2S_S3)

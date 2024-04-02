@@ -35,6 +35,7 @@
 //#define BOARD_BLACKBOX_X32            // NOTE: Enable in CMakeLists.txt to set board specific defaults for the core!
 //#define BOARD_ROOTCNC_V2              //
 //#define BOARD_ROOTCNC_V3              //
+//#define BOARD_JACKPOT                 // Uses TMC2209 drivers, untested!
 //#define BOARD_CNC_BOOSTERPACK         //
 //#define BOARD_GENERIC_I2S_S3          // Generic map for ESP32-S3 with I2S shift registers for I/O expansion
 //#define BOARD_MY_MACHINE              // Add my_machine_map.h in the boards directory before enabling this!
