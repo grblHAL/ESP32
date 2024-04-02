@@ -292,7 +292,7 @@
         "serial_ports": 2,
         "sdcard": 1,
         "trinamic": 2209,
-        "trinamic_uart_addr": 1
+        "trinamic_uart_addr": 1,
         "wifi": 1,
         "bluetooth": 1
       }
