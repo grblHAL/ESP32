@@ -282,9 +282,9 @@
     {
       "name": "Jackpot",
       "symbol": "BOARD_XPRO_V5",
-      "comment": "Not tested!",
+      "notes": "Not tested!",
       "URL": "https://docs.v1e.com/electronics/jackpot/",
-      "MAP": "main/boards/jackpot.h",
+      "MAP": "main/boards/jackpot_map.h",
       "caps": {
         "axes": 4,
         "digital_in": 0,
