@@ -578,7 +578,7 @@ static void stepperEnable (axes_signals_t enable)
 static void stepperWakeUp (void)
 {
     // Enable stepper drivers.
-    stepperEnable((axes_signals_t){AXES_BITMASK});
+    hal.stepper.enable((axes_signals_t){AXES_BITMASK});
 
     timer_set_counter_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 0x00000000ULL);
 //  timer_set_alarm_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 5000ULL);
@@ -722,7 +722,7 @@ IRAM_ATTR static void I2SStepperPulseStart (stepper_t *stepper)
 static void I2SStepperWakeUp (void)
 {
     // Enable stepper drivers.
-    stepperEnable((axes_signals_t){AXES_BITMASK});
+    hal.stepper.enable((axes_signals_t){AXES_BITMASK});
     i2s_out_set_stepping();
 }
 
@@ -2807,7 +2807,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240330";
+    hal.driver_version = "240408";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
