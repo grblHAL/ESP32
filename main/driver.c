@@ -273,6 +273,8 @@ static input_signal_t inputpin[] = {
 #endif
 };
 
+const size_t inputPinsCount = sizeof(inputpin) / sizeof(input_signal_t);
+
 static output_signal_t outputpin[] = {
     { .id = Output_StepX,          .pin = X_STEP_PIN,            .group = PinGroup_StepperStep },
     { .id = Output_StepY,          .pin = Y_STEP_PIN,            .group = PinGroup_StepperStep },
@@ -428,6 +430,8 @@ static output_signal_t outputpin[] = {
     { .id = Output_Analog_Aux1,    .pin = AUXOUTPUT1_ANALOG_PIN, .group = PinGroup_AuxOutputAnalog }
 #endif
 };
+
+size_t outputPinsCount = sizeof(outputpin) / sizeof(output_signal_t);
 
 static bool IOInitDone = false, rtc_started = false;
 static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
@@ -2105,9 +2109,9 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
 
         uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
 
-        do {
+        while(i--) {
 
-            signal = &inputpin[--i];
+            signal = &inputpin[i];
 
             if(signal->group == PinGroup_AuxInputAnalog)
                 continue;
@@ -2259,7 +2263,7 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
 
                 gpio_config(&config);
             }
-        } while(i);
+        }
 
         hal.limits.enable(settings->limits.flags.hard_enabled, (axes_signals_t){0});
 
@@ -2277,7 +2281,7 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info, void *data)
 
     pin.mode.input = On;
 
-    for(i = 0; i < sizeof(inputpin) / sizeof(input_signal_t); i++) {
+    for(i = 0; i < inputPinsCount; i++) {
         pin.id = id++;
         pin.pin = inputpin[i].pin;
         pin.function = inputpin[i].id;
@@ -2292,7 +2296,7 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info, void *data)
     pin.mode.mask = 0;
     pin.mode.output = On;
 
-    for(i = 0; i < sizeof(outputpin) / sizeof(output_signal_t); i++) {
+    for(i = 0; i < outputPinsCount; i++) {
         pin.id = id++;
         pin.pin = outputpin[i].pin - (outputpin[i].pin < I2S_OUT_PIN_BASE ? 0 : I2S_OUT_PIN_BASE);
         pin.port = low_level || outputpin[i].pin < I2S_OUT_PIN_BASE ? NULL : "I2S";
@@ -2986,7 +2990,7 @@ bool driver_init (void)
     uint32_t i;
     input_signal_t *input;
 
-    for(i = 0 ; i < sizeof(inputpin) / sizeof(input_signal_t); i++) {
+    for(i = 0 ; i < inputPinsCount; i++) {
         input = &inputpin[i];
         input->mode.input = input->cap.input = On;
         if(input->group == PinGroup_AuxInput) {
@@ -3232,8 +3236,7 @@ IRAM_ATTR static void gpio_isr (void *arg)
     gpio_ll_clear_intr_status_high(&GPIO, intr_status[1]);                      // clear intr for gpio32-39
 
     uint32_t i = sizeof(inputpin) / sizeof(input_signal_t);
-    do {
-        i--;
+    while(i--) {
         if(intr_status[inputpin[i].offset] & inputpin[i].mask) {
             if(inputpin[i].mode.debounce && task_add_delayed(pin_debounce, &inputpin[i], 40)) {
 #if SAFETY_DOOR_ENABLE
@@ -3246,7 +3249,7 @@ IRAM_ATTR static void gpio_isr (void *arg)
             else
                 grp |= inputpin[i].group;
         }
-    } while(i);
+    };
 
     if(grp & (PinGroup_Limit|PinGroup_LimitMax))
         hal.limits.interrupt_callback(limitsGetState());
