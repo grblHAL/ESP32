@@ -144,7 +144,7 @@ static io_stream_properties_t serial[] = {
       .flags.rx_only = On,
   #endif
       .claim = serial2Init
-    }
+    },
 #endif // SERIAL2_ENABLE
 #if SERIAL3_ENABLE
     {

@@ -223,10 +223,25 @@
     },
     {
       "name": "Root CNC v3",
-      "notes": "Not tested!",
       "symbol": "BOARD_ROOTCNC_V3",
       "URL": "https://wiki.rootcnc.com/en/Root-Controller-ISO/DetailedInfo",
       "MAP": "main/boards/root_cnc_v3_map.h",
+      "caps": {
+        "axes": 6,
+        "digital_in": 1,
+        "serial_ports": 2,
+        "estop": 0,
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
+      }
+    },
+    {
+      "name": "Root CNC PRO",
+      "notes": "For verification!",
+      "symbol": "BOARD_ROOTCNC_PRO",
+      "URL": "https://wiki.rootcnc.com/en/Root-Controller-pro/DetailedInfo",
+      "MAP": "main/boards/root_cnc_pro_map.h",
       "caps": {
         "axes": 6,
         "digital_in": 1,

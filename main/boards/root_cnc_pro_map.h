@@ -1,11 +1,11 @@
 /*
-  root_cnc_v3_map.h - An embedded CNC Controller with rs274/ngc (g-code) support
+  root_cnc_pro_map.h - An embedded CNC Controller with rs274/ngc (g-code) support
 
   Driver code for ESP32
 
   Part of grblHAL
 
-  Copyright (c) 2023 Terje Io
+  Copyright (c) 2024 NEWTech Creative 2024
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,12 +19,10 @@
 
   You should have received a copy of the GNU General Public License
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
-
-  Tested by NEWTech Creative
 */
 
-#define BOARD_NAME "Root CNC v3"
-#define BOARD_URL "https://wiki.rootcnc.com/en/Root-Controller-ISO/DetailedInfo"
+#define BOARD_NAME "Root CNC Pro"
+#define BOARD_URL "https://wiki.rootcnc.com/en/Root-Controller-pro/DetailedInfo"
 
 #if KEYPAD_ENABLE == 1
 #error No free pins for I2C keypad!
@@ -54,46 +52,45 @@
 #define I2S_OUT_WS              GPIO_NUM_21
 #define I2S_OUT_DATA            GPIO_NUM_12
 
-#define X_STEP_PIN              I2SO(7)
-#define X_DIRECTION_PIN         I2SO(5)
-#define X_ENABLE_PIN            I2SO(3)
-#define X_LIMIT_PIN             GPIO_NUM_34
+#define X_STEP_PIN              I2SO(1)
+#define X_DIRECTION_PIN         I2SO(0)
+#define X_ENABLE_PIN            I2SO(15)
+#define X_LIMIT_PIN             GPIO_NUM_36
 
-#define Y_STEP_PIN              I2SO(12)
-#define Y_DIRECTION_PIN         I2SO(10)
-#define Y_ENABLE_PIN            I2SO(8)
+#define Y_STEP_PIN              I2SO(21)
+#define Y_DIRECTION_PIN         I2SO(20)
+#define Y_ENABLE_PIN            I2SO(19)
 #define Y_LIMIT_PIN             GPIO_NUM_32
 
-#define Z_STEP_PIN              I2SO(18)
-#define Z_DIRECTION_PIN         I2SO(16)
-#define Z_ENABLE_PIN            I2SO(14)
-#define Z_LIMIT_PIN             GPIO_NUM_27
+#define Z_STEP_PIN              I2SO(29)
+#define Z_DIRECTION_PIN         I2SO(28)
+#define Z_ENABLE_PIN            I2SO(27)
+#define Z_LIMIT_PIN             GPIO_NUM_36
 
 // Define ganged axis or A axis step pulse and step direction output pins.
 #if N_ABC_MOTORS >= 1
 #define M3_AVAILABLE
-#define M3_STEP_PIN             I2SO(6)
-#define M3_DIRECTION_PIN        I2SO(4)
-#define M3_ENABLE_PIN           I2SO(2)
-#define M3_LIMIT_PIN            GPIO_NUM_26
+#define M3_STEP_PIN             I2SO(13)
+#define M3_DIRECTION_PIN        I2SO(12)
+#define M3_ENABLE_PIN           I2SO(11)
+#define M3_LIMIT_PIN            GPIO_NUM_35
 #endif
 
 // Define ganged axis or B axis step pulse and step direction output pins.
 #if N_ABC_MOTORS >= 2
 #define M4_AVAILABLE
-#define M4_STEP_PIN             I2SO(13)
-#define M4_DIRECTION_PIN        I2SO(11)
-#define M4_ENABLE_PIN           I2SO(9)
-#define M4_LIMIT_PIN            GPIO_NUM_35
+#define M4_STEP_PIN             I2SO(9)
+#define M4_DIRECTION_PIN        I2SO(8)
+#define M4_ENABLE_PIN           I2SO(23)
+#define M4_LIMIT_PIN            GPIO_NUM_34
 #endif
 
 // Define ganged axis or B axis step pulse and step direction output pins.
 #if N_ABC_MOTORS == 3
 #define M5_AVAILABLE
-#define M5_STEP_PIN             I2SO(19)
-#define M5_DIRECTION_PIN        I2SO(17)
-#define M5_ENABLE_PIN           I2SO(15)
-#define M5_LIMIT_PIN            GPIO_NUM_14
+#define M5_STEP_PIN             I2SO(17)
+#define M5_DIRECTION_PIN        I2SO(16)
+#define M5_ENABLE_PIN           I2SO(31)
 #endif
 
 // Define driver spindle pins
@@ -116,13 +113,33 @@
 #define AUXOUTPUT2_PIN          I2SO(1)
 #endif
 
-// Define flood and mist coolant enable output pins.
+// Define flood and mist coolant and aux enable output pins.
 
-#define COOLANT_MIST_PIN        I2SO(22)
-#define COOLANT_FLOOD_PIN       I2SO(13)
+#define COOLANT_MIST_PIN        I2SO(20)
+#define COOLANT_FLOOD_PIN       I2SO(21)
+#define AUXOUTPUT0_PIN          GPIO_NUM_13
+#define AUXOUTPUT1_PIN          I2SO(5)
+#define AUXOUTPUT2_PIN          I2SO(6)
+#define AUXOUTPUT3_PIN          I2SO(7)
+#define AUXOUTPUT4_PIN          I2SO(3)
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 
+#define AUXINPUT0_PIN           GPIO_NUM_33
+#define AUXINPUT1_PIN           GPIO_NUM_26
+#define AUXINPUT2_PIN           GPIO_NUM_2
+
+#if PROBE_ENABLE
+ #define PROBE_PIN              AUXINPUT0_PIN
+#endif
+
+#if SAFETY_DOOR_ENABLE
+  #define SAFETY_DOOR_PIN       AUXINPUT1_PIN
+#endif
+
+#if CYCLE_START_ENABLE
+  #define SAFETY_DOOR_PIN       AUXINPUT2_PIN
+#endif
 // N/A
 
 #ifdef ADD_SERIAL2
@@ -131,10 +148,4 @@
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_4
 #endif
-#endif
-
-#define AUXINPUT0_PIN           GPIO_NUM_2
-
-#if PROBE_ENABLE
-#define PROBE_PIN               AUXINPUT0_PIN
 #endif

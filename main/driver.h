@@ -142,6 +142,8 @@ typedef struct {
   #include "boards/root_cnc_v2_map.h"
 #elif defined(BOARD_ROOTCNC_V3)
   #include "boards/root_cnc_v3_map.h"
+#elif defined(BOARD_ROOTCNC_PRO)
+  #include "boards/root_cnc_pro_map.h"
 #elif defined(BOARD_BLOX)
   #include "boards/blox_map.h"
 #elif defined(BOARD_CNC3040)

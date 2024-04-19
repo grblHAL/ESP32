@@ -3,20 +3,20 @@
 
   Part of grblHAL driver for ESP32
 
-  Copyright (c) 2018-2023 Terje Io
+  Copyright (c) 2018-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "i2c.h"
@@ -122,6 +122,45 @@ void I2CInit (void)
         hal.periph_port.register_pin(&scl);
         hal.periph_port.register_pin(&sda);
     }
+}
+
+bool i2c_probe (uint_fast16_t i2c_address)
+{
+    esp_err_t ret = ESP_FAIL;
+
+    if(i2cBusy != NULL && xSemaphoreTake(i2cBusy, 5 / portTICK_PERIOD_MS) == pdTRUE) {
+        i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+        i2c_master_start(cmd);
+        i2c_master_write_byte(cmd, (i2c_address << 1)|I2C_MASTER_WRITE, true);
+        i2c_master_stop(cmd);
+        ret = i2c_master_cmd_begin(I2C_PORT, cmd, 1000 / portTICK_PERIOD_MS);
+        i2c_cmd_link_delete(cmd);
+
+        xSemaphoreGive(i2cBusy);
+    }
+
+    return ret == ESP_OK;
+}
+
+bool i2c_send (uint_fast16_t i2c_address, uint8_t *data, size_t size, bool block)
+{
+    esp_err_t ret = ESP_FAIL;
+
+    // always blocking... TODO: post non-blocking to I2CTask()
+
+    if(i2cBusy != NULL && xSemaphoreTake(i2cBusy, 5 / portTICK_PERIOD_MS) == pdTRUE) {
+        i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+        i2c_master_start(cmd);
+        i2c_master_write_byte(cmd, (i2c_address << 1)|I2C_MASTER_WRITE, true);
+        i2c_master_write(cmd, data, size, true);
+        i2c_master_stop(cmd);
+        ret = i2c_master_cmd_begin(I2C_PORT, cmd, 1000 / portTICK_PERIOD_MS);
+        i2c_cmd_link_delete(cmd);
+
+        xSemaphoreGive(i2cBusy);
+    }
+
+    return ret == ESP_OK;
 }
 
 void i2c_get_keycode (uint_fast16_t i2cAddr, keycode_callback_ptr callback)
