@@ -83,7 +83,7 @@ static void event_handler_callback (void *arg, esp_event_base_t event_base, int3
 /*            if(arg != NULL)
                 ((on_mqtt_message_received_ptr)arg)(mqtt_message.topic, (void *)mqtt_message.payload, mqtt_message.payload_length);
             else*/ if(mqtt_events.on_message_received)
-                mqtt_events.on_message_received(event->topic, (void *)event->data, (size_t)event->topic_len);
+                mqtt_events.on_message_received(event->topic, (void *)event->data, (size_t)event->data_len);
             break;
 
         default:
