@@ -213,6 +213,7 @@
       "MAP": "main/boards/root_cnc_v2_map.h",
       "caps": {
         "axes": 6,
+        "auto_square": 3,
         "digital_in": 1,
         "serial_ports": 2,
         "estop": 0,
@@ -228,6 +229,7 @@
       "MAP": "main/boards/root_cnc_v3_map.h",
       "caps": {
         "axes": 6,
+        "auto_square": 3,
         "digital_in": 1,
         "serial_ports": 2,
         "estop": 0,
