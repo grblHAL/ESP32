@@ -1,12 +1,12 @@
 //
 // mqtt.c - MQTT client API for grblHAL, ESP32 version
 //
-// v0.1 / 2023-02-09 / Io Engineering / Terje
+// v0.2 / 2024-05-08 / Io Engineering / Terje
 //
 
 /*
 
-Copyright (c) 2023, Terje Io
+Copyright (c) 2023-2024, Terje Io
 
 All rights reserved.
 
@@ -82,8 +82,16 @@ static void event_handler_callback (void *arg, esp_event_base_t event_base, int3
         case MQTT_EVENT_DATA:
 /*            if(arg != NULL)
                 ((on_mqtt_message_received_ptr)arg)(mqtt_message.topic, (void *)mqtt_message.payload, mqtt_message.payload_length);
-            else*/ if(mqtt_events.on_message_received)
-                mqtt_events.on_message_received(event->topic, (void *)event->data, (size_t)event->topic_len);
+            else*/
+            if(mqtt_events.on_message_received) {
+                char *topic;
+                if((topic = malloc(event->topic_len + 1))) {
+                    strncpy(topic, event->topic, event->topic_len);
+                    topic[event->topic_len] = '\0';
+                    mqtt_events.on_message_received(topic, (void *)event->data, (size_t)event->data_len);
+                    free(topic);
+                }
+            }
             break;
 
         default:

@@ -6,18 +6,18 @@
 
   Copyright (c) 2023-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 
 */
 
@@ -125,7 +125,6 @@ static io_stream_properties_t serial[] = {
       .instance = 0,
       .flags.claimable = On,
       .flags.claimed = Off,
-      .flags.connected = On,
       .flags.can_set_baud = On,
       .flags.modbus_ready = On,
       .claim = serialInit
@@ -136,7 +135,6 @@ static io_stream_properties_t serial[] = {
       .instance = 1,
       .flags.claimable = On,
       .flags.claimed = Off,
-      .flags.connected = On,
       .flags.can_set_baud = On,
   #ifdef UART2_TX_PIN
       .flags.modbus_ready = On,
@@ -152,7 +150,6 @@ static io_stream_properties_t serial[] = {
       .instance = 2,
       .flags.claimable = On,
       .flags.claimed = Off,
-      .flags.connected = On,
       .flags.can_set_baud = On,
   #ifdef UART3_TX_PIN
       .flags.modbus_ready = On,
@@ -575,7 +572,7 @@ static const io_stream_t *serialInit (uint32_t baud_rate)
 {
     static const io_stream_t stream = {
         .type = StreamType_Serial,
-        .state.connected = true,
+        .is_connected = stream_connected,
         .read = serialRead,
         .write = serialWriteS,
         .write_n =  serialWrite,
@@ -803,7 +800,7 @@ static const io_stream_t *serial2Init (uint32_t baud_rate)
     static const io_stream_t stream = {
         .type = StreamType_Serial,
         .instance = 1,
-        .state.connected = true,
+        .is_connected = stream_connected,
         .read = serial2Read,
         .write = serial2WriteS,
         .write_n =  serial2Write,
@@ -1037,7 +1034,7 @@ static const io_stream_t *serial3Init (uint32_t baud_rate)
     static const io_stream_t stream = {
         .type = StreamType_Serial,
         .instance = 2,
-        .state.connected = true,
+        .is_connected = stream_connected,
         .read = serial3Read,
         .write = serial3WriteS,
         .write_n =  serial3Write,
