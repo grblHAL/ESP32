@@ -21,19 +21,19 @@
 
 #include "driver.h"
 
-#if defined(BOARD_XPRO_V5)|| defined(BOARD_BLOX) // || defined(BOARD_CNC_BOOSTERPACK)
+#if defined(BOARD_XPRO_V5) || defined(BOARD_BLOX)
 
 #include <math.h>
 #include <string.h>
 
-#include "driver.h"
 #include "spi.h"
+#include "i2s_out.h"
 #include "grbl/protocol.h"
 #include "grbl/settings.h"
 
 #if TRINAMIC_SPI_ENABLE
 
-#define SPI_BAUDRATEPRESCALER_32 32
+#include "driver/spi_master.h"
 
 static struct {
     uint32_t pin;
@@ -48,7 +48,7 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *reg)
 
     uint8_t res;
     uint_fast8_t idx = n_motors;
-    uint32_t f_spi = spi_set_speed(SPI_BAUDRATEPRESCALER_32);
+    uint32_t f_spi = spi_set_speed(SPI_MASTER_FREQ_10M);
     volatile uint32_t dly = 100;
 
     datagram[driver.seq].addr.value = reg->addr.value;
@@ -110,7 +110,7 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *reg
 
     uint8_t res;
     uint_fast8_t idx = n_motors;
-    uint32_t f_spi = spi_set_speed(SPI_BAUDRATEPRESCALER_32);
+    uint32_t f_spi = spi_set_speed(SPI_MASTER_FREQ_10M);
     volatile uint32_t dly = 100;
 
     memcpy(&datagram[driver.seq], reg, sizeof(TMC_spi_datagram_t));
@@ -153,6 +153,7 @@ static void add_cs_pin (xbar_t *gpio, void *data)
 static void if_init (uint8_t motors, axes_signals_t axisflags)
 {
     n_motors = motors;
+
     hal.enumerate_pins(true, add_cs_pin, NULL);
 }
 

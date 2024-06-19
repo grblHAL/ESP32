@@ -27,6 +27,7 @@
 #endif
 
 #define BOARD_NAME "MKS DLC32 2.0"
+#define BOARD_URL "https://github.com/makerbase-mks/MKS-DLC32"
 
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64

@@ -2707,7 +2707,7 @@ static bool driver_setup (settings_t *settings)
     sdcard_mount(NULL);
 
     static const periph_pin_t sck = {
-        .function = Output_SCK,
+        .function = Output_SPICLK,
         .group = PinGroup_SPI,
         .pin = PIN_NUM_CLK,
         .mode = { .mask = PINMODE_OUTPUT }
@@ -2811,7 +2811,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240408";
+    hal.driver_version = "240418";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;

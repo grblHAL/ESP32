@@ -26,7 +26,7 @@
 #include "driver/sdspi_host.h"
 #include "driver/spi_master.h"
 
-static spi_device_handle_t handle = 0;
+static spi_device_handle_t handle = NULL;
 
 void spi_init (void)
 {
@@ -45,49 +45,55 @@ void spi_init (void)
             .intr_flags      = ESP_INTR_FLAG_IRAM
         };
 
-      if(spi_bus_initialize(SDSPI_DEFAULT_HOST, &bus_config, 1) == ESP_OK) {
+#if CONFIG_IDF_TARGET_ESP32S3
+        if((init = spi_bus_initialize(SDSPI_DEFAULT_HOST, &bus_config, SPI_DMA_CH_AUTO) == ESP_OK)) {
+#else
+  #if PIN_NUM_CLK == GPIO_NUM_14
+        if((init = spi_bus_initialize(SPI2_HOST, &bus_config, 1) == ESP_OK)) { // 1 = SPI_DMA_CH1
+  #elif PIN_NUM_CLK == GPIO_NUM_18
+        if((init = spi_bus_initialize(SPI3_HOST, &bus_config, 1) == ESP_OK)) {
+  #else
+        if((init = spi_bus_initialize(SDSPI_DEFAULT_HOST, &bus_config, 1) == ESP_OK)) {
+  #endif
+#endif
+            spi_device_interface_config_t devcfg = {
+                .clock_speed_hz = 1000000,
+                .mode = 0,          //SPI mode 0
+                .spics_io_num = -1,
+                .queue_size = 1,
+            //    .flags = SPI_DEVICE_POSITIVE_CS,
+            //   .pre_cb = cs_high,
+            //   .post_cb = cs_low,
+                .input_delay_ns = 0  //the EEPROM output the data half a SPI clock behind.
+            };
 
-        spi_device_interface_config_t devcfg = {
-            .clock_speed_hz = 1000000,
-            .mode = 0,          //SPI mode 0
-            .spics_io_num = -1,
-            .queue_size = 1,
-        //    .flags = SPI_DEVICE_POSITIVE_CS,
-        //   .pre_cb = cs_high,
-        //   .post_cb = cs_low,
-            .input_delay_ns = 0  //the EEPROM output the data half a SPI clock behind.
-        };
-        //Attach the EEPROM to the SPI bus
-        spi_bus_add_device(SDSPI_DEFAULT_HOST, &devcfg, &handle);
+            spi_bus_add_device(SPI2_HOST, &devcfg, &handle);
 
-      }
-/*
+            static const periph_pin_t sck = {
+                .function = Output_SPICLK,
+                .group = PinGroup_SPI,
+                .pin = PIN_NUM_CLK,
+                .mode = { .mask = PINMODE_OUTPUT }
+            };
 
-        static const periph_pin_t sck = {
-            .function = Output_SCK,
-            .group = PinGroup_SPI,
-            .port = GPIOC,
-            .pin = 10,
-            .mode = { .mask = PINMODE_OUTPUT }
-        };
+            static const periph_pin_t sdo = {
+                .function = Output_MOSI,
+                .group = PinGroup_SPI,
+                .pin = PIN_NUM_MOSI,
+                .mode = { .mask = PINMODE_NONE }
+            };
 
-        static const periph_pin_t sdo = {
-            .function = Output_MOSI,
-            .group = PinGroup_SPI,
-            .port = GPIOC,
-            .pin = 11,
-            .mode = { .mask = PINMODE_NONE }
-        };
+            static const periph_pin_t sdi = {
+                .function = Input_MISO,
+                .group = PinGroup_SPI,
+                .pin = PIN_NUM_MISO,
+                .mode = { .mask = PINMODE_NONE }
+            };
 
-        static const periph_pin_t sdi = {
-            .function = Input_MISO,
-            .group = PinGroup_SPI,
-            .port = GPIOC,
-            .pin = 12,
-            .mode = { .mask = PINMODE_NONE }
-        };
-*/
-        init = true;
+            hal.periph_port.register_pin(&sck);
+            hal.periph_port.register_pin(&sdo);
+            hal.periph_port.register_pin(&sdi);
+        }
     }
 }
 
@@ -126,7 +132,7 @@ uint8_t spi_put_byte (uint8_t byte)
     spi_transaction_t t = {
         .cmd = 0,
         .length = 8,
-        .flags = SPI_TRANS_USE_TXDATA,
+        .flags = SPI_TRANS_USE_TXDATA|SPI_TRANS_MODE_OCT,
         .tx_data[0] = byte,
         .user = NULL,
     };

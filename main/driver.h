@@ -245,9 +245,15 @@ extern SemaphoreHandle_t i2cBusy;
 #define KEYPAD_TEST 0
 #endif
 
-#if (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST + (DEBUGOUT ? 1 : 0)) > (SP0 + SP1 + SP2)
+#ifdef DEBUGOUT
+#define DEBUG_TEST 1
+#else
+#define DEBUG_TEST 0
+#endif
+
+#if (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST + DEBUG_TEST) > (SP0 + SP1 + SP2)
 #error "Too many options that requires a serial port are enabled!"
-#elif (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST + DEBUGOUT)
+#elif (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST + DEBUG_TEST) || SERIAL_STREAM == 1
 #define SERIAL2_ENABLE 1
 #else
 #define SERIAL2_ENABLE 0
@@ -260,6 +266,7 @@ extern SemaphoreHandle_t i2cBusy;
 #undef KEYPAD_TEST
 #undef MPG_TEST
 #undef TRINAMIC_TEST
+#undef DEBUG_TEST
 
 #if MPG_ENABLE
 #if MPG_STREAM == 0
