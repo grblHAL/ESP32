@@ -132,7 +132,7 @@ uint8_t spi_put_byte (uint8_t byte)
     spi_transaction_t t = {
         .cmd = 0,
         .length = 8,
-        .flags = SPI_TRANS_USE_TXDATA|SPI_TRANS_MODE_OCT,
+        .flags = SPI_TRANS_USE_TXDATA, // |SPI_TRANS_MODE_OCT, fails on earlier version of the IDF
         .tx_data[0] = byte,
         .user = NULL,
     };

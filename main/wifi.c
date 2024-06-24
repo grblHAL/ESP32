@@ -9,18 +9,18 @@
 
   Some parts of the code is based on example code by Espressif, in the public domain
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "driver.h"
@@ -133,30 +133,6 @@ char *iptoa (void *ip)
     return aip;
 }
 
-char *wifi_get_ipaddr (void)
-{
-    ip4_addr_t *ip;
-
-#if NETWORK_IPMODE_STATIC
-    ip = (ip4_addr_t *)&wifi.sta.network.ip;
-#else
-    ip = ap_list.ap_selected ? &ap_list.ip_addr : (ip4_addr_t *)&wifi.ap.network.ip;
-#endif
-
-    return iptoa(ip);
-}
-
-char *wifi_get_mac (void)
-{
-    static char mac[18];
-    uint8_t bmac[6];
-
-    esp_wifi_get_mac(ESP_IF_WIFI_STA, bmac);
-    sprintf(mac, MAC_FORMAT_STRING, bmac[0], bmac[1], bmac[2], bmac[3], bmac[4], bmac[5]);
-
-    return mac;
-}
-
 static void reportIP (bool newopt)
 {
     on_report_options(newopt);
@@ -180,12 +156,15 @@ static void reportIP (bool newopt)
             hal.stream.write(",SSDP");
 #endif
     } else {
+
+        network_info_t *network = networking_get_info();
+
         hal.stream.write("[WIFI MAC:");
-        hal.stream.write(wifi_get_mac());
+        hal.stream.write(network->mac);
         hal.stream.write("]" ASCII_EOL);
 
         hal.stream.write("[IP:");
-        hal.stream.write(wifi_get_ipaddr());
+        hal.stream.write(network->status.ip);
         hal.stream.write("]" ASCII_EOL);
 
         if(active_stream == StreamType_Telnet || active_stream == StreamType_WebSocket) {
@@ -196,7 +175,7 @@ static void reportIP (bool newopt)
 
 #if MQTT_ENABLE
         char *client_id;
-        if(*(client_id = networking_get_info()->mqtt_client_id)) {
+        if(*(client_id = network->mqtt_client_id)) {
             hal.stream.write("[MQTT CLIENTID:");
             hal.stream.write(client_id);
             hal.stream.write(mqtt_connected ? "]" ASCII_EOL : " (offline)]" ASCII_EOL);
@@ -211,8 +190,25 @@ network_info_t *networking_get_info (void)
 
     memcpy(&info.status, &network, sizeof(network_settings_t));
 
-    strcpy(info.mac, wifi_get_mac());
-    strcpy(info.status.ip, wifi_get_ipaddr());
+    uint8_t bmac[6];
+
+    if(esp_wifi_get_mac(ESP_IF_WIFI_STA, bmac) == ESP_OK)
+        strcpy(info.mac, networking_mac_to_string(bmac));
+    else
+        *info.mac = '\0';
+
+    ip4_addr_t *ip;
+
+#if NETWORK_IPMODE_STATIC
+    ip = (ip4_addr_t *)&wifi.sta.network.ip;
+#else
+    ip = ap_list.ap_selected ? &ap_list.ip_addr : (ip4_addr_t *)&wifi.ap.network.ip;
+#endif
+
+    if(!networking_ismemnull(ip, sizeof(ip)))
+        strcpy(info.status.ip, iptoa(ip));
+    else
+        *info.status.ip = '\0';
 
     if(info.status.ip_mode == IpMode_DHCP) {
         *info.status.gateway = '\0';
