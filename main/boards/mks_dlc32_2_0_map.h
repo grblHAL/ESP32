@@ -26,7 +26,7 @@
 #error "Board BOARD_MKS_DLC32_V2P0 does not have support for VFD spindle."
 #endif
 
-#define BOARD_NAME "MKS DLC32 2.0"
+#define BOARD_NAME "MKS DLC32 2.x"
 #define BOARD_URL "https://github.com/makerbase-mks/MKS-DLC32"
 
 #define USE_I2S_OUT
@@ -93,7 +93,7 @@
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 
 #if !I2C_ENABLE
-#define FEED_HOLD_PIN       GPIO_NUM_0  // J2,3 (I2C_SDA)
+//#define FEED_HOLD_PIN       GPIO_NUM_0  // J2,3 (I2C_SDA)
 #define CYCLE_START_PIN     GPIO_NUM_4  // J2,4 (I2C_SCL)
 #endif
 
