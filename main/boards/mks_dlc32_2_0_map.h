@@ -59,6 +59,7 @@
 #define Y_STEP_PIN          I2SO(5)
 #define Y_DIRECTION_PIN     I2SO(6)
 #define Y_LIMIT_PIN         GPIO_NUM_35
+#define Y_LIMIT_PIN_MAX     GPIO_NUM_22 
 
 #define Z_STEP_PIN          I2SO(3)
 #define Z_DIRECTION_PIN     I2SO(4)
@@ -98,7 +99,7 @@
 #endif
 
 #define AUXINPUT0_PIN       GPIO_NUM_33 // EXP_1,8 (LCD_RS)
-#define AUXINPUT1_PIN       GPIO_NUM_22
+#define AUXINPUT1_PIN       
 
 // Define probe switch input pin.
 #if PROBE_ENABLE
