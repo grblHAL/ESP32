@@ -188,18 +188,12 @@ network_info_t *networking_get_info (void)
 {
     static network_info_t info;
 
-    memcpy(&info.status, &network, sizeof(network_settings_t));
-
     uint8_t bmac[6];
-
-    if(esp_wifi_get_mac(ESP_IF_WIFI_STA, bmac) == ESP_OK)
-        strcpy(info.mac, networking_mac_to_string(bmac));
-    else
-        *info.mac = '\0';
-
     ip4_addr_t *ip;
 
-#if NETWORK_IPMODE_STATIC
+    memcpy(&info.status, &network, sizeof(network_settings_t));
+
+ #if NETWORK_IPMODE_STATIC
     ip = (ip4_addr_t *)&wifi.sta.network.ip;
 #else
     ip = ap_list.ap_selected ? &ap_list.ip_addr : (ip4_addr_t *)&wifi.ap.network.ip;
@@ -209,6 +203,15 @@ network_info_t *networking_get_info (void)
         strcpy(info.status.ip, iptoa(ip));
     else
         *info.status.ip = '\0';
+
+ #if WIFI_SOFTAP
+     if(esp_read_mac(bmac, ESP_MAC_WIFI_SOFTAP) == ESP_OK) {
+ #else
+     if(esp_read_mac(bmac, ESP_MAC_WIFI_STA) == ESP_OK) {
+ #endif
+         strcpy(info.mac, networking_mac_to_string(bmac));
+     } else
+         *info.mac = '\0';
 
     if(info.status.ip_mode == IpMode_DHCP) {
         *info.status.gateway = '\0';
