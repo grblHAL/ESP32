@@ -25,6 +25,7 @@ set(SRCS
  boards/BlackBoxX32.c
  networking/strutils.c
  grbl/grbllib.c
+ grbl/canbus.c
  grbl/coolant_control.c
  grbl/crossbar.c
  grbl/nvs_buffer.c
@@ -93,6 +94,7 @@ set(SDCARD_SOURCE
 set(KEYPAD_SOURCE
  keypad/keypad.c
  keypad/macros.c
+ keypad/display/i2c_interface.c
 )
 
 set(WEBUI_SOURCE
