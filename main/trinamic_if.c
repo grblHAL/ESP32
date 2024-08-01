@@ -21,7 +21,7 @@
 
 #include "driver.h"
 
-#if defined(BOARD_XPRO_V5) || defined(BOARD_BLOX)
+#if defined(BOARD_XPRO_V5)
 
 #include <math.h>
 #include <string.h>

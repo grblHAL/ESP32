@@ -2247,8 +2247,8 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
                 config.pin_bit_mask = 1ULL << signal->pin;
                 config.mode = GPIO_MODE_INPUT;
 #if CONFIG_IDF_TARGET_ESP32S3
-                config.pull_up_en = pullup ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
-                config.pull_down_en = pullup ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE;
+                config.pull_up_en = signal->mode.pull_mode == PullMode_Up ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
+                config.pull_down_en = signal->mode.pull_mode == PullMode_Up ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE;
                 // Early versions(?) has an internal pullup on 45 - https://github.com/espressif/esp-idf/issues/9731
 #else
                 config.pull_up_en = signal->mode.pull_mode == PullMode_Up && signal->pin < 34 ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
@@ -2524,11 +2524,19 @@ void neopixels_write (void)
     uint8_t *buf = neopixel.leds;
     size_t size = neopixel.num_bytes;
 
+#if CONFIG_IDF_TARGET_ESP32S3
+    if(buf) do {
+        rmt_write_sample(neo_config.channel, buf, size > 3 ? 3 : size, true);
+        buf += size > 3 ? 3 : size;
+        size -= size > 3 ? 3 : size;
+    } while(size);
+#else
     if(buf) do {
         rmt_write_sample(neo_config.channel, buf, size > 6 ? 6 : size, true);
         buf += size > 6 ? 6 : size;
         size -= size > 6 ? 6 : size;
     } while(size);
+#endif
 }
 
 static void neopixel_out_masked (uint16_t device, rgb_color_t color, rgb_color_mask_t mask)
@@ -2811,7 +2819,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240701";
+    hal.driver_version = "240719";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
