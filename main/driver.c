@@ -88,10 +88,6 @@
 #include "sdcard/fs_littlefs.h"
 #endif
 
-#if KEYPAD_ENABLE == 2
-#include "keypad/keypad.h"
-#endif
-
 #if IOEXPAND_ENABLE
 #include "ioexpand.h"
 #endif
@@ -233,7 +229,7 @@ static input_signal_t inputpin[] = {
   #ifdef PROBE_PIN
     { .id = Input_Probe,        .pin = PROBE_PIN,         .group = PinGroup_Probe },
   #endif
-  #if MPG_MODE == 1
+  #if MPG_ENABLE == 1
     { .id = Input_ModeSelect,   .pin = MPG_ENABLE_PIN,    .group = PinGroup_MPG },
   #endif
   #ifdef I2C_STROBE_PIN
@@ -481,7 +477,7 @@ static bool irq_claim (irq_type_t irq, uint_fast8_t id, irq_callback_ptr handler
 static void gpio_limit_isr (void *signal);
 static void gpio_control_isr (void *signal);
 static void gpio_aux_isr (void *signal);
-#if MPG_MODE == 1
+#if MPG_ENABLE == 1
 static void gpio_mpg_isr (void *signal);
 #endif
 #if I2C_STROBE_ENABLE
@@ -1548,7 +1544,7 @@ inline IRAM_ATTR static control_signals_t systemGetState (void)
     return signals;
 }
 
-#if MPG_MODE == 1
+#if MPG_ENABLE == 1
 
 static void modeChange (void *data)
 {
@@ -1561,7 +1557,7 @@ static void mpg_enable (void *data)
         stream_mpg_enable(true);
 }
 
-#endif // MPG_MODE == 1
+#endif // MPG_ENABLE == 1
 
 #ifdef PROBE_PIN
 
@@ -2193,7 +2189,7 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
                     signal->mode.inverted = false;
                     break;
 
- #if MPG_MODE == 1
+ #if MPG_ENABLE == 1
                 case Input_ModeSelect:
                     signal->mode.pull_mode = PullMode_Up;
                     signal->mode.inverted = false;
@@ -2657,7 +2653,7 @@ static bool driver_setup (settings_t *settings)
         }
     } while(idx);
 
-#if MPG_MODE == 1
+#if MPG_ENABLE == 1
 
     /************************
      *  MPG mode (pre)init  *
@@ -2819,7 +2815,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240719";
+    hal.driver_version = "240817";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3103,22 +3099,6 @@ bool driver_init (void)
     board_init();
 #endif
 
-#if MPG_MODE == 1
-  #if KEYPAD_ENABLE == 2
-    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, keypad_enqueue_keycode)))
-        protocol_enqueue_foreground_task(mpg_enable, NULL);
-  #else
-    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, NULL)))
-        protocol_enqueue_foreground_task(mpg_enable, NULL);
-  #endif
-#elif MPG_MODE == 2
-    hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, keypad_enqueue_keycode);
-#elif MPG_MODE == 3
-    hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, stream_mpg_check_enable);
-#elif KEYPAD_ENABLE == 2
-    stream_open_instance(KEYPAD_STREAM, 115200, keypad_enqueue_keycode, "Keypad");
-#endif
-
 #if WIFI_ENABLE
     wifi_init();
 #endif
@@ -3132,6 +3112,16 @@ bool driver_init (void)
 #endif
 
 #include "grbl/plugins_init.h"
+
+#if MPG_ENABLE == 1
+    if(!hal.driver_cap.mpg_mode)
+        hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, NULL);
+    if(hal.driver_cap.mpg_mode)
+        protocol_enqueue_foreground_task(mpg_enable, NULL);
+#elif MPG_ENABLE == 2
+    if(!hal.driver_cap.mpg_mode)
+        hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, stream_mpg_check_enable);
+#endif
 
     // no need to move version check before init - compiler will fail any mismatch for existing entries
     return hal.version == 10;
@@ -3208,7 +3198,7 @@ IRAM_ATTR static void gpio_aux_isr (void *signal)
     ioports_event((input_signal_t *)signal);
 }
 
-#if MPG_MODE == 1
+#if MPG_ENABLE == 1
 
 IRAM_ATTR static void gpio_mpg_isr (void *signal)
 {
@@ -3267,7 +3257,7 @@ IRAM_ATTR static void gpio_isr (void *arg)
 
 #if !AUX_CONTROLS_ENABLED
 
-  #if MPG_MODE == 1
+  #if MPG_ENABLE == 1
 
     static bool mpg_mutex = false;
 

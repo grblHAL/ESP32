@@ -253,7 +253,7 @@ extern SemaphoreHandle_t i2cBusy;
 
 #if (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST + DEBUG_TEST) > (SP0 + SP1 + SP2)
 #error "Too many options that requires a serial port are enabled!"
-#elif (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST + DEBUG_TEST) || SERIAL_STREAM == 1
+#elif (SP0 == 0 && (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST + DEBUG_TEST)) || SERIAL_STREAM == 1
 #define SERIAL2_ENABLE 1
 #else
 #define SERIAL2_ENABLE 0
@@ -286,7 +286,7 @@ extern SemaphoreHandle_t i2cBusy;
 #endif
 #endif
 
-#if MPG_MODE == 1
+#if MPG_ENABLE == 1
   #ifndef MPG_ENABLE_PIN
   #error "MPG_ENABLE_PIN must be defined when MPG mode is enabled!"
   #endif

@@ -5,7 +5,9 @@
 
   Part of grblHAL
 
-  Copyright (c) 2024 NEWTech Creative 2024
+  Copyright (c) 2024
+
+  NEWTech Creative 2024
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +30,10 @@
 #error No free pins for I2C keypad!
 #endif
 
+#if TRINAMIC_ENABLE != 5160
+#error BOARD_ROOTCNC_PRO has soldered TMC5160 drivers.
+#endif
+
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
 
@@ -39,13 +45,15 @@
 
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
-#define PIN_NUM_MISO            19
-#define PIN_NUM_MOSI            23
-#define PIN_NUM_CLK             18
-#if SDCARD_ENABLE
 // Note that a pull-up on CS line is required in SD mode.
-#define PIN_NUM_CS              5
-#endif // SDCARD_ENABLE
+#define PIN_NUM_MISO        GPIO_NUM_19
+#define PIN_NUM_MOSI        GPIO_NUM_23
+#define PIN_NUM_CLK         GPIO_NUM_18
+#define MOTOR_CS_PIN        GPIO_NUM_17
+#if SDCARD_ENABLE
+#define PIN_NUM_CS          GPIO_NUM_5
+#endif
+
 #endif // SDCARD_ENABLE || TRINAMIC_SPI_ENABLE
 
 #define I2S_OUT_BCK             GPIO_NUM_22
@@ -55,16 +63,19 @@
 #define X_STEP_PIN              I2SO(1)
 #define X_DIRECTION_PIN         I2SO(0)
 #define X_ENABLE_PIN            I2SO(15)
-#define X_LIMIT_PIN             GPIO_NUM_36
+#define X_CS_PIN                I2SO(2)
+#define X_LIMIT_PIN             GPIO_NUM_39
 
 #define Y_STEP_PIN              I2SO(21)
 #define Y_DIRECTION_PIN         I2SO(20)
 #define Y_ENABLE_PIN            I2SO(19)
+#define Y_CS_PIN                I2SO(2)
 #define Y_LIMIT_PIN             GPIO_NUM_32
 
 #define Z_STEP_PIN              I2SO(29)
 #define Z_DIRECTION_PIN         I2SO(28)
 #define Z_ENABLE_PIN            I2SO(27)
+#define Z_CS_PIN                I2SO(30)
 #define Z_LIMIT_PIN             GPIO_NUM_36
 
 // Define ganged axis or A axis step pulse and step direction output pins.
@@ -73,7 +84,7 @@
 #define M3_STEP_PIN             I2SO(13)
 #define M3_DIRECTION_PIN        I2SO(12)
 #define M3_ENABLE_PIN           I2SO(11)
-#define M3_LIMIT_PIN            GPIO_NUM_35
+#define M3_CS_PIN               I2SO(14)
 #endif
 
 // Define ganged axis or B axis step pulse and step direction output pins.
@@ -82,7 +93,7 @@
 #define M4_STEP_PIN             I2SO(9)
 #define M4_DIRECTION_PIN        I2SO(8)
 #define M4_ENABLE_PIN           I2SO(23)
-#define M4_LIMIT_PIN            GPIO_NUM_34
+#define M4_CS_PIN               I2SO(10)
 #endif
 
 // Define ganged axis or B axis step pulse and step direction output pins.
@@ -91,6 +102,7 @@
 #define M5_STEP_PIN             I2SO(17)
 #define M5_DIRECTION_PIN        I2SO(16)
 #define M5_ENABLE_PIN           I2SO(31)
+#define M5_CS_PIN               I2SO(18)
 #endif
 
 // Define driver spindle pins
@@ -128,17 +140,18 @@
 #define AUXINPUT0_PIN           GPIO_NUM_33
 #define AUXINPUT1_PIN           GPIO_NUM_26
 #define AUXINPUT2_PIN           GPIO_NUM_2
+#define AUXINPUT3_PIN           GPIO_NUM_15
 
 #if PROBE_ENABLE
- #define PROBE_PIN              AUXINPUT0_PIN
+ #define PROBE_PIN              AUXINPUT3_PIN
 #endif
 
 #if SAFETY_DOOR_ENABLE
-  #define SAFETY_DOOR_PIN       AUXINPUT1_PIN
+  #define SAFETY_DOOR_PIN       AUXINPUT2_PIN
 #endif
 
 #if CYCLE_START_ENABLE
-  #define SAFETY_DOOR_PIN       AUXINPUT2_PIN
+  #define SAFETY_DOOR_PIN       AUXINPUT1_PIN
 #endif
 // N/A
 

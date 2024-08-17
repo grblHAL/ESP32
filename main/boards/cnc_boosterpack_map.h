@@ -122,7 +122,7 @@
 #endif
 
 #ifdef ADD_SERIAL2
-#if MPG_MODE == 1
+#if MPG_ENABLE == 1
 #define MPG_ENABLE_PIN          GPIO_NUM_25
 #else
 #define UART2_TX_PIN            GPIO_NUM_25
@@ -131,8 +131,11 @@
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_25 //??
 #endif
 #else
-#define AUXOUTPUT0_PIN          GPIO_NUM_25
+//#define AUXOUTPUT0_PIN          GPIO_NUM_25
 #endif
+
+#define NEOPIXELS_NUM       2
+#define NEOPIXELS_PIN       GPIO_NUM_25
 
 // Define I2C port/pins
 #define I2C_PORT                I2C_NUM_1
