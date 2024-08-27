@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2023 Terje Io
+  Copyright (c) 2023-2024 Terje Io
   Copyright (c) 2022 Lucio Tarantino
 
   grblHAL is free software: you can redistribute it and/or modify
@@ -76,11 +76,19 @@
 #if DRIVER_SPINDLE_PWM_ENABLE
 #define SPINDLE_PWM_PIN     GPIO_NUM_32
 #else
+#if DRIVER_SPINDLE_ENABLE
+#define AUXOUTPUT4_PIN      GPIO_NUM_27
+#else
 #define AUXOUTPUT4_PIN      GPIO_NUM_32
+#endif
 #endif
 
 #if DRIVER_SPINDLE_ENABLE
+#if DRIVER_SPINDLE_PWM_ENABLE
 #define SPINDLE_ENABLE_PIN  GPIO_NUM_27
+#else
+#define SPINDLE_ENABLE_PIN  GPIO_NUM_32
+#endif
 #else
 #define AUXOUTPUT5_PIN      GPIO_NUM_27
 #endif
