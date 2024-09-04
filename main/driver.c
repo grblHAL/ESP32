@@ -445,6 +445,7 @@ static ioexpand_t iopins = {0};
 
 #ifdef NEOPIXELS_PIN
 neopixel_cfg_t neopixel = { .intensity = 255 };
+void neopixels_write (void);
 #endif
 
 #if AUX_CONTROLS_ENABLED
@@ -2033,6 +2034,7 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
         }
 
         neopixel.num_leds = hal.rgb0.num_devices;
+        hal.rgb0.write = neopixel.num_leds > 1 ? neopixels_write : NULL;
     }
 
 #endif
@@ -2515,7 +2517,7 @@ static void IRAM_ATTR ws2812_rmt_adapter (const void *src, rmt_item32_t *dest, s
     *item_num = num;
 }
 
-void neopixels_write (void)
+void _neopixels_write (void)
 {
     uint8_t *buf = neopixel.leds;
     size_t size = neopixel.num_bytes;
@@ -2535,6 +2537,11 @@ void neopixels_write (void)
 #endif
 }
 
+void neopixels_write (void)
+{
+	_neopixels_write();
+}
+
 static void neopixel_out_masked (uint16_t device, rgb_color_t color, rgb_color_mask_t mask)
 {
     if(neopixel.num_leds && device < neopixel.num_leds) {
@@ -2542,7 +2549,7 @@ static void neopixel_out_masked (uint16_t device, rgb_color_t color, rgb_color_m
         rgb_1bpp_assign(&neopixel.leds[device * 3], color, mask);
 
         if(neopixel.num_leds == 1)
-            neopixels_write();
+        	_neopixels_write();
     }
 }
 
@@ -2558,7 +2565,7 @@ uint8_t neopixels_set_intensity (uint8_t value)
     if(neopixel.intensity != value) {
 
         neopixel.intensity = value;
-//      neopixels_write();
+        _neopixels_write();
     }
 
     return prev;
@@ -2566,7 +2573,7 @@ uint8_t neopixels_set_intensity (uint8_t value)
 
 #endif // NEOPIXELS_PIN
 
-// Initializes MCU peripherals for Grbl use
+// Initializes MCU peripherals for grblHAL use
 static bool driver_setup (settings_t *settings)
 {
 
@@ -2757,9 +2764,6 @@ static bool driver_setup (settings_t *settings)
     enet_start();
 #endif
 
-//    if(hal.rgb0.out)
-//        hal.rgb0.out(0, (rgb_color_t){ .R = 5, .G = 100, .B = 5 });
-
     return IOInitDone;
 }
 
@@ -2815,7 +2819,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240817";
+    hal.driver_version = "240903";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3078,7 +3082,6 @@ bool driver_init (void)
 
     hal.rgb0.out = neopixel_out;
     hal.rgb0.out_masked = neopixel_out_masked;
-    hal.rgb0.write = neopixels_write;
     hal.rgb0.set_intensity = neopixels_set_intensity;
     hal.rgb0.num_devices = NEOPIXELS_NUM;
     hal.rgb0.cap = (rgb_color_t){ .R = 255, .G = 255, .B = 255 };

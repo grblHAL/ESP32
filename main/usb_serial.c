@@ -4,20 +4,20 @@
 
   Part of grblHAL
 
-  Some parts are copyright (c) 2021-2023 Terje Io
+  Some parts are copyright (c) 2023-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 
 ***
 
@@ -28,6 +28,8 @@
   SPDX-License-Identifier: BSD-3-Clause
   
 */
+
+#if CONFIG_IDF_TARGET_ESP32S3
 
 #include <stdint.h>
 #include "esp_log.h"
@@ -79,17 +81,15 @@ static void usb_out_chars (const char *buf, int length)
     }
 }
 
-/*
 static int32_t usb_in_chars (char *buf, uint32_t length)
 {
     uint32_t count = 0;
 
-    if(usb_connected() && tud_cdc_available())
-        count = tud_cdc_read(buf, length);
+    if (usb_connected() && tud_cdc_available())
+            count = tud_cdc_read(buf, length);
 
     return count ? count : -1;
 }
-*/
 
 //
 // Returns number of characters in USB input buffer
@@ -310,3 +310,48 @@ const io_stream_t *usb_serialInit (void)
 
     return &stream;
 }
+
+//
+// This function get called from the foreground process,
+// used here to get characters off the USB serial input stream and buffer
+// them for processing by grbl. Real time command characters are stripped out
+// and submitted for realtime processing.
+//
+static void execute_realtime (uint_fast16_t state)
+{
+    static volatile bool lock = false;
+    static char tmpbuf[BLOCK_RX_BUFFER_SIZE];
+
+    if(lock)
+        return;
+
+    char c, *dp;
+    int32_t avail, free;
+ 
+    lock = true;
+ 
+    if(usb_connected() && (avail = (int32_t)tud_cdc_available())) {
+
+        dp = tmpbuf;
+        free = (int32_t)usb_serialRxFree();
+        free = free > BLOCK_RX_BUFFER_SIZE ? BLOCK_RX_BUFFER_SIZE : free;
+        avail = usb_in_chars(tmpbuf, (uint32_t)(avail > free ? free : avail));
+
+        if(avail > 0) while(avail--) {
+            c = *dp++;
+            if(!enqueue_realtime_command(c)) {
+                uint_fast16_t next_head = BUFNEXT(rxbuf.head, rxbuf);   // Get next head pointer
+                if(next_head == rxbuf.tail)                             // If buffer full
+                    rxbuf.overflow = On;                                // flag overflow,
+                else {
+                    rxbuf.data[rxbuf.head] = c;                         // else add character data to buffer
+                    rxbuf.head = next_head;                             // and update pointer
+                }
+            }
+        }
+    }
+
+    lock = false;
+}
+
+#endif // GRBL_ESP32S3
