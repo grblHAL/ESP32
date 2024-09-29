@@ -32,7 +32,8 @@
     ]
   },
   "symbols": {
-    "OVERRIDE_MY_MACHINE": 1
+    "OVERRIDE_MY_MACHINE": 1,
+	"TMC_STEALTHCHOP": 0
   },
   "symbols_networking": {
     "LWIP_HTTPD_CUSTOM_FILES": 0,
