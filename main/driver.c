@@ -35,6 +35,7 @@
 
 #include "./driver.h"
 #include "uart_serial.h"
+#include "timers.h"
 #include "nvs.h"
 #include "esp_log.h"
 #include "sdkconfig.h"
@@ -433,6 +434,20 @@ static bool IOInitDone = false, rtc_started = false;
 static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 static pin_group_pins_t limit_inputs = {0};
 static on_execute_realtime_ptr on_execute_realtime;
+static struct {
+    uint32_t length;
+    uint32_t delay;
+    axes_signals_t out;
+#if STEP_INJECT_ENABLE
+    struct {
+        hal_timer_t timer;
+        axes_signals_t claimed;
+        volatile axes_signals_t axes;
+        volatile axes_signals_t out;
+    } inject;
+#endif
+} step_pulse = {0};
+
 #if PROBE_ENABLE
 static probe_state_t probe = {
     .connected = On
@@ -531,7 +546,7 @@ IRAM_ATTR static void driver_delay_ms (uint32_t ms, void (*callback)(void))
 }
 
 // Enable/disable steppers
-static void stepperEnable (axes_signals_t enable)
+static void stepperEnable (axes_signals_t enable, bool hold)
 {
     enable.mask ^= settings.steppers.enable_invert.mask;
 
@@ -579,7 +594,7 @@ static void stepperEnable (axes_signals_t enable)
 static void stepperWakeUp (void)
 {
     // Enable stepper drivers.
-    hal.stepper.enable((axes_signals_t){AXES_BITMASK});
+    hal.stepper.enable((axes_signals_t){AXES_BITMASK}, false);
 
     timer_set_counter_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 0x00000000ULL);
 //  timer_set_alarm_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 5000ULL);
@@ -619,35 +634,92 @@ IRAM_ATTR static void stepperCyclesPerTick (uint32_t cycles_per_tick)
 
 // Set stepper direction output pins
 // NOTE: see note for set_step_outputs()
-inline IRAM_ATTR static void set_dir_outputs (axes_signals_t dir_outbits)
+inline IRAM_ATTR static void set_dir_outputs (axes_signals_t dir_out)
 {
-    dir_outbits.value ^= settings.steppers.dir_invert.mask;
+    dir_out.bits ^= settings.steppers.dir_invert.bits;
 
-    DIGITAL_OUT(X_DIRECTION_PIN, dir_outbits.x);
-    DIGITAL_OUT(Y_DIRECTION_PIN, dir_outbits.y);
-#ifdef Z_DIRECTION_PIN
-    DIGITAL_OUT(Z_DIRECTION_PIN, dir_outbits.z);
+#if STEP_INJECT_ENABLE
+
+    axes_signals_t axes = { .bits = step_pulse.inject.axes.bits };
+
+    if(axes.bits) {
+
+        uint_fast8_t idx, mask = 1;
+
+        for(idx = 0; idx < N_AXIS; idx++) {
+
+            if(!(axes.bits & mask)) switch(idx) {
+
+                case X_AXIS:
+                    DIGITAL_OUT(X_DIRECTION_PIN, dir_out.x);
+#if X_GANGED
+                    DIGITAL_OUT(X2_DIRECTION_PIN, dir_out.x ^ settings.steppers.ganged_dir_invert.x);
 #endif
+                    break;
+
+                case Y_AXIS:
+                    DIGITAL_OUT(Y_DIRECTION_PIN, dir_out.y);
+#if Y_GANGED
+                    DIGITAL_OUT(Y2_DIRECTION_PIN, dir_out.y ^ settings.steppers.ganged_dir_invert.y);
+#endif
+                    break;
+
+#ifdef Z_DIRECTION_PIN
+                case Z_AXIS:
+                    DIGITAL_OUT(Z_DIRECTION_PIN, dir_out.z);
+  #if Z_GANGED
+                    DIGITAL_OUT(Z2_DIRECTION_PIN, dir_out.z ^ settings.steppers.ganged_dir_invert.z);
+  #endif
+                    break;
+#endif
+
 #ifdef A_AXIS
-    DIGITAL_OUT(A_DIRECTION_PIN, dir_outbits.a);
+                case A_AXIS:
+                    DIGITAL_OUT(A_DIRECTION_PIN, dir_out.a);
+                    break;
 #endif
 #ifdef B_AXIS
-    DIGITAL_OUT(B_DIRECTION_PIN, dir_outbits.b);
+                case B_AXIS:
+                    DIGITAL_OUT(B_DIRECTION_PIN, dir_out.b);
+                    break;
 #endif
 #ifdef C_AXIS
-    DIGITAL_OUT(C_DIRECTION_PIN, dir_outbits.c);
+                case C_AXIS:
+                    DIGITAL_OUT(C_DIRECTION_PIN, dir_out.c);
+                    break;
 #endif
-#ifdef GANGING_ENABLED
-    dir_outbits.mask ^= settings.steppers.ganged_dir_invert.mask;
-  #ifdef X2_DIRECTION_PIN
-    DIGITAL_OUT(X2_DIRECTION_PIN, dir_outbits.x);
+            }
+            mask <<= 1;
+        }
+    } else {
+
+#endif // STEP_INJECT_ENABLE
+
+    DIGITAL_OUT(X_DIRECTION_PIN, dir_out.x);
+#if X_GANGED
+    DIGITAL_OUT(X2_DIRECTION_PIN, dir_out.x ^ settings.steppers.ganged_dir_invert.x);
+#endif
+    DIGITAL_OUT(Y_DIRECTION_PIN, dir_out.y);
+#if Y_GANGED
+    DIGITAL_OUT(Y2_DIRECTION_PIN, dir_out.y ^ settings.steppers.ganged_dir_invert.y);
+#endif
+#ifdef Z_DIRECTION_PIN
+    DIGITAL_OUT(Z_DIRECTION_PIN, dir_out.z);
+  #if Z_GANGED
+    DIGITAL_OUT(Z2_DIRECTION_PIN, dir_out.z ^ settings.steppers.ganged_dir_invert.z);
   #endif
-  #ifdef Y2_DIRECTION_PIN
-    DIGITAL_OUT(Y2_DIRECTION_PIN, dir_outbits.y);
-  #endif
-  #ifdef Z2_DIRECTION_PIN
-    DIGITAL_OUT(Z2_DIRECTION_PIN, dir_outbits.z);
-  #endif
+#endif
+#ifdef A_AXIS
+    DIGITAL_OUT(A_DIRECTION_PIN, dir_out.a);
+#endif
+#ifdef B_AXIS
+    DIGITAL_OUT(B_DIRECTION_PIN, dir_out.b);
+#endif
+#ifdef C_AXIS
+    DIGITAL_OUT(C_DIRECTION_PIN, dir_out.c);
+#endif
+#if STEP_INJECT_ENABLE
+    }
 #endif
 }
 
@@ -794,94 +866,6 @@ inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs
 
 #endif // !SQUARING_ENABLED
 
-#if STEP_INJECT_ENABLE
-
-void stepperOutputStep (axes_signals_t step_outbits, axes_signals_t dir_outbits)
-{
-    if(step_outbits.value) {
-
-        step_outbits.value ^= settings.steppers.step_invert.value;
-        dir_outbits.value ^= settings.steppers.dir_invert.value;
-  #ifdef GANGING_ENABLED
-        axes_signals_t dir_outbits_2;
-        dir_outbits_2.value = dir_outbits.value ^ settings.steppers.ganged_dir_invert.value;
-  #endif
-
-        if(step_outbits.x) {
-            DIGITAL_OUT(X_DIRECTION_PIN, dir_outbits.x);
-  #if X_GANGED
-            DIGITAL_OUT(X2_DIRECTION_PIN, dir_outbits_2.x);
-  #endif
-        }
-
-        if(step_outbits.y) {
-            DIGITAL_OUT(Y_DIRECTION_PIN, dir_outbits.y);
-  #if Y_GANGED
-            DIGITAL_OUT(Y2_DIRECTION_PIN, dir_outbits_2.y);
-  #endif
-        }
-  #ifdef Z_DIRECTION_PIN
-        if(step_outbits.z) {
-            DIGITAL_OUT(Z_DIRECTION_PIN, dir_outbits.z);
-   #if Z_GANGED
-            DIGITAL_OUT(Z2_DIRECTION_PIN, dir_outbits_2.z);
-   #endif
-        }
-  #endif
-#ifdef A_AXIS
-        if(step_outbits.a)
-            DIGITAL_OUT(A_DIRECTION_PIN, dir_outbits.a);
-#endif
-#ifdef B_AXIS
-        if(step_outbits.b)
-            DIGITAL_OUT(B_DIRECTION_PIN, dir_outbits.b);
-#endif
-#ifdef C_AXIS
-        if(step_outbits.c)
-            DIGITAL_OUT(C_DIRECTION_PIN, dir_outbits.c);
-#endif
-
-        if(step_outbits.x) {
-            DIGITAL_OUT(X_STEP_PIN, step_outbits.x);
-  #ifdef X2_STEP_PIN
-            DIGITAL_OUT(X2_STEP_PIN, step_outbits.x);
-  #endif
-        }
-
-        if(step_outbits.y) {
-            DIGITAL_OUT(Y_STEP_PIN, step_outbits.y);
-  #ifdef Y2_STEP_PIN
-            DIGITAL_OUT(Y2_STEP_PIN, step_outbits.y);
-  #endif
-        }
-  #ifdef Z_STEP_PIN
-        if(step_outbits.z) {
-            DIGITAL_OUT(Z_STEP_PIN, step_outbits.z);
-   #ifdef Z2_STEP_PIN
-            DIGITAL_OUT(Z2_STEP_PIN, step_outbits.z);
-   #endif
-        }
-  #endif
-#ifdef A_AXIS
-        if(step_outbits.a)
-            DIGITAL_OUT(A_STEP_PIN, step_outbits.a);
-#endif
-#ifdef B_AXIS
-        if(step_outbits.b)
-            DIGITAL_OUT(B_STEP_PIN, step_outbits.b);
-#endif
-#ifdef C_AXIS
-        if(step_outbits.c)
-            DIGITAL_OUT(C_STEP_PIN, step_outbits.c);
-#endif
-//               delay_us(i2s_step_length);
-        i2s_out_push_sample(i2s_step_samples);
-        i2s_set_step_outputs((axes_signals_t){0});
-    }
-}
-
-#endif // STEP_INJECT_ENABLE
-
 void i2s_step_sink (void)
 {
     //NOOP
@@ -1007,41 +991,118 @@ void initRMT (settings_t *settings)
 #ifdef SQUARING_ENABLED
 
 // Set stepper pulse output pins
-inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_outbits_1)
+inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out1)
 {
-    axes_signals_t step_outbits_2;
-    step_outbits_2.mask = (step_outbits_1.mask & motors_2.mask) ^ settings.steppers.step_invert.mask;
-    step_outbits_1.mask = (step_outbits_1.mask & motors_1.mask) ^ settings.steppers.step_invert.mask;
+    axes_signals_t step_out2;
 
-    if(step_outbits_1.x) {
+    step_out2.bits = step_out1.bits & motors_2.bits;
+    step_out1.bits = step_out1.bits & motors_1.bits;
+
+#if STEP_INJECT_ENABLE
+
+    axes_signals_t axes = { .bits = step_pulse.inject.axes.bits };
+
+    if(axes.bits) {
+
+        uint_fast8_t idx, mask = 1;
+
+        for(idx = 0; idx < N_AXIS; idx++) {
+
+            if(!(axes.bits & mask)) {
+
+                if(step_out2.bits & mask) switch(idx) {
+#if X_GANGED
+                    case X_AXIS:
+                        rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR);
+                        rmt_ll_tx_start(&RMT, X2_MOTOR);
+                        break;
+#endif
+#if Y_GANGED
+                    case Y_AXIS:
+                        rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR);
+                        rmt_ll_tx_start(&RMT, Y2_MOTOR);
+                        break;
+#endif
+#if Z_GANGED && defined(Z2_STEP_PIN)
+                    case Z_AXIS:
+    					rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR);
+    					rmt_ll_tx_start(&RMT, Z2_MOTOR);
+                        break;
+#endif
+                }
+
+                if(step_out1.bits & mask) switch(idx) {
+
+					case X_AXIS:
+						rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
+						rmt_ll_tx_start(&RMT, X_AXIS);
+						break;
+
+					case Y_AXIS:
+						rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
+						rmt_ll_tx_start(&RMT, Y_AXIS);
+						break;
+#ifdef Z_STEP_PIN
+					case Z_AXIS:
+						rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
+						rmt_ll_tx_start(&RMT, Z_AXIS);
+						break;
+#endif
+#ifdef A_AXIS
+					case A_AXIS:
+						rmt_ll_tx_reset_pointer(&RMT, A_AXIS);
+						rmt_ll_tx_start(&RMT, A_AXIS);
+						break;
+#endif
+#ifdef B_AXIS
+					case B_AXIS:
+						rmt_ll_tx_reset_pointer(&RMT, B_AXIS);
+						rmt_ll_tx_start(&RMT, B_AXIS);
+						break;
+#endif
+#ifdef C_AXIS
+					case C_AXIS:
+						rmt_ll_tx_reset_pointer(&RMT, C_AXIS);
+						rmt_ll_tx_start(&RMT, C_AXIS);
+						break;
+#endif
+                }
+            }
+            mask <<= 1;
+        }
+    } else {
+
+#endif // STEP_INJECT_ENABLE
+
+    if(step_out1.x) {
         rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
         rmt_ll_tx_start(&RMT, X_AXIS);
     }
 #ifdef X2_STEP_PIN
-    if(step_outbits_2.x) {
+    if(step_out2.x) {
         rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR);
         rmt_ll_tx_start(&RMT, X2_MOTOR);
     }
 #endif
 
-    if(step_outbits_1.y) {
+    if(step_out1.y) {
         rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
         rmt_ll_tx_start(&RMT, Y_AXIS);
     }
 #ifdef Y2_STEP_PIN
-    if(step_outbits_2.y) {
+    if(step_out2.y) {
         rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR);
         rmt_ll_tx_start(&RMT, Y2_MOTOR);
     }
 #endif
 
 #ifdef Z_STEP_PIN
-    if(step_outbits_1.z) {
+    if(step_out1.z) {
         rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
         rmt_ll_tx_start(&RMT, Z_AXIS);
     }
   #ifdef Z2_STEP_PIN
-    if(step_outbits_2.z) {
+    if(step_out2.z) {
         rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR);
         rmt_ll_tx_start(&RMT, Z2_MOTOR);
     }
@@ -1049,55 +1110,133 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_outbits_1)
 #endif // Z_STEP_PIN
 
 #ifdef A_STEP_PIN
-    if(step_outbits_1.a) {
+    if(step_out1.a) {
         rmt_ll_tx_reset_pointer(&RMT, A_AXIS);
         rmt_ll_tx_start(&RMT, A_AXIS);
     }
 #endif
 
 #ifdef B_STEP_PIN
-    if(step_outbits_1.b) {
+    if(step_out1.b) {
         rmt_ll_tx_reset_pointer(&RMT, B_AXIS);
         rmt_ll_tx_start(&RMT, B_AXIS);
     }
 #endif
 
 #ifdef C_STEP_PIN
-    if(step_outbits_1.c) {
+    if(step_out1.c) {
         rmt_ll_tx_reset_pointer(&RMT, C_AXIS);
         rmt_ll_tx_start(&RMT, C_AXIS);
     }
+#endif
+#if STEP_INJECT_ENABLE
+}
 #endif
 }
 
 #else // !SQUARING_ENABLED
 
 // Set stepper pulse output pins
-inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_outbits)
+inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out)
 {
-    if(step_outbits.x) {
+#if STEP_INJECT_ENABLE
+/*
+	uint32_t mask;
+
+	if(step_pulse.inject.out.z) {
+		mask = 1 << (Z_AXIS * 3);
+		if(RMT.int_raw.val & mask) {
+			step_pulse.inject.out.z = Off;
+			RMT.int_raw.val = mask;
+		}
+		step_pulse.inject.axes.bits = step_pulse.inject.claimed.bits;
+	}
+*/
+    axes_signals_t axes = { .bits = step_pulse.inject.axes.bits };
+
+    if(axes.bits) {
+
+        uint_fast8_t idx, mask = 1;
+
+        for(idx = 0; idx < N_AXIS; idx++) {
+
+            if((step_out.bits & mask) && !(axes.bits & mask)) switch(idx) {
+
+                case X_AXIS:
+                    rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
+                    rmt_ll_tx_start(&RMT, X_AXIS);
+#if X_GANGED
+                    rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR);
+                    rmt_ll_tx_start(&RMT, X2_MOTOR);
+#endif
+                    break;
+
+                case Y_AXIS:
+                    rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
+                    rmt_ll_tx_start(&RMT, Y_AXIS);
+#if Y_GANGED
+                    rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR);
+                    rmt_ll_tx_start(&RMT, Y2_MOTOR);
+#endif
+                    break;
+#if Z_GANGED && defined(Z_STEP_PIN)
+                case Z_AXIS:
+					rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
+					rmt_ll_tx_start(&RMT, Z_AXIS);
+  #ifdef Z2_STEP_PIN
+					rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR);
+					rmt_ll_tx_start(&RMT, Z2_MOTOR);
+  #endif
+                    break;
+#endif
+#ifdef A_AXIS
+                case A_AXIS:
+                    rmt_ll_tx_reset_pointer(&RMT, A_AXIS);
+                    rmt_ll_tx_start(&RMT, A_AXIS);
+                    break;
+#endif
+#ifdef B_AXIS
+                case B_AXIS:
+                    rmt_ll_tx_reset_pointer(&RMT, B_AXIS);
+                    rmt_ll_tx_start(&RMT, B_AXIS);
+                    break;
+#endif
+#ifdef C_AXIS
+                case C_AXIS:
+                    rmt_ll_tx_reset_pointer(&RMT, C_AXIS);
+                    rmt_ll_tx_start(&RMT, C_AXIS);
+                    break;
+#endif
+            }
+            mask <<= 1;
+        }
+    } else {
+
+#endif // STEP_INJECT_ENABLE
+
+    if(step_out.x) {
         rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
         rmt_ll_tx_start(&RMT, X_AXIS);
-#ifdef X2_STEP_PIN
+#if X_GANGED
         rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR);
         rmt_ll_tx_start(&RMT, X2_MOTOR);
 #endif
     }
 
-    if(step_outbits.y) {
+    if(step_out.y) {
         rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
         rmt_ll_tx_start(&RMT, Y_AXIS);
-#ifdef Y2_STEP_PIN
+#if Y_GANGED
         rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR);
         rmt_ll_tx_start(&RMT, Y2_MOTOR);
 #endif
     }
 
 #ifdef Z_STEP_PIN
-    if(step_outbits.z) {
+    if(step_out.z) {
         rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
         rmt_ll_tx_start(&RMT, Z_AXIS);
-  #ifdef Z2_STEP_PIN
+  #if Z_GANGED
         rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR);
         rmt_ll_tx_start(&RMT, Z2_MOTOR);
   #endif
@@ -1105,22 +1244,25 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_outbits)
 #endif
 
 #ifdef A_STEP_PIN
-    if(step_outbits.a) {
+    if(step_out.a) {
         rmt_ll_tx_reset_pointer(&RMT, A_AXIS);
         rmt_ll_tx_start(&RMT, A_AXIS);
     }
 #endif
 #ifdef B_STEP_PIN
-    if(step_outbits.b) {
+    if(step_out.b) {
         rmt_ll_tx_reset_pointer(&RMT, B_AXIS);
         rmt_ll_tx_start(&RMT, B_AXIS);
     }
 #endif
 #ifdef C_STEP_PIN
-    if(step_outbits.c) {
+    if(step_out.c) {
         rmt_ll_tx_reset_pointer(&RMT, C_AXIS);
         rmt_ll_tx_start(&RMT, C_AXIS);
     }
+#endif
+#if STEP_INJECT_ENABLE
+}
 #endif
 }
 
@@ -1128,99 +1270,100 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_outbits)
 
 #if STEP_INJECT_ENABLE
 
-void stepperOutputStep (axes_signals_t step_outbits, axes_signals_t dir_outbits)
+static void stepperClaimMotor (uint_fast8_t axis_id, bool claim)
 {
-    if(step_outbits.value) {
+    if(claim)
+        step_pulse.inject.claimed.mask |= ((1 << axis_id) & AXES_BITMASK);
+    else {
+        step_pulse.inject.claimed.mask &= ~(1 << axis_id);
+        step_pulse.inject.axes.bits = step_pulse.inject.claimed.bits; // For now...
+    }
+}
 
-        dir_outbits.value ^= settings.steppers.dir_invert.value;
-  #ifdef GANGING_ENABLED
-        axes_signals_t dir_outbits_2;
-        dir_outbits_2.value = dir_outbits.value ^ settings.steppers.ganged_dir_invert.value;
-  #endif
+void stepperOutputStep (axes_signals_t step_out, axes_signals_t dir_out)
+{
+	if(step_out.bits) {
 
-        if(step_outbits.x) {
-            DIGITAL_OUT(X_DIRECTION_PIN, dir_outbits.x);
-  #if X_GANGED
-            DIGITAL_OUT(X2_DIRECTION_PIN, dir_outbits_2.x);
-  #endif
-        }
+        uint_fast8_t idx = N_AXIS - 1, mask = 1 << (N_AXIS - 1);
+        axes_signals_t axes = { .bits = step_out.bits };
 
-        if(step_outbits.y) {
-            DIGITAL_OUT(Y_DIRECTION_PIN, dir_outbits.y);
-  #if Y_GANGED
-            DIGITAL_OUT(Y2_DIRECTION_PIN, dir_outbits_2.y);
-  #endif
-        }
-  #ifdef Z_DIRECTION_PIN
-        if(step_outbits.z) {
-            DIGITAL_OUT(Z_DIRECTION_PIN, dir_outbits.z);
-   #if Z_GANGED
-            DIGITAL_OUT(Z2_DIRECTION_PIN, dir_outbits_2.z);
-   #endif
-        }
-  #endif
-#ifdef A_AXIS
-        if(step_outbits.a)
-            DIGITAL_OUT(A_DIRECTION_PIN, dir_outbits.a);
-#endif
-#ifdef B_AXIS
-        if(step_outbits.b)
-            DIGITAL_OUT(B_DIRECTION_PIN, dir_outbits.b);
-#endif
-#ifdef C_AXIS
-        if(step_outbits.c)
-            DIGITAL_OUT(C_DIRECTION_PIN, dir_outbits.c);
-#endif
+        step_pulse.inject.out = step_out;
+        step_pulse.inject.axes.bits = step_pulse.inject.claimed.bits; // | step_out.bits; // It looks like the RMT enqueues step pulses...
+        dir_out.bits ^= settings.steppers.dir_invert.bits;
 
-        if(step_outbits.x) {
-            rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
-            rmt_ll_tx_start(&RMT, X_AXIS);
-#ifdef X2_STEP_PIN
-            rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR);
-            rmt_ll_tx_start(&RMT, X2_MOTOR);
-#endif
-        }
+        do {
+            if(axes.bits & mask) {
 
-        if(step_outbits.y) {
-            rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
-            rmt_ll_tx_start(&RMT, Y_AXIS);
-#ifdef Y2_STEP_PIN
-            rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR);
-            rmt_ll_tx_start(&RMT, Y2_MOTOR);
+                axes.bits ^= mask;
+
+                switch(idx) {
+
+					case X_AXIS:
+						DIGITAL_OUT(X_DIRECTION_PIN, dir_out.x);
+#if X_GANGED
+						DIGITAL_OUT(X2_DIRECTION_PIN, dir_out.x ^ settings.steppers.ganged_dir_invert.x);
 #endif
-        }
+			            rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
+			            rmt_ll_tx_start(&RMT, X_AXIS);
+#if X_GANGED
+			            rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR);
+			            rmt_ll_tx_start(&RMT, X2_MOTOR);
+#endif
+						break;
+
+					case Y_AXIS:
+						DIGITAL_OUT(Y_DIRECTION_PIN, dir_out.y);
+#if Y_GANGED
+						DIGITAL_OUT(Y2_DIRECTION_PIN, dir_out.y ^ settings.steppers.ganged_dir_invert.y);
+#endif
+			            rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
+			            rmt_ll_tx_start(&RMT, Y_AXIS);
+#if Y_GANGED
+			            rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR);
+			            rmt_ll_tx_start(&RMT, Y2_MOTOR);
+#endif
+						break;
 
 #ifdef Z_STEP_PIN
-        if(step_outbits.z) {
-            rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
-            rmt_ll_tx_start(&RMT, Z_AXIS);
-  #ifdef Z2_STEP_PIN
-            rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR);
-            rmt_ll_tx_start(&RMT, Z2_MOTOR);
+					case Z_AXIS:
+						DIGITAL_OUT(Z_DIRECTION_PIN, dir_out.z);
+  #if Z_GANGED
+						DIGITAL_OUT(Z2_DIRECTION_PIN, dir_out.z ^ settings.steppers.ganged_dir_invert.z);
   #endif
-        }
+						rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
+						rmt_ll_tx_start(&RMT, Z_AXIS);
+  #if Z_GANGED
+						rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR);
+						rmt_ll_tx_start(&RMT, Z2_MOTOR);
+  #endif
+						break;
 #endif
-
 #ifdef A_AXIS
-        if(step_outbits.a) {
-            rmt_ll_tx_reset_pointer(&RMT, A_AXIS);
-            rmt_ll_tx_start(&RMT, A_AXIS);
-        }
+					case A_AXIS:
+						DIGITAL_OUT(A_DIRECTION_PIN, dir_out.a);
+			            rmt_ll_tx_reset_pointer(&RMT, A_AXIS);
+			            rmt_ll_tx_start(&RMT, A_AXIS);
+						break;
 #endif
-
 #ifdef B_AXIS
-        if(step_outbits.b) {
-            rmt_ll_tx_reset_pointer(&RMT, B_AXIS);
-            rmt_ll_tx_start(&RMT, B_AXIS);
-        }
+					case B_AXIS:
+						DIGITAL_OUT(B_DIRECTION_PIN, dir_out.b);
+			            rmt_ll_tx_reset_pointer(&RMT, B_AXIS);
+			            rmt_ll_tx_start(&RMT, B_AXIS);
+						break;
 #endif
-
 #ifdef C_AXIS
-        if(step_outbits.c) {
-            rmt_ll_tx_reset_pointer(&RMT, C_AXIS);
-            rmt_ll_tx_start(&RMT, C_AXIS);
-        }
+					case C_AXIS:
+						DIGITAL_OUT(C_DIRECTION_PIN, dir_out.c);
+			            rmt_ll_tx_reset_pointer(&RMT, C_AXIS);
+			            rmt_ll_tx_start(&RMT, C_AXIS);
+						break;
 #endif
+                }
+            }
+            idx--;
+            mask >>= 1;
+        } while(axes.bits);
     }
 }
 
@@ -1286,7 +1429,7 @@ IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
 
     if(stepper->step_outbits.value) {
 #if USE_I2S_OUT
-        i2s_set_step_outputs(stepper->step_outbits);
+        i2s_set_step_outpustep_outstep_outbits);
         i2s_out_commit(i2s_step_samples, add_dir_delay ? i2s_delay_samples : 0);
         add_dir_delay = false;
 #else
@@ -1866,6 +2009,26 @@ bool spindleConfig (spindle_ptrs_t *spindle)
     return true;
 }
 
+#if PPI_ENABLE
+
+#include "laser/ppi.h"
+
+static hal_timer_t ppi_timer;
+
+static void spindlePulseOff (void *context)
+{
+    spindle_off();
+}
+
+static void spindlePulseOn (uint_fast16_t pulse_length)
+{
+    hal.timer.start(ppi_timer, pulse_length);
+
+    spindle_on();
+}
+
+#endif // PPI_ENABLE
+
 #endif // DRIVER_SPINDLE_PWM_ENABLE
 
 // Returns spindle state in a spindle_state_t variable
@@ -2034,7 +2197,6 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
         }
 
         neopixel.num_leds = hal.rgb0.num_devices;
-        hal.rgb0.write = neopixel.num_leds > 1 ? neopixels_write : NULL;
     }
 
 #endif
@@ -2445,7 +2607,7 @@ static char *sdcard_mount (FATFS **fs)
 //    https://github.com/adafruit/Adafruit_NeoPixel/blob/master/esp.c
 
 #ifndef NEOPIXELS_NUM
-#define NEOPIXELS_NUM 1
+#define NEOPIXELS_NUM 0
 #endif
 
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -2539,7 +2701,8 @@ void _neopixels_write (void)
 
 void neopixels_write (void)
 {
-	_neopixels_write();
+	if(neopixel.num_bytes > 1)
+		_neopixels_write();
 }
 
 static void neopixel_out_masked (uint16_t device, rgb_color_t color, rgb_color_mask_t mask)
@@ -2563,7 +2726,6 @@ uint8_t neopixels_set_intensity (uint8_t value)
     uint8_t prev = neopixel.intensity;
 
     if(neopixel.intensity != value) {
-
         neopixel.intensity = value;
         _neopixels_write();
     }
@@ -2819,7 +2981,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240903";
+    hal.driver_version = "240921";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2834,6 +2996,12 @@ bool driver_init (void)
     hal.rx_buffer_size = RX_BUFFER_SIZE;
     hal.get_free_mem = esp_get_free_heap_size;
     hal.delay_ms = driver_delay_ms;
+
+    hal.timer.claim = timerClaim;
+    hal.timer.configure = timerCfg;
+    hal.timer.start = timerStart;
+    hal.timer.stop = timerStop;
+
     hal.settings_changed = settings_changed;
 
 #if USE_I2S_OUT
@@ -2852,6 +3020,7 @@ bool driver_init (void)
 #endif
 #if STEP_INJECT_ENABLE
     hal.stepper.output_step = stepperOutputStep;
+    hal.stepper.claim_motor = stepperClaimMotor;
 #endif
     hal.stepper.motor_iterator = motor_iterator;
 #ifdef GANGING_ENABLED
@@ -2927,6 +3096,11 @@ bool driver_init (void)
 
     static const spindle_ptrs_t spindle = {
         .type = SpindleType_PWM,
+#if DRIVER_SPINDLE_DIR_ENABLE
+        .ref_id = SPINDLE_PWM0,
+#else
+        .ref_id = SPINDLE_PWM0_NODIR,
+#endif
         .config = spindleConfig,
         .set_state = spindleSetStateVariable,
         .get_state = spindleGetState,
@@ -2951,10 +3125,29 @@ bool driver_init (void)
         }
     };
 
+  #if PPI_ENABLE
+
+    static timer_cfg_t cfg = {
+        .single_shot = On,
+        .timeout_callback = spindlePulseOff
+    };
+
+    if((ppi_timer = hal.timer.claim((timer_cap_t){ .periodic = Off }, 1000))) {
+        hal.timer.configure(ppi_timer, &cfg);
+        ppi_init();
+    }
+
+  #endif
+
  #else
 
     static const spindle_ptrs_t spindle = {
         .type = SpindleType_Basic,
+#if DRIVER_SPINDLE_DIR_ENABLE
+        .ref_id = SPINDLE_ONOFF0_DIR,
+#else
+        .ref_id = SPINDLE_ONOFF0,
+#endif
         .set_state = spindleSetState,
         .get_state = spindleGetState,
         .esp32_off = spindleOffBasic,
@@ -3083,7 +3276,9 @@ bool driver_init (void)
     hal.rgb0.out = neopixel_out;
     hal.rgb0.out_masked = neopixel_out_masked;
     hal.rgb0.set_intensity = neopixels_set_intensity;
+    hal.rgb0.write = neopixels_write;
     hal.rgb0.num_devices = NEOPIXELS_NUM;
+    hal.rgb0.flags = (rgb_properties_t){ .is_blocking = On, .is_strip = On };
     hal.rgb0.cap = (rgb_color_t){ .R = 255, .G = 255, .B = 255 };
 
     const periph_pin_t neopixels = {

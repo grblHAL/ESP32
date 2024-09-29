@@ -61,6 +61,10 @@
 #error "Cannot use static IP for station when soft AP is enabled!"
 #endif
 
+#if PPI_ENABLE
+#error "PPI mode not supported due to framework not supporting FPU access in interrupt context!"
+#endif
+
 #ifndef GRBLHAL_TASK_PRIORITY
 #define GRBLHAL_TASK_PRIORITY 5
 #endif
@@ -169,6 +173,10 @@ typedef struct {
 #error "Pins 34 - 39 are input only!"
 #endif
 
+#if USE_I2S_OUT && STEP_INJECT_ENABLE
+#error "Step injection not yet possible with I2S streaming!"
+#endif
+
 #if DRIVER_SPINDLE_PWM_ENABLE && !defined(SPINDLE_PWM_PIN)
 #warning "PWM spindle is not supported by board map!"
 #undef DRIVER_SPINDLE_PWM_ENABLE
@@ -179,6 +187,13 @@ typedef struct {
 #warning "Safety door input is not available!"
 #undef SAFETY_DOOR_ENABLE
 #define SAFETY_DOOR_ENABLE 0
+#endif
+
+#ifndef STEP_TIMER_GROUP
+#define STEP_TIMER_GROUP TIMER_GROUP_0
+#endif
+#ifndef STEP_TIMER_INDEX
+#define STEP_TIMER_INDEX TIMER_0
 #endif
 
 #if IOEXPAND_ENABLE || EEPROM_ENABLE || KEYPAD_ENABLE == 1 || I2C_STROBE_ENABLE || (TRINAMIC_ENABLE && TRINAMIC_I2C)
@@ -307,7 +322,7 @@ extern SemaphoreHandle_t i2cBusy;
 #else
 #define USE_I2S_OUT 0
 #define DIGITAL_IN(pin) gpio_ll_get_level(&GPIO, pin)
-#define DIGITAL_OUT(pin, state) gpio_ll_set_level(&GPIO, pin, state)
+#define DIGITAL_OUT(pin, state) gpio_ll_set_level(&GPIO, pin, (state))
 #endif
 
 typedef enum
