@@ -17,6 +17,7 @@ set(SRCS
  main.c
  driver.c
  nvs.c
+ timers.c
  uart_serial.c
  ioports.c
  ioports_analog.c
@@ -120,6 +121,7 @@ set(MODBUS_SOURCE
 set(SPINDLE_SOURCE
  spindle/select.c
  spindle/onoff.c
+ spindle/offset.c
  spindle/pwm.c
  spindle/pwm_clone.c
  spindle/stepper.c
@@ -201,6 +203,15 @@ set(LASER_SOURCE
  laser/lb_clusters.c
 )
 
+set(MISC_PLUGINS_SOURCE
+ plugins/bltouch.c
+ plugins/eventout.c
+ plugins/pwm_servo_m280.c
+ plugins/rgb_led_m150.c
+ plugins/rgb_led_strips.c
+)
+
+
 set(EMBROIDERY_SOURCE
  embroidery/embroidery.c
  embroidery/brother.c
@@ -230,6 +241,7 @@ list (APPEND SRCS ${MODBUS_SOURCE})
 list (APPEND SRCS ${SPINDLE_SOURCE})
 list (APPEND SRCS ${EEPROM_SOURCE})
 list (APPEND SRCS ${LASER_SOURCE})
+list (APPEND SRCS ${MISC_PLUGINS_SOURCE})
 list (APPEND SRCS ${EMBROIDERY_SOURCE})
 
 if(Ethernet OR ETHERNET_ENABLE EQUAL 1)
