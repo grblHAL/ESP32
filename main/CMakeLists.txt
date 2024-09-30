@@ -241,7 +241,7 @@ list (APPEND SRCS ${MODBUS_SOURCE})
 list (APPEND SRCS ${SPINDLE_SOURCE})
 list (APPEND SRCS ${EEPROM_SOURCE})
 list (APPEND SRCS ${LASER_SOURCE})
-list (APPEND SRCS ${MISC_PLUGINS_SOURCE})
+#list (APPEND SRCS ${MISC_PLUGINS_SOURCE})
 list (APPEND SRCS ${EMBROIDERY_SOURCE})
 
 if(Ethernet OR ETHERNET_ENABLE EQUAL 1)
@@ -252,7 +252,6 @@ endif()
 
 idf_component_register(SRCS "${SRCS}" INCLUDE_DIRS ".")
 
-target_compile_definitions("${COMPONENT_LIB}" PUBLIC STEP_INJECT_ENABLE=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC GRBL_ESP32)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC LITTLEFS_ENABLE=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC STDIO_FS)
