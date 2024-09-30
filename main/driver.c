@@ -434,19 +434,19 @@ static bool IOInitDone = false, rtc_started = false;
 static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 static pin_group_pins_t limit_inputs = {0};
 static on_execute_realtime_ptr on_execute_realtime;
+#if STEP_INJECT_ENABLE
 static struct {
     uint32_t length;
     uint32_t delay;
     axes_signals_t out;
-#if STEP_INJECT_ENABLE
     struct {
         hal_timer_t timer;
         axes_signals_t claimed;
         volatile axes_signals_t axes;
         volatile axes_signals_t out;
     } inject;
-#endif
 } step_pulse = {0};
+#endif
 
 #if PROBE_ENABLE
 static probe_state_t probe = {
@@ -3121,7 +3121,6 @@ bool driver_init (void)
   #if PWM_RAMPED
             .at_speed = On
   #endif
-
         }
     };
 
