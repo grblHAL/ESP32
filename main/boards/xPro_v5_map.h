@@ -110,4 +110,5 @@
 #define MOTOR_CS_PIN        GPIO_NUM_17
 #if SDCARD_ENABLE
 #define PIN_NUM_CS          GPIO_NUM_5
+#define SDMMC_FREQ_KHZ		10000
 #endif

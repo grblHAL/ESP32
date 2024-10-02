@@ -795,7 +795,7 @@ IRAM_ATTR static void I2SStepperPulseStart (stepper_t *stepper)
 static void I2SStepperWakeUp (void)
 {
     // Enable stepper drivers.
-    hal.stepper.enable((axes_signals_t){AXES_BITMASK});
+    hal.stepper.enable((axes_signals_t){AXES_BITMASK}, false);
     i2s_out_set_stepping();
 }
 
@@ -2577,6 +2577,9 @@ static char *sdcard_mount (FATFS **fs)
         };
 
         sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+#ifdef SDMMC_FREQ_KHZ
+        host.max_freq_khz = SDMMC_FREQ_KHZ;
+#endif
         sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
         slot_config.gpio_cs = PIN_NUM_CS;
         slot_config.host_id = host.slot;
@@ -2981,7 +2984,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "240921";
+    hal.driver_version = "241002";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;

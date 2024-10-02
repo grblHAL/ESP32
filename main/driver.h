@@ -173,7 +173,7 @@ typedef struct {
 #error "Pins 34 - 39 are input only!"
 #endif
 
-#if USE_I2S_OUT && STEP_INJECT_ENABLE
+#if defined(USE_I2S_OUT) && STEP_INJECT_ENABLE
 #error "Step injection not yet possible with I2S streaming!"
 #endif
 
