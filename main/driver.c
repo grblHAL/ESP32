@@ -80,6 +80,7 @@
 #endif
 
 #if SDCARD_ENABLE
+#include "spi.h"
 #include "sdcard/sdcard.h"
 #include "esp_vfs_fat.h"
 #endif
@@ -2532,57 +2533,32 @@ static bool sdcard_unmount (FATFS **fs)
 
 static char *sdcard_mount (FATFS **fs)
 {
-    if(!bus_ok) {
+	spi_host_device_t spi_host;
 
-        spi_bus_config_t bus_config = {
-            .mosi_io_num     = PIN_NUM_MOSI,
-            .miso_io_num     = PIN_NUM_MISO,
-            .sclk_io_num     = PIN_NUM_CLK,
-            .quadwp_io_num   = -1,
-            .quadhd_io_num   = -1,
-            .max_transfer_sz = 4000,
-            .flags           = SPICOMMON_BUSFLAG_MASTER,
-            .intr_flags      = ESP_INTR_FLAG_IRAM
-        };
-
-#if CONFIG_IDF_TARGET_ESP32S3
-        if(spi_bus_initialize(SDSPI_DEFAULT_HOST, &bus_config, SPI_DMA_CH_AUTO) != ESP_OK)
-            return NULL;
-#else
-  #if PIN_NUM_CLK == GPIO_NUM_14
-        if(spi_bus_initialize(SPI2_HOST, &bus_config, 1) != ESP_OK) // 1 = SPI_DMA_CH1
-            return NULL;
-  #elif PIN_NUM_CLK == GPIO_NUM_18
-        if(spi_bus_initialize(SPI3_HOST, &bus_config, 1) != ESP_OK)
-            return NULL;
-  #else
-        if(spi_bus_initialize(SDSPI_DEFAULT_HOST, &bus_config, 1) != ESP_OK)
-            return NULL;
-  #endif
-#endif
-
-        bus_ok = true;
-    }
-
-    if(!bus_ok)
+    if(!(bus_ok = spi_bus_init(&spi_host)))
         return NULL;
 
     if(card == NULL) {
 
         esp_err_t ret = ESP_FAIL;
+
         esp_vfs_fat_sdmmc_mount_config_t mount_config = {
             .format_if_mount_failed = false,
             .max_files = 5,
             .allocation_unit_size = 16 * 1024
         };
 
+        sdspi_dev_handle_t dh;
+        sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+        slot_config.gpio_cs = PIN_NUM_CS;
+        slot_config.host_id = spi_host;
+        sdspi_host_init_device(&slot_config, &dh);
+
         sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+        host.slot = dh;
 #ifdef SDMMC_FREQ_KHZ
         host.max_freq_khz = SDMMC_FREQ_KHZ;
 #endif
-        sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
-        slot_config.gpio_cs = PIN_NUM_CS;
-        slot_config.host_id = host.slot;
 
         gpio_set_drive_capability(PIN_NUM_CS, GPIO_DRIVE_CAP_3);
 
@@ -2874,41 +2850,6 @@ static bool driver_setup (settings_t *settings)
 
 #endif // DRIVER_SPINDLE_PWM_ENABLE
 
-#if SDCARD_ENABLE
-
-    sdcard_events_t *card = sdcard_init();
-    card->on_mount = sdcard_mount;
-    card->on_unmount = sdcard_unmount;
-
-    sdcard_mount(NULL);
-
-    static const periph_pin_t sck = {
-        .function = Output_SPICLK,
-        .group = PinGroup_SPI,
-        .pin = PIN_NUM_CLK,
-        .mode = { .mask = PINMODE_OUTPUT }
-    };
-
-    static const periph_pin_t sdo = {
-        .function = Output_MOSI,
-        .group = PinGroup_SPI,
-        .pin = PIN_NUM_MOSI,
-        .mode = { .mask = PINMODE_NONE }
-    };
-
-    static const periph_pin_t sdi = {
-        .function = Input_MISO,
-        .group = PinGroup_SPI,
-        .pin = PIN_NUM_MISO,
-        .mode = { .mask = PINMODE_NONE }
-    };
-
-    hal.periph_port.register_pin(&sck);
-    hal.periph_port.register_pin(&sdo);
-    hal.periph_port.register_pin(&sdi);
-
-#endif
-
 #if IOEXPAND_ENABLE
     ioexpand_init();
 #endif
@@ -2984,7 +2925,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "241002";
+    hal.driver_version = "241003";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3309,6 +3250,16 @@ bool driver_init (void)
 
 #if BLUETOOTH_ENABLE
     bluetooth_init_local();
+#endif
+
+#if SDCARD_ENABLE
+
+    sdcard_events_t *card = sdcard_init();
+    card->on_mount = sdcard_mount;
+    card->on_unmount = sdcard_unmount;
+
+    sdcard_mount(NULL);
+
 #endif
 
 #include "grbl/plugins_init.h"

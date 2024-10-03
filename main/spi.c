@@ -5,18 +5,18 @@
 
   Copyright (c) 2020-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "driver.h"
@@ -28,34 +28,81 @@
 
 static spi_device_handle_t handle = NULL;
 
-void spi_init (void)
+bool spi_bus_init (spi_host_device_t *host)
 {
-    static bool init = false;
+    static const periph_pin_t sck = {
+        .function = Output_SPICLK,
+        .group = PinGroup_SPI,
+        .pin = PIN_NUM_CLK,
+        .mode = { .mask = PINMODE_OUTPUT }
+    };
 
-    if(!init) {
+    static const periph_pin_t sdo = {
+        .function = Output_MOSI,
+        .group = PinGroup_SPI,
+        .pin = PIN_NUM_MOSI,
+        .mode = { .mask = PINMODE_NONE }
+    };
 
+    static const periph_pin_t sdi = {
+        .function = Input_MISO,
+        .group = PinGroup_SPI,
+        .pin = PIN_NUM_MISO,
+        .mode = { .mask = PINMODE_NONE }
+    };
+
+    static spi_host_device_t host_id = (spi_host_device_t)99;
+
+    if(host_id == (spi_host_device_t)99) {
+
+		spi_common_dma_t dma_ch;
         spi_bus_config_t bus_config = {
             .mosi_io_num     = PIN_NUM_MOSI,
             .miso_io_num     = PIN_NUM_MISO,
             .sclk_io_num     = PIN_NUM_CLK,
             .quadwp_io_num   = -1,
             .quadhd_io_num   = -1,
-            .max_transfer_sz = 40,
             .flags           = SPICOMMON_BUSFLAG_MASTER,
             .intr_flags      = ESP_INTR_FLAG_IRAM
         };
 
 #if CONFIG_IDF_TARGET_ESP32S3
-        if((init = spi_bus_initialize(SDSPI_DEFAULT_HOST, &bus_config, SPI_DMA_CH_AUTO) == ESP_OK)) {
+		dma_ch = SPI_DMA_CH_AUTO;
+        host_id = SDSPI_DEFAULT_HOST;
 #else
+		dma_ch = SPI_DMA_CH1;
   #if PIN_NUM_CLK == GPIO_NUM_14
-        if((init = spi_bus_initialize(SPI2_HOST, &bus_config, 1) == ESP_OK)) { // 1 = SPI_DMA_CH1
+        host_id = SPI2_HOST;
   #elif PIN_NUM_CLK == GPIO_NUM_18
-        if((init = spi_bus_initialize(SPI3_HOST, &bus_config, 1) == ESP_OK)) {
+        host_id = SPI3_HOST;
   #else
-        if((init = spi_bus_initialize(SDSPI_DEFAULT_HOST, &bus_config, 1) == ESP_OK)) {
+        host_id = SDSPI_DEFAULT_HOST;
   #endif
 #endif
+
+		if(spi_bus_initialize(host_id, &bus_config, dma_ch) == ESP_OK) {
+			hal.periph_port.register_pin(&sck);
+			hal.periph_port.register_pin(&sdo);
+			hal.periph_port.register_pin(&sdi);
+		} else
+			host_id = (spi_host_device_t)99;
+    }
+
+    *host = host_id;
+
+    return host_id != (spi_host_device_t)99;
+}
+
+void spi_init (void)
+{
+    static bool init = false;
+
+    if(!init) {
+
+    	spi_host_device_t host;
+
+    	if((init = spi_bus_init(&host))) {
+
             spi_device_interface_config_t devcfg = {
                 .clock_speed_hz = 1000000,
                 .mode = 0,          //SPI mode 0
@@ -68,31 +115,6 @@ void spi_init (void)
             };
 
             spi_bus_add_device(SPI2_HOST, &devcfg, &handle);
-
-            static const periph_pin_t sck = {
-                .function = Output_SPICLK,
-                .group = PinGroup_SPI,
-                .pin = PIN_NUM_CLK,
-                .mode = { .mask = PINMODE_OUTPUT }
-            };
-
-            static const periph_pin_t sdo = {
-                .function = Output_MOSI,
-                .group = PinGroup_SPI,
-                .pin = PIN_NUM_MOSI,
-                .mode = { .mask = PINMODE_NONE }
-            };
-
-            static const periph_pin_t sdi = {
-                .function = Input_MISO,
-                .group = PinGroup_SPI,
-                .pin = PIN_NUM_MISO,
-                .mode = { .mask = PINMODE_NONE }
-            };
-
-            hal.periph_port.register_pin(&sck);
-            hal.periph_port.register_pin(&sdo);
-            hal.periph_port.register_pin(&sdi);
         }
     }
 }
@@ -141,4 +163,3 @@ uint8_t spi_put_byte (uint8_t byte)
 }
 
 #endif
-
