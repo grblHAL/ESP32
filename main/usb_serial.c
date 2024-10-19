@@ -29,7 +29,7 @@
   
 */
 
-#if CONFIG_IDF_TARGET_ESP32S3
+#ifdef CONFIG_IDF_TARGET_ESP32S3
 
 #include <stdint.h>
 #include "esp_log.h"

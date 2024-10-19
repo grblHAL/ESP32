@@ -28,7 +28,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
-#if !CONFIG_IDF_TARGET_ESP32S3
+#if !defined(CONFIG_IDF_TARGET_ESP32S3)
 #include "esp32/rom/ets_sys.h"
 #include "esp32/rom/uart.h"
 #endif
@@ -55,10 +55,27 @@
 #define UART_TXD_IDX(u)     ((u==0)?U0TXD_OUT_IDX:(         (u==1)?U1TXD_OUT_IDX:(        (u==2)?U2TXD_OUT_IDX:0)))
 #define UART_INTR_SOURCE(u) ((u==0)?ETS_UART0_INTR_SOURCE:( (u==1)?ETS_UART1_INTR_SOURCE:((u==2)?ETS_UART2_INTR_SOURCE:0)))
 
+
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+#ifndef UART_RX_PIN
+#define UART_RX_PIN 44
+#endif
+#ifndef UART_TX_PIN
+#define UART_TX_PIN 43
+#endif
+#else
+#ifndef UART_RX_PIN
+#define UART_RX_PIN 34
+#endif
+#ifndef UART_TX_PIN
+#define UART_TX_PIN 35
+#endif
+#endif
+
 typedef void (*uart_isr_ptr)(void *arg);
 
 typedef struct {
-#if CONFIG_IDF_TARGET_ESP32S3
+#ifdef CONFIG_IDF_TARGET_ESP32S3
    uart_dev_t *dev;
 #else
    volatile uart_dev_t *dev;
@@ -171,11 +188,7 @@ void serialRegisterStreams (void)
     static const periph_pin_t tx0 = {
         .function = Output_TX,
         .group = PinGroup_UART,
-#if CONFIG_IDF_TARGET_ESP32S3
-        .pin = 43,
-#else
-        .pin = 35,
-#endif
+        .pin = UART_TX_PIN,
         .mode = { .mask = PINMODE_OUTPUT },
         .description = "Primary UART"
     };
@@ -183,11 +196,7 @@ void serialRegisterStreams (void)
     static const periph_pin_t rx0 = {
         .function = Input_RX,
         .group = PinGroup_UART,
-#if CONFIG_IDF_TARGET_ESP32S3
-        .pin = 44,
-#else
-        .pin = 34,
-#endif
+        .pin = UART_RX_PIN,
         .mode = { .mask = PINMODE_NONE },
         .description = "Primary UART"
     };
@@ -273,7 +282,7 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
 //    uart->tx_len = 128;
     uart_ll_set_mode(uart->dev, UART_MODE_UART);
 
-#if CONFIG_IDF_TARGET_ESP32S3
+#ifdef CONFIG_IDF_TARGET_ESP32S3
 
     periph_module_reset((periph_module_t)(PERIPH_UART0_MODULE + uart->num));
     periph_module_enable((periph_module_t)(PERIPH_UART0_MODULE + uart->num));
@@ -308,9 +317,22 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
 
     // Note: UART0 pin mappings are set at boot, no need to set here unless override is required
 
-#if SERIAL2_ENABLE ||  SERIAL3_ENABLE
+#if SERIAL2_ENABLE || SERIAL3_ENABLE
 
     switch(uart->num) {
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+#if UART_RX_PIN != 44 || UART_TX_PIN != 43
+		case 0:
+			uart_set_pin(uart->num, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+		break;
+#endif
+#else
+#if UART_RX_PIN != 34 || UART_TX_PIN != 35
+		case 0:
+			uart_set_pin(uart->num, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+		break;
+#endif
+#endif
 
  #if SERIAL2_ENABLE
         case 1:

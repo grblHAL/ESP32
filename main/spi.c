@@ -66,7 +66,7 @@ bool spi_bus_init (spi_host_device_t *host)
             .intr_flags      = ESP_INTR_FLAG_IRAM
         };
 
-#if CONFIG_IDF_TARGET_ESP32S3
+#ifdef CONFIG_IDF_TARGET_ESP32S3
 		dma_ch = SPI_DMA_CH_AUTO;
         host_id = SDSPI_DEFAULT_HOST;
 #else
