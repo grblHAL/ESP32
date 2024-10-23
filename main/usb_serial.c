@@ -29,7 +29,9 @@
   
 */
 
-#ifdef CONFIG_IDF_TARGET_ESP32S3
+#include "sdkconfig.h"
+
+#if CONFIG_IDF_TARGET_ESP32S3
 
 #include <stdint.h>
 #include "esp_log.h"
@@ -37,7 +39,6 @@
 #include "freertos/task.h"
 #include "tinyusb.h"
 #include "tusb_cdc_acm.h"
-#include "sdkconfig.h"
 
 #include <string.h>
 

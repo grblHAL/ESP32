@@ -44,7 +44,7 @@
 // Configuration
 // Uncomment to enable, for some a value > 1 may be assigned, if so the default value is shown.
 
-#ifdef CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
 #define USB_SERIAL_CDC          1 // Serial communication via native USB.
 #endif
 

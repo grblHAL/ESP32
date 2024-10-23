@@ -61,7 +61,7 @@ static wait_on_input_ptr wait_on_input_digital;
 
 #if AUX_ANALOG_IN
 
-#ifdef CONFIG_IDF_TARGET_ESP32
+#if CONFIG_IDF_TARGET_ESP32
 
 static const adc_map_t adc_map[] = {
     { ADC1_CHANNEL_0, GPIO_NUM_36 },
@@ -74,7 +74,7 @@ static const adc_map_t adc_map[] = {
     { ADC1_CHANNEL_7, GPIO_NUM_35 }
 };
 
-#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+#elif CONFIG_IDF_TARGET_ESP32S3
 
 static const adc_map_t adc_map[] = {
     { ADC1_CHANNEL_0, GPIO_NUM_1 },
@@ -173,7 +173,7 @@ static bool init_pwm0 (xbar_t *pin, pwm_config_t *config, bool persistent)
     ledc_channel_config_t *ch_config = &pwm_out[ch].ch_config;
 
     static ledc_timer_config_t pwm_timer = {
-#ifdef CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
         .speed_mode = LEDC_LOW_SPEED_MODE,
 #else
         .speed_mode = LEDC_HIGH_SPEED_MODE,
@@ -188,7 +188,7 @@ static bool init_pwm0 (xbar_t *pin, pwm_config_t *config, bool persistent)
         init_ok = true;
 
         ch_config->gpio_num = AUXOUTPUT0_PWM_PIN,
-#ifdef CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
         ch_config->speed_mode = LEDC_SPEED_MODE_MAX;
 #else
         ch_config->speed_mode = LEDC_HIGH_SPEED_MODE;
@@ -252,7 +252,7 @@ static bool init_pwm1 (xbar_t *pin, pwm_config_t *config, bool persistent)
     ledc_channel_config_t *ch_config = &pwm_out[ch].ch_config;
 
     static ledc_timer_config_t pwm_timer = {
-#ifdef CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
         .speed_mode = LEDC_LOW_SPEED_MODE,
 #else
         .speed_mode = LEDC_HIGH_SPEED_MODE,
@@ -267,7 +267,7 @@ static bool init_pwm1 (xbar_t *pin, pwm_config_t *config, bool persistent)
         init_ok = true;
 
         ch_config->gpio_num = AUXOUTPUT1_PWM_PIN,
-#ifdef CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
         ch_config->speed_mode = LEDC_SPEED_MODE_MAX;
 #else
         ch_config->speed_mode = LEDC_HIGH_SPEED_MODE;
