@@ -45,6 +45,7 @@ set(SRCS
  grbl/spindle_control.c
  grbl/state_machine.c
  grbl/stream.c
+ grbl/stream_file.c
  grbl/stepper.c
  grbl/stepper2.c
  grbl/system.c
