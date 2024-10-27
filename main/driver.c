@@ -57,6 +57,9 @@
 #include "grbl/motor_pins.h"
 #include "grbl/machine_limits.h"
 #include "grbl/pin_bits_masks.h"
+#if NVSDATA_BUFFER_ENABLE
+#include "grbl/nvs_buffer.h"
+#endif
 
 #if CONFIG_IDF_TARGET_ESP32S3
 #include "esp32s3/clk.h"
@@ -2925,7 +2928,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "241003";
+    hal.driver_version = "241025";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3026,12 +3029,20 @@ bool driver_init (void)
 #if EEPROM_ENABLE
     i2c_eeprom_init();
 #else
-    if(nvsInit()) {
+    static const esp_partition_t *partition;
+
+    if((partition = nvsInit())) {
         hal.nvs.type = NVS_Flash;
         hal.nvs.memcpy_from_flash = nvsRead;
         hal.nvs.memcpy_to_flash = nvsWrite;
+        hal.nvs.size_max = partition->size;
     } else
         hal.nvs.type = NVS_None;
+#endif
+
+#if NVSDATA_BUFFER_ENABLE
+    if(hal.nvs.type != NVS_None)
+    	nvs_buffer_alloc(); // Reallocate memory block for NVS buffer
 #endif
 
 #if DRIVER_SPINDLE_ENABLE
