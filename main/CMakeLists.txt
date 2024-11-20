@@ -207,11 +207,12 @@ set(LASER_SOURCE
 set(MISC_PLUGINS_SOURCE
  plugins/bltouch.c
  plugins/eventout.c
+ plugins/feed_override_m220.c
+ plugins/homing_pulloff.c
  plugins/pwm_servo_m280.c
  plugins/rgb_led_m150.c
  plugins/rgb_led_strips.c
 )
-
 
 set(EMBROIDERY_SOURCE
  embroidery/embroidery.c
