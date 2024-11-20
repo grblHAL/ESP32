@@ -31,3 +31,6 @@
 [submodule "main/embroidery"]
 	path = main/embroidery
 	url = https://github.com/grblHAL/Plugin_embroidery
+[submodule "main/plugins"]
+	path = main/plugins
+	url = https://github.com/grblHAL/Plugins_misc/
