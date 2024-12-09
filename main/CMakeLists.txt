@@ -29,6 +29,7 @@ set(SRCS
  grbl/canbus.c
  grbl/coolant_control.c
  grbl/crossbar.c
+ grbl/crc.c
  grbl/nvs_buffer.c
  grbl/gcode.c
  grbl/machine_limits.c
