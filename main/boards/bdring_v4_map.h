@@ -31,10 +31,6 @@
 
 #define BOARD_NAME "BDRING v4"
 
-// timer definitions
-#define STEP_TIMER_GROUP TIMER_GROUP_0
-#define STEP_TIMER_INDEX TIMER_0
-
 // Define step pulse output pins.
 #define X_STEP_PIN          GPIO_NUM_12
 #define Y_STEP_PIN          GPIO_NUM_26
@@ -96,9 +92,10 @@
 #define PIN_NUM_CS          GPIO_NUM_5
 #endif
 
-#ifdef ADD_SERIAL2
-#define UART2_RX_PIN            GPIO_NUM_22
-#define UART2_TX_PIN            GPIO_NUM_21
+#ifdef ADD_SERIAL1
+#define SERIAL1_PORT
+#define UART1_RX_PIN            GPIO_NUM_22
+#define UART1_TX_PIN            GPIO_NUM_21
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_2
 #endif

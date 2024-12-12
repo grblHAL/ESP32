@@ -36,12 +36,7 @@
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
 
-#define UART2_RX_PIN        GPIO_NUM_16 // EXP_1
-#define UART2_TX_PIN        GPIO_NUM_17 // EXP_1
-
-// timer definitions
-#define STEP_TIMER_GROUP    TIMER_GROUP_0
-#define STEP_TIMER_INDEX    TIMER_0
+#define SERIAL1_PORT // RX: 16, TX: 17
 
 #define I2S_OUT_BCK         GPIO_NUM_25
 #define I2S_OUT_WS          GPIO_NUM_26

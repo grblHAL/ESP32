@@ -48,10 +48,6 @@
 #define IOEXPAND_ENABLE 1 // I2C IO expander for some output signals.
 #endif
 
-// timer definitions
-#define STEP_TIMER_GROUP TIMER_GROUP_0
-#define STEP_TIMER_INDEX TIMER_0
-
 // Define step pulse output pins.
 #define X_STEP_PIN              GPIO_NUM_26
 #define Y_STEP_PIN              GPIO_NUM_27
@@ -90,8 +86,9 @@
 #define COOLANT_FLOOD_PIN       IOEXPAND
 #define COOLANT_MIST_PIN        IOEXPAND
 
-#ifdef ADD_SERIAL2
-#define UART2_RX_PIN            GPIO_NUM_33
+#ifdef ADD_SERIAL1
+#define SERIAL1_PORT
+#define UART1_RX_PIN            GPIO_NUM_33
 #else
 #define AUXINPUT0_PIN           GPIO_NUM_33
 #endif
@@ -121,11 +118,11 @@
 #define NEOPIXELS_NUM           NEOPIXELS_ENABLE
 #endif
 
-#ifdef ADD_SERIAL2
+#ifdef ADD_SERIAL1
 #if MPG_ENABLE == 1
 #define MPG_ENABLE_PIN          GPIO_NUM_25
 #else
-#define UART2_TX_PIN            GPIO_NUM_25
+#define UART1_TX_PIN            GPIO_NUM_25
 #endif
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_25 //??

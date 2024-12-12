@@ -31,14 +31,14 @@
 
 #define BOARD_NAME "x-Pro v5"
 #define BOARD_URL "https://www.spark-concepts.com/cnc-xpro-v5/"
-#define HAS_BOARD_INIT
+
 #if TRINAMIC_ENABLE != 5160
 #error BOARD_XPRO_V5 has soldered TMC5160 drivers.
 #endif
 
 #define TRINAMIC_MIXED_DRIVERS 0
 
-#ifdef ADD_SERIAL2 // ModBus
+#ifdef ADD_SERIAL1 // ModBus
 #undef DRIVER_SPINDLE_ENABLE
 #define DRIVER_SPINDLE_ENABLE 0
 #endif
@@ -75,9 +75,10 @@
 #if DRIVER_SPINDLE_PWM_ENABLE
 #define SPINDLE_PWM_PIN     GPIO_NUM_25
 #define SPINDLE_ENABLE_PIN  GPIO_NUM_4
-#elif defined(ADD_SERIAL2)
-#define UART2_RX_PIN        GPIO_NUM_25
-#define UART2_TX_PIN        GPIO_NUM_4
+#elif defined(ADD_SERIAL1)
+#define SERIAL1_PORT
+#define UART1_RX_PIN        GPIO_NUM_25
+#define UART1_TX_PIN        GPIO_NUM_4
 #else
 #define AUXOUTPUT0_PIN      GPIO_NUM_25
 #define AUXOUTPUT1_PIN      GPIO_NUM_4

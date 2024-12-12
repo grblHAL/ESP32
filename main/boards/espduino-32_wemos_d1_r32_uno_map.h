@@ -7,25 +7,25 @@
 
   Copyright (c) 2020-2023 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 /*
   This map is for relatively common ESP32 boards replicating the form factor of Arduino UNO.
   This map allows use of such uno-compatible board with very popular
   "Protoneer Arduino CNC shield" and is based on its pinout.
-  This makes perfect match for retrofiting older Arduino+GRBL based machines
+  This makes perfect match for retrofiting older Arduino+grblHAL based machines
   with 32b microcontroler capable of running grblHAL and providing few extra IO pins (eg. for modbus).
 
   These boards are sold under several names, for instance:
@@ -91,9 +91,10 @@
 #define PROBE_PIN           AUXINPUT0_PIN
 #endif
 
-#ifdef ADD_SERIAL2
-#define UART2_RX_PIN            GPIO_NUM_33
-#define UART2_TX_PIN            GPIO_NUM_32
+#ifdef ADD_SERIAL1
+#define SERIAL1_PORT
+#define UART1_RX_PIN            GPIO_NUM_33
+#define UART1_TX_PIN            GPIO_NUM_32
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_15
 #endif

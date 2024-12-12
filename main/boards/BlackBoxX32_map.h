@@ -42,10 +42,6 @@
 #define HAS_BOARD_INIT
 #endif
 
-// timer definitions
-#define STEP_TIMER_GROUP TIMER_GROUP_0
-#define STEP_TIMER_INDEX TIMER_0
-
 // Stepper Driver Pins
 #define STEPPERS_ENABLE_PIN   GPIO_NUM_17
 

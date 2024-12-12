@@ -31,10 +31,6 @@
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
 
-// timer definitions
-#define STEP_TIMER_GROUP TIMER_GROUP_0
-#define STEP_TIMER_INDEX TIMER_0
-
 #define I2S_OUT_BCK             GPIO_NUM_22
 #define I2S_OUT_WS              GPIO_NUM_17
 #define I2S_OUT_DATA            GPIO_NUM_21
@@ -61,6 +57,7 @@
 #define M3_DIRECTION_PIN        I2SO(12)
 #define M3_ENABLE_PIN           I2SO(15)
 #define M3_LIMIT_PIN            GPIO_NUM_35
+#define M3_UART_CS              I2SO(14)
 #endif
 
 // Define ganged axis or B axis step pulse and step direction output pins.
@@ -70,6 +67,7 @@
 #define M4_DIRECTION_PIN        I2SO(17)
 #define M4_ENABLE_PIN           I2SO(16)
 #define M4_LIMIT_PIN            GPIO_NUM_34
+#define M4_UART_CS              I2SO(19)
 #endif
 
 // Define ganged axis or B axis step pulse and step direction output pins.
@@ -79,6 +77,7 @@
 #define M5_DIRECTION_PIN        I2SO(20)
 #define M5_ENABLE_PIN           I2SO(23)
 #define M5_LIMIT_PIN            GPIO_NUM_39
+#define M5_UART_CS              I2SO(22)
 #endif
 
 // Define driver spindle pins
@@ -128,7 +127,8 @@
 #define PIN_NUM_CS          GPIO_NUM_5
 #endif
 
-#ifdef ADD_SERIAL2
-#define UART2_RX_PIN        GPIO_NUM_4
-#define UART2_TX_PIN        GPIO_NUM_0
+#ifdef ADD_SERIAL1
+#define SERIAL1_PORT
+#define UART1_RX_PIN        GPIO_NUM_4
+#define UART1_TX_PIN        GPIO_NUM_0
 #endif

@@ -7,28 +7,24 @@
 
   Copyright (c) 2020-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #define BOARD_NAME "BDRING 6x External Drives V1.1"
 
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
-
-// timer definitions
-#define STEP_TIMER_GROUP TIMER_GROUP_0
-#define STEP_TIMER_INDEX TIMER_0
 
 #if SDCARD_ENABLE
 // Pin mapping when using SPI mode.
@@ -101,8 +97,8 @@
 // Define MODBUS spindle pins (exclusive use - can use PWM or modbus since they share output pins)
 
 #if MODBUS_ENABLE & MODBUS_RTU_ENABLED
-#define UART2_RX_PIN            GPIO_NUM_16
-#define UART2_TX_PIN            GPIO_NUM_15
+#define UART1_RX_PIN            GPIO_NUM_16
+#define UART1_TX_PIN            GPIO_NUM_15
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_14
 #endif

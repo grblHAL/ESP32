@@ -26,6 +26,8 @@
 #ifndef __DRIVER_H__
 #define __DRIVER_H__
 
+#include "sdkconfig.h"
+
 #ifndef OVERRIDE_MY_MACHINE
 
 #include "my_machine.h"
@@ -110,8 +112,8 @@ typedef struct {
 
 // End configuration
 
-#if !USB_SERIAL_CDC && ((MODBUS_ENABLE & MODBUS_RTU_ENABLED) || TRINAMIC_UART_ENABLE || MPG_ENABLE || (KEYPAD_ENABLE == 2 && MPG_ENABLE == 0))
-#define ADD_SERIAL2
+#if (MODBUS_ENABLE & MODBUS_RTU_ENABLED) || TRINAMIC_UART_ENABLE==1 || MPG_ENABLE || (KEYPAD_ENABLE == 2 && MPG_ENABLE == 0)
+#define ADD_SERIAL1
 #endif
 
 #ifdef BOARD_CNC_BOOSTERPACK
@@ -156,6 +158,8 @@ typedef struct {
   #include "boards/jackpot_map.h"
 #elif defined(BOARD_MY_MACHINE)
   #include "boards/my_machine_map.h"
+#elif defined(BOARD_GENERIC_S3)
+  #include "boards/generic_s3_map.h"
 #elif defined(BOARD_GENERIC_I2S_S3)
   #include "boards/generic_i2s_s3_map.h"
 #else // default board - NOTE: NOT FINAL VERSION!
@@ -210,103 +214,16 @@ extern SemaphoreHandle_t i2cBusy;
 #error "I2C port not available!"
 #endif
 
-#if TRINAMIC_ENABLE
-#ifndef TRINAMIC_MIXED_DRIVERS
-#define TRINAMIC_MIXED_DRIVERS 1
-#endif
-#include "motors/trinamic.h"
-#include "trinamic/common.h"
-#endif
+// NOTE: #define SERIAL_PORT in map file if USB_SERIAL_CDC is enabled and the primary UART is not connected to a USB <> UART chip
 
-#if USB_SERIAL_CDC
-#define SP0 1
-#else
-#define SP0 0
-#endif
-
-#ifdef UART2_RX_PIN
-#define SP1 1
-#else
-#define SP1 0
-#endif
-
-#ifdef UART3_RX_PIN
-#define SP2 1
-#else
-#define SP2 0
-#endif
-
-#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
-#define MODBUS_TEST 1
-#else
-#define MODBUS_TEST 0
-#endif
-
-#if TRINAMIC_UART_ENABLE
-#define TRINAMIC_TEST 1
-#else
-#define TRINAMIC_TEST 0
-#endif
-
-#if MPG_ENABLE
-#define MPG_TEST 1
-#else
-#define MPG_TEST 0
-#endif
-
-#if KEYPAD_ENABLE == 2 && MPG_ENABLE == 0
-#define KEYPAD_TEST 1
-#else
-#define KEYPAD_TEST 0
-#endif
-
-#ifdef DEBUGOUT
-#define DEBUG_TEST 1
-#else
-#define DEBUG_TEST 0
-#endif
-
-#if (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST + DEBUG_TEST) > (SP0 + SP1 + SP2)
-#error "Too many options that requires a serial port are enabled!"
-#elif (SP0 == 0 && (MODBUS_TEST + KEYPAD_TEST + MPG_TEST + TRINAMIC_TEST + DEBUG_TEST)) || SERIAL_STREAM == 1
-#define SERIAL2_ENABLE 1
-#else
-#define SERIAL2_ENABLE 0
-#endif
-
-#undef SP0
-#undef SP1
-#undef SP2
-#undef MODBUS_TEST
-#undef KEYPAD_TEST
-#undef MPG_TEST
-#undef TRINAMIC_TEST
-#undef DEBUG_TEST
-
-#if MPG_ENABLE
-#if MPG_STREAM == 0
-#define MPG_STREAM_DUPLEX 1
-#elif MPG_STREAM == 1
-#ifdef UART2_TX_PIN
-#define MPG_STREAM_DUPLEX 1
-#else
-#define MPG_STREAM_DUPLEX 0
-#endif
-#elif MPG_STREAM == 2
-#ifdef UART3_TX_PIN
-#define MPG_STREAM_DUPLEX 1
-#else
-#define MPG_STREAM_DUPLEX 0
-#endif
-#endif
-#endif
+#include "grbl/driver_opts2.h"
 
 #if MPG_ENABLE == 1
   #ifndef MPG_ENABLE_PIN
   #error "MPG_ENABLE_PIN must be defined when MPG mode is enabled!"
   #endif
-  #ifndef UART2_RX_PIN
-  #error "UART2_RX_PIN must be defined when MPG mode is enabled!"
+  #ifndef UART1_RX_PIN
+  #error "UART1_RX_PIN must be defined when MPG mode is enabled!"
   #endif
 #endif
 

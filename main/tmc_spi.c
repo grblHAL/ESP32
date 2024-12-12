@@ -1,27 +1,27 @@
 /*
-  trinamic_if.c - driver code for ESP32
+  tmc_spi.c - driver code for ESP32
 
   Part of grblHAL
 
   Copyright (c) 2020-2024 Terje Io
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "driver.h"
 
-#if defined(BOARD_XPRO_V5)
+#if TRINAMIC_SPI_ENABLE
 
 #include <math.h>
 #include <string.h>
@@ -30,8 +30,6 @@
 #include "i2s_out.h"
 #include "grbl/protocol.h"
 #include "grbl/settings.h"
-
-#if TRINAMIC_SPI_ENABLE
 
 #include "driver/spi_master.h"
 
@@ -157,85 +155,8 @@ static void if_init (uint8_t motors, axes_signals_t axisflags)
     hal.enumerate_pins(true, add_cs_pin, NULL);
 }
 
-#endif
-
-#if TRINAMIC_UART_ENABLE
-
-static io_stream_t tmc_uart = {0};
-
-TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read_datagram_t *dgr)
+void tmc_spi_init (void)
 {
-    static TMC_uart_write_datagram_t wdgr = {0};
-    volatile uint32_t dly = 50, ms = hal.get_elapsed_ticks();
-
-    if(tmc_uart.write_n == NULL)
-        return &wdgr;
-
-    vTaskSuspendAll();
-
-    tmc_uart.reset_write_buffer();
-    tmc_uart.write_n((char *)dgr->data, sizeof(TMC_uart_read_datagram_t));
-
-    while(tmc_uart.get_tx_buffer_count());
-
-    while(--dly);
-
-    tmc_uart.reset_read_buffer();
-    tmc_uart.disable_rx(false);
-
-    xTaskResumeAll();
-
-    // Wait for response with 10 ms timeout
-    while(tmc_uart.get_rx_buffer_count() < 8) {
-        if(hal.get_elapsed_ticks() - ms >= 11)
-            break;
-    }
-
-    if(tmc_uart.get_rx_buffer_count() >= 8) {
-
-        wdgr.data[0] = tmc_uart.read();
-        wdgr.data[1] = tmc_uart.read();
-        wdgr.data[2] = tmc_uart.read();
-        wdgr.data[3] = tmc_uart.read();
-        wdgr.data[4] = tmc_uart.read();
-        wdgr.data[5] = tmc_uart.read();
-        wdgr.data[6] = tmc_uart.read();
-        wdgr.data[7] = tmc_uart.read();
-
-    } else
-        wdgr.msg.addr.value = 0xFF;
-
-    tmc_uart.disable_rx(true);
-
-    dly = 5000;
-    while(--dly);
-
-    return &wdgr;
-}
-
-void tmc_uart_write (trinamic_motor_t driver, TMC_uart_write_datagram_t *dgr)
-{
-    if(tmc_uart.write_n == NULL)
-        return;
-
-    tmc_uart.reset_read_buffer();
-    tmc_uart.write_n((char *)dgr->data, sizeof(TMC_uart_write_datagram_t));
-
-    while(tmc_uart.get_tx_buffer_count());
-}
-
-#if TRINAMIC_UART_ENABLE == 2
-static void driver_preinit (motor_map_t motor, trinamic_driver_config_t *config)
-{
-    config->address = 0;
-}
-#endif
-
-#endif // TRINAMIC_UART_ENABLE
-
-void board_init (void)
-{
-#if TRINAMIC_SPI_ENABLE
 
     trinamic_driver_if_t driver = {
         .on_drivers_init = if_init
@@ -249,29 +170,6 @@ void board_init (void)
     } while(idx);
 
     trinamic_if_init(&driver);
-
-#elif TRINAMIC_UART_ENABLE
-
-#if TRINAMIC_UART_ENABLE == 2
-    static trinamic_driver_if_t driver_if = {
-        .on_driver_preinit = driver_preinit
-    };
-
-    trinamic_if_init(&driver_if);
-#endif
-
-    const io_stream_t *stream;
-
-    if((stream = stream_open_instance(TRINAMIC_STREAM, 230400, NULL, "Trinamic UART")) == NULL)
-        stream = stream_null_init(230400);
-
-    if(stream) {
-        memcpy(&tmc_uart, stream, sizeof(io_stream_t));
-        tmc_uart.disable_rx(true);
-        tmc_uart.set_enqueue_rt_handler(stream_buffer_all);
-    } // else output POS failure?
-
-#endif
 }
 
-#endif
+#endif // TRINAMIC_SPI_ENABLE

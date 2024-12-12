@@ -21,6 +21,10 @@
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef CONFIG_IDF_TARGET_ESP32S3
+#error "This board has ESP32-S3 processor, select a corresponding build!"
+#endif
+
 #if N_ABC_MOTORS > 0
 #error "Axis configuration is not supported!"
 #endif
@@ -43,10 +47,6 @@
 #undef EEPROM_ENABLE
 #define EEPROM_ENABLE 1 // I2C EEPROM (24LC16) support.
 #endif
-
-// timer definitions
-#define STEP_TIMER_GROUP TIMER_GROUP_0
-#define STEP_TIMER_INDEX TIMER_0
 
 // Define step pulse output pins.
 #define X_STEP_PIN              GPIO_NUM_26
@@ -105,16 +105,17 @@
 #define AUXINPUT0_PIN           GPIO_NUM_33
 #endif
 
-#ifdef ADD_SERIAL2
-#define UART2_RX_PIN            GPIO_NUM_33
-#define UART2_TX_PIN            GPIO_NUM_25
+#ifdef ADD_SERIAL1
+#define SERIAL1_PORT
+#define UART1_RX_PIN            GPIO_NUM_33
+#define UART1_TX_PIN            GPIO_NUM_25
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_25
 #endif
 #endif
 
 #if MPG_ENABLE == 1
-#define UART2_RX_PIN            GPIO_NUM_33
+#define UART1_RX_PIN            GPIO_NUM_33
 #define MPG_ENABLE_PIN          GPIO_NUM_25
 #endif
 

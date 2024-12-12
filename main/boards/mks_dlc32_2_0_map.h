@@ -32,10 +32,6 @@
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
 
-// timer definitions
-#define STEP_TIMER_GROUP    TIMER_GROUP_0
-#define STEP_TIMER_INDEX    TIMER_0
-
 #if SDCARD_ENABLE
 
 // Pin mapping when using SPI mode.

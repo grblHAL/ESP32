@@ -33,10 +33,6 @@
 
 #define BOARD_NAME "Fysetc E4 v1.0"
 
-// timer definitions
-#define STEP_TIMER_GROUP TIMER_GROUP_0
-#define STEP_TIMER_INDEX TIMER_0
-
 // Define step pulse output pins.
 #define X_STEP_PIN          GPIO_NUM_27
 #define Y_STEP_PIN          GPIO_NUM_33

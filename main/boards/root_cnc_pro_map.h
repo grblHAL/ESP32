@@ -37,10 +37,6 @@
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
 
-// timer definitions
-#define STEP_TIMER_GROUP TIMER_GROUP_0
-#define STEP_TIMER_INDEX TIMER_0
-
 #if SDCARD_ENABLE || TRINAMIC_SPI_ENABLE
 
 // Pin mapping when using SPI mode.
@@ -155,9 +151,8 @@
 #endif
 // N/A
 
-#ifdef ADD_SERIAL2
-#define UART2_RX_PIN            GPIO_NUM_16
-#define UART2_TX_PIN            GPIO_NUM_17
+#ifdef ADD_SERIAL1
+#define SERIAL1_PORT // RX: 16, TX: 17
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_4
 #endif

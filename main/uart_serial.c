@@ -55,7 +55,6 @@
 #define UART_TXD_IDX(u)     ((u==0)?U0TXD_OUT_IDX:(         (u==1)?U1TXD_OUT_IDX:(        (u==2)?U2TXD_OUT_IDX:0)))
 #define UART_INTR_SOURCE(u) ((u==0)?ETS_UART0_INTR_SOURCE:( (u==1)?ETS_UART1_INTR_SOURCE:((u==2)?ETS_UART2_INTR_SOURCE:0)))
 
-
 #if CONFIG_IDF_TARGET_ESP32S3
 #ifndef UART_RX_PIN
 #define UART_RX_PIN 44
@@ -63,12 +62,28 @@
 #ifndef UART_TX_PIN
 #define UART_TX_PIN 43
 #endif
-#else
+#ifdef SERIAL1_PORT
+#ifndef UART1_RX_PIN
+#define UART1_RX_PIN 18
+#endif
+#ifndef UART1_TX_PIN
+#define UART1_TX_PIN 17
+#endif
+#endif
+#else // ESP32
 #ifndef UART_RX_PIN
 #define UART_RX_PIN 34
 #endif
 #ifndef UART_TX_PIN
 #define UART_TX_PIN 35
+#endif
+#ifdef SERIAL1_PORT
+#ifndef UART1_RX_PIN
+#define UART1_RX_PIN 16
+#endif
+#ifndef UART1_TX_PIN
+#define UART1_TX_PIN 17
+#endif
 #endif
 #endif
 
@@ -117,23 +132,23 @@ static const uart_t _uart_bus_array[3] = {
 static const DRAM_ATTR uint16_t RX_BUFFER_SIZE_MASK = RX_BUFFER_SIZE - 1;
 static const DRAM_ATTR uint32_t rx_int_flags = UART_INTR_RXFIFO_FULL|UART_INTR_RXFIFO_OVF|UART_INTR_RXFIFO_TOUT|UART_INTR_FRAM_ERR;
 
-static uart_t uart1;
+static uart_t uart0;
 static stream_rx_buffer_t rxbuffer = {0};
 static enqueue_realtime_command_ptr enqueue_realtime_command = protocol_enqueue_realtime_command;
 static const io_stream_t *serialInit (uint32_t baud_rate);
 
-#if SERIAL2_ENABLE
-static uart_t uart2;
-static stream_rx_buffer_t rxbuffer2 = {0};
+#ifdef SERIAL1_PORT
+static uart_t uart1;
+static stream_rx_buffer_t rxbuffer1 = {0};
 static enqueue_realtime_command_ptr enqueue_realtime_command2 = protocol_enqueue_realtime_command;
-static const io_stream_t *serial2Init (uint32_t baud_rate);
+static const io_stream_t *serial1Init (uint32_t baud_rate);
 #endif
 
-#if SERIAL3_ENABLE
-static uart_t uart3;
-static stream_rx_buffer_t rxbuffer3 = {0};
+#ifdef SERIAL2_PORT
+static uart_t uart2;
+static stream_rx_buffer_t rxbuffer2 = {0};
 static enqueue_realtime_command_ptr enqueue_realtime_command3 = protocol_enqueue_realtime_command;
-static const io_stream_t *serial3Init (uint32_t baud_rate);
+static const io_stream_t *serial2Init (uint32_t baud_rate);
 #endif
 
 static io_stream_properties_t serial[] = {
@@ -146,10 +161,25 @@ static io_stream_properties_t serial[] = {
       .flags.modbus_ready = On,
       .claim = serialInit
     },
-#if SERIAL2_ENABLE
+#ifdef SERIAL1_PORT
     {
       .type = StreamType_Serial,
       .instance = 1,
+      .flags.claimable = On,
+      .flags.claimed = Off,
+      .flags.can_set_baud = On,
+  #ifdef UART1_TX_PIN
+      .flags.modbus_ready = On,
+  #else
+      .flags.rx_only = On,
+  #endif
+      .claim = serial1Init
+    },
+#endif // SERIAL1_PORT
+#ifdef SERIAL2_PORT
+    {
+      .type = StreamType_Serial,
+      .instance = 2,
       .flags.claimable = On,
       .flags.claimed = Off,
       .flags.can_set_baud = On,
@@ -159,23 +189,8 @@ static io_stream_properties_t serial[] = {
       .flags.rx_only = On,
   #endif
       .claim = serial2Init
-    },
-#endif // SERIAL2_ENABLE
-#if SERIAL3_ENABLE
-    {
-      .type = StreamType_Serial,
-      .instance = 2,
-      .flags.claimable = On,
-      .flags.claimed = Off,
-      .flags.can_set_baud = On,
-  #ifdef UART3_TX_PIN
-      .flags.modbus_ready = On,
-  #else
-      .flags.rx_only = On,
-  #endif
-      .claim = serial3Init
     }
-#endif // SERIAL3_ENABLE
+#endif // SERIAL2_PORT
 };
 
 void serialRegisterStreams (void)
@@ -204,13 +219,13 @@ void serialRegisterStreams (void)
     hal.periph_port.register_pin(&rx0);
     hal.periph_port.register_pin(&tx0);
 
-#if SERIAL2_ENABLE
+#ifdef SERIAL1_PORT
 
-  #ifdef UART2_TX_PIN
+  #ifdef UART1_TX_PIN
     static const periph_pin_t tx1 = {
         .function = Output_TX,
         .group = PinGroup_UART2,
-        .pin = UART2_TX_PIN,
+        .pin = UART1_TX_PIN,
         .mode = { .mask = PINMODE_OUTPUT },
         .description = "Secondary UART"
     };
@@ -221,22 +236,22 @@ void serialRegisterStreams (void)
     static const periph_pin_t rx1 = {
         .function = Input_RX,
         .group = PinGroup_UART2,
-        .pin = UART2_RX_PIN,
+        .pin = UART1_RX_PIN,
         .mode = { .mask = PINMODE_NONE },
         .description = "Secondary UART"
     };
 
     hal.periph_port.register_pin(&rx1);
 
-#endif // SERIAL2_ENABLE
+#endif // SERIAL1_PORT
 
-#if SERIAL3_ENABLE
+#ifdef SERIAL2_PORT
 
-  #ifdef UART3_TX_PIN
+  #ifdef UART2_TX_PIN
     static const periph_pin_t tx2 = {
         .function = Output_TX,
         .group = PinGroup_UART3,
-        .pin = UART3_TX_PIN,
+        .pin = UART2_TX_PIN,
         .mode = { .mask = PINMODE_OUTPUT },
         .description = "Tertiary UART"
     };
@@ -247,14 +262,14 @@ void serialRegisterStreams (void)
     static const periph_pin_t rx2 = {
         .function = Input_RX,
         .group = PinGroup_UART3,
-        .pin = UART3_RX_PIN,
+        .pin = UART2_RX_PIN,
         .mode = { .mask = PINMODE_NONE },
         .description = "Tertiary UART"
     };
 
     hal.periph_port.register_pin(&rx2);
 
-#endif // SERIAL3_ENABLE
+#endif // SERIAL2_PORT
 
     stream_register_streams(&streams);
 }
@@ -327,7 +342,7 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
 #endif
 #endif
 
-#if SERIAL2_ENABLE || SERIAL3_ENABLE || defined(UART0_PINS_REDEFINED)
+#if defined(SERIAL1_PORT) || defined(SERIAL2_PORT) || defined(UART0_PINS_REDEFINED)
 
     switch(uart->num) {
  #ifdef UART0_PINS_REDEFINED
@@ -335,8 +350,17 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
 			uart_set_pin(uart->num, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 			break;
  #endif
- #if SERIAL2_ENABLE
+ #ifdef SERIAL1_PORT
         case 1:
+  #ifdef UART1_TX_PIN
+            uart_set_pin(uart->num, UART1_TX_PIN, UART1_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+  #else
+            uart_set_pin(uart->num, UART_PIN_NO_CHANGE, UART1_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+  #endif
+            break;
+ #endif
+ #ifdef SERIAL2_PORT
+        case 2:
   #ifdef UART2_TX_PIN
             uart_set_pin(uart->num, UART2_TX_PIN, UART2_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
   #else
@@ -344,17 +368,8 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
   #endif
             break;
  #endif
- #if SERIAL3_ENABLE
-        case 2:
-  #ifdef UART3_TX_PIN
-            uart_set_pin(uart->num, UART3_TX_PIN, UART3_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-  #else
-            uart_set_pin(uart->num, UART_PIN_NO_CHANGE, UART3_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-  #endif
-            break;
- #endif
 }
-#endif // SERIAL2_ENABLE ||  SERIAL3_ENABLE
+#endif // SERIAL1_PORT ||  SERIAL2_PORT
 
     UART_MUTEX_UNLOCK(uart);
 }
@@ -415,11 +430,11 @@ FORCE_INLINE_ATTR uint32_t _uart_ll_get_txfifo_count (uart_dev_t *hw)
 
 // UART0
 
-IRAM_ATTR static void _uart1_isr (void *arg)
+IRAM_ATTR static void _uart0_isr (void *arg)
 {
-    uint32_t c, cnt = uart_ll_get_rxfifo_len(uart1.dev), iflags = uart_ll_get_intsts_mask(uart1.dev);
+    uint32_t c, cnt = uart_ll_get_rxfifo_len(uart0.dev), iflags = uart_ll_get_intsts_mask(uart0.dev);
 
-    uart_ll_clr_intsts_mask(uart1.dev, iflags);
+    uart_ll_clr_intsts_mask(uart0.dev, iflags);
 
     if(iflags & UART_INTR_RXFIFO_OVF)
         rxbuffer.overflow = On;
@@ -427,7 +442,7 @@ IRAM_ATTR static void _uart1_isr (void *arg)
     while(cnt) {
 
         cnt--;
-        c = _uart_ll_read_rxfifo(uart1.dev);
+        c = _uart_ll_read_rxfifo(uart0.dev);
 
         if(!enqueue_realtime_command(c)) {
 
@@ -452,7 +467,7 @@ static uint16_t serialAvailable (void)
 
 uint16_t static serialTxCount (void)
 {
-    return uart_ll_is_tx_idle(uart1.dev) ? 0 : (uint16_t)_uart_ll_get_txfifo_count(uart1.dev) + 1;
+    return uart_ll_is_tx_idle(uart0.dev) ? 0 : (uint16_t)_uart_ll_get_txfifo_count(uart0.dev) + 1;
 }
 
 static uint16_t serialRXFree (void)
@@ -478,12 +493,12 @@ static int16_t serialRead (void)
 
 static bool serialPutC (const char c)
 {
-    while(_uart_ll_get_txfifo_count(uart1.dev) == uart1.tx_len) {
+    while(_uart_ll_get_txfifo_count(uart0.dev) == uart0.tx_len) {
         if(!hal.stream_blocking_callback())
             return false;
     }
 
-    _uart_ll_write_txfifo(uart1.dev, c);
+    _uart_ll_write_txfifo(uart0.dev, c);
 
     return true;
 }
@@ -509,69 +524,69 @@ void static serialWrite (const char *s, uint16_t length)
 
 IRAM_ATTR static void serialFlush (void)
 {
-    UART_MUTEX_LOCK(&uart1);
+    UART_MUTEX_LOCK(&uart0);
 
-    _uart_flush(&uart1, false);
+    _uart_flush(&uart0, false);
 
     rxbuffer.tail = rxbuffer.head;
     rxbuffer.overflow = Off;
 
-    UART_MUTEX_UNLOCK(&uart1);
+    UART_MUTEX_UNLOCK(&uart0);
 }
 
 IRAM_ATTR static void serialTxFlush (void)
 {
-    UART_MUTEX_LOCK(&uart1);
+    UART_MUTEX_LOCK(&uart0);
 
-    _uart_flush(&uart1, true);
+    _uart_flush(&uart0, true);
 
-    UART_MUTEX_UNLOCK(&uart1);
+    UART_MUTEX_UNLOCK(&uart0);
 }
 
 IRAM_ATTR static void serialCancel (void)
 {
-    UART_MUTEX_LOCK(&uart1);
+    UART_MUTEX_LOCK(&uart0);
 
     rxbuffer.data[rxbuffer.head] = ASCII_CAN;
     rxbuffer.tail = rxbuffer.head;
     rxbuffer.head = (rxbuffer.tail + 1) & (RX_BUFFER_SIZE - 1);
 
-    UART_MUTEX_UNLOCK(&uart1);
+    UART_MUTEX_UNLOCK(&uart0);
 }
 
 IRAM_ATTR static bool serialSuspendInput (bool suspend)
 {
-    UART_MUTEX_LOCK(&uart1);
+    UART_MUTEX_LOCK(&uart0);
 
     bool ok = stream_rx_suspend(&rxbuffer, suspend);
 
-    UART_MUTEX_UNLOCK(&uart1);
+    UART_MUTEX_UNLOCK(&uart0);
 
     return ok;
 }
 
 IRAM_ATTR static bool serialDisable (bool disable)
 {
-    UART_MUTEX_LOCK(&uart1);
+    UART_MUTEX_LOCK(&uart0);
 
-    uart_ll_disable_intr_mask(uart1.dev, rx_int_flags);
+    uart_ll_disable_intr_mask(uart0.dev, rx_int_flags);
 
     if(!disable) {
         // Clear and enable interrupts
-        _uart_flush(&uart1, false);
+        _uart_flush(&uart0, false);
         rxbuffer.tail = rxbuffer.head;
-        uart_ll_clr_intsts_mask(uart1.dev, rx_int_flags);
-        uart_ll_ena_intr_mask(uart1.dev, rx_int_flags);
+        uart_ll_clr_intsts_mask(uart0.dev, rx_int_flags);
+        uart_ll_ena_intr_mask(uart0.dev, rx_int_flags);
     }
 
-    UART_MUTEX_UNLOCK(&uart1);
+    UART_MUTEX_UNLOCK(&uart0);
 
     return true;
 }
 
 static bool serialSetBaudRate (uint32_t baud_rate)
 {
-    uartSetBaudRate(&uart1, baud_rate);
+    uartSetBaudRate(&uart0, baud_rate);
 
     return true;
 }
@@ -618,17 +633,251 @@ static const io_stream_t *serialInit (uint32_t baud_rate)
 
     serial[0].flags.claimed = On;
 
-    memcpy(&uart1, &_uart_bus_array[0], sizeof(uart_t)); // use UART 0
+    memcpy(&uart0, &_uart_bus_array[0], sizeof(uart_t)); // use UART 0
 
-    uartConfig(&uart1, baud_rate);
+    uartConfig(&uart0, baud_rate);
 
     serialFlush();
-    uartEnableInterrupt(&uart1, _uart1_isr, true);
+    uartEnableInterrupt(&uart0, _uart0_isr, true);
 
     return &stream;
 }
 
-#if SERIAL2_ENABLE
+#ifdef SERIAL1_PORT
+
+static void IRAM_ATTR _uart1_isr (void *arg)
+{
+    uint32_t c, cnt = uart_ll_get_rxfifo_len(uart1.dev), iflags = uart_ll_get_intsts_mask(uart1.dev);
+
+    uart_ll_clr_intsts_mask(uart1.dev, iflags);
+
+    if(iflags & UART_INTR_RXFIFO_OVF)
+        rxbuffer1.overflow = On;
+
+    while(cnt) {
+
+        cnt--;
+        c = _uart_ll_read_rxfifo(uart1.dev);
+
+        if(!enqueue_realtime_command2(c)) {
+
+            uint32_t bptr = (rxbuffer1.head + 1) & RX_BUFFER_SIZE_MASK;  // Get next head pointer
+
+            if(bptr == rxbuffer1.tail)                    // If buffer full
+                rxbuffer1.overflow = On;                  // flag overflow,
+            else {
+                rxbuffer1.data[rxbuffer1.head] = (char)c; // else add data to buffer
+                rxbuffer1.head = bptr;                    // and update pointer
+            }
+        }
+    }
+}
+
+uint16_t static serial1Available (void)
+{
+    uint16_t head = rxbuffer1.head, tail = rxbuffer1.tail;
+
+    return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
+}
+
+uint16_t static serial1TxCount (void)
+{
+    return uart_ll_is_tx_idle(uart1.dev) ? 0 : (uint16_t)_uart_ll_get_txfifo_count(uart1.dev) + 1;
+}
+
+uint16_t static serial1RXFree (void)
+{
+    uint16_t head = rxbuffer1.head, tail = rxbuffer1.tail;
+
+    return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
+}
+
+bool static serial1PutC (const char c)
+{
+    UART_MUTEX_LOCK(&uart1);
+
+    while(_uart_ll_get_txfifo_count(uart1.dev) == uart1.tx_len) {
+        if(!hal.stream_blocking_callback())
+            return false;
+    }
+
+    _uart_ll_write_txfifo(uart1.dev, c);
+
+    UART_MUTEX_UNLOCK(&uart1);
+
+    return true;
+}
+
+void static serial1WriteS (const char *data)
+{
+    char c, *ptr = (char *)data;
+
+    while((c = *ptr++) != '\0')
+        serial1PutC(c);
+}
+
+//
+// Writes a number of characters from a buffer to the serial output stream, blocks if buffer full
+//
+void static serial1Write (const char *s, uint16_t length)
+{
+    char *ptr = (char *)s;
+
+    while(length--)
+        serial1PutC(*ptr++);
+}
+
+int16_t static serial1Read (void)
+{
+    UART_MUTEX_LOCK(&uart1);
+
+    int16_t data;
+    uint16_t bptr = rxbuffer1.tail;
+
+    if(bptr == rxbuffer1.head) {
+        UART_MUTEX_UNLOCK(&uart1);
+        return -1; // no data available else EOF
+    }
+
+    data = rxbuffer1.data[bptr++];                 // Get next character, increment tmp pointer
+    rxbuffer1.tail = bptr & (RX_BUFFER_SIZE - 1);  // and update pointer
+
+    UART_MUTEX_UNLOCK(&uart1);
+
+    return data;
+}
+
+IRAM_ATTR static void serial1Flush (void)
+{
+    UART_MUTEX_LOCK(&uart1);
+
+    _uart_flush(&uart1, false);
+
+    rxbuffer1.tail = rxbuffer1.head;
+    rxbuffer1.overflow = Off;
+
+    UART_MUTEX_UNLOCK(&uart1);
+}
+
+IRAM_ATTR static void serial1TxFlush (void)
+{
+    UART_MUTEX_LOCK(&uart1);
+
+    _uart_flush(&uart1, true);
+
+    UART_MUTEX_UNLOCK(&uart1);
+}
+
+IRAM_ATTR static void serial1Cancel (void)
+{
+    UART_MUTEX_LOCK(&uart1);
+
+    rxbuffer1.data[rxbuffer1.head] = ASCII_CAN;
+    rxbuffer1.tail = rxbuffer1.head;
+    rxbuffer1.head = (rxbuffer1.tail + 1) & (RX_BUFFER_SIZE - 1);
+
+    UART_MUTEX_UNLOCK(&uart1);
+}
+
+static bool serial1SuspendInput (bool suspend)
+{
+    bool ok;
+
+    UART_MUTEX_LOCK(&uart1);
+
+    ok = stream_rx_suspend(&rxbuffer1, suspend);
+
+    UART_MUTEX_UNLOCK(&uart1);
+
+    return ok;
+}
+
+IRAM_ATTR static bool serial1Disable (bool disable)
+{
+    UART_MUTEX_LOCK(&uart1);
+
+    uart_ll_disable_intr_mask(uart1.dev, rx_int_flags);
+
+    if(!disable) {
+        // Clear and enable interrupts
+        _uart_flush(&uart1, false);
+        rxbuffer1.tail = rxbuffer1.head;
+        uart_ll_clr_intsts_mask(uart1.dev, rx_int_flags);
+        uart_ll_ena_intr_mask(uart1.dev, rx_int_flags);
+    }
+
+    UART_MUTEX_UNLOCK(&uart1);
+
+    return true;
+}
+
+static bool serial1SetBaudRate (uint32_t baud_rate)
+{
+    uartSetBaudRate(&uart1, baud_rate);
+
+    return true;
+}
+
+static bool serial1EnqueueRtCommand (char c)
+{
+    return enqueue_realtime_command2(c);
+}
+
+static enqueue_realtime_command_ptr serial1SetRtHandler (enqueue_realtime_command_ptr handler)
+{
+    enqueue_realtime_command_ptr prev = enqueue_realtime_command2;
+
+    if(handler)
+        enqueue_realtime_command2 = handler;
+
+    return prev;
+}
+
+static const io_stream_t *serial1Init (uint32_t baud_rate)
+{
+    static const io_stream_t stream = {
+        .type = StreamType_Serial,
+        .instance = 1,
+        .is_connected = stream_connected,
+        .read = serial1Read,
+        .write = serial1WriteS,
+        .write_n =  serial1Write,
+        .write_char = serial1PutC,
+        .enqueue_rt_command = serial1EnqueueRtCommand,
+        .get_rx_buffer_free = serial1RXFree,
+        .get_rx_buffer_count = serial1Available,
+        .get_tx_buffer_count = serial1TxCount,
+        .reset_write_buffer = serial1TxFlush,
+        .reset_read_buffer = serial1Flush,
+        .cancel_read_buffer = serial1Cancel,
+        .suspend_read = serial1SuspendInput,
+        .set_baud_rate = serial1SetBaudRate,
+        .disable_rx = serial1Disable,
+        .set_enqueue_rt_handler = serial1SetRtHandler
+    };
+
+    if(serial[1].flags.claimed)
+        return NULL;
+
+    serial[1].flags.claimed = On;
+
+    memcpy(&uart1, &_uart_bus_array[1], sizeof(uart_t)); // use UART 1
+
+    uartConfig(&uart1, baud_rate);
+
+    serial1Flush();
+#ifdef UART1_TX_PIN
+    uartEnableInterrupt(&uart1, _uart1_isr, true);
+#else
+    uartEnableInterrupt(&uart1, _uart1_isr, false);
+#endif
+
+    return &stream;
+}
+
+#endif // SERIAL1_PORT
+
+#ifdef SERIAL2_PORT
 
 static void IRAM_ATTR _uart2_isr (void *arg)
 {
@@ -644,7 +893,7 @@ static void IRAM_ATTR _uart2_isr (void *arg)
         cnt--;
         c = _uart_ll_read_rxfifo(uart2.dev);
 
-        if(!enqueue_realtime_command2(c)) {
+        if(!enqueue_realtime_command3(c)) {
 
             uint32_t bptr = (rxbuffer2.head + 1) & RX_BUFFER_SIZE_MASK;  // Get next head pointer
 
@@ -680,7 +929,7 @@ uint16_t static serial2RXFree (void)
 bool static serial2PutC (const char c)
 {
     UART_MUTEX_LOCK(&uart2);
-
+    serialPutC(c);
     while(_uart_ll_get_txfifo_count(uart2.dev) == uart2.tx_len) {
         if(!hal.stream_blocking_callback())
             return false;
@@ -805,15 +1054,15 @@ static bool serial2SetBaudRate (uint32_t baud_rate)
 
 static bool serial2EnqueueRtCommand (char c)
 {
-    return enqueue_realtime_command2(c);
+    return enqueue_realtime_command3(c);
 }
 
 static enqueue_realtime_command_ptr serial2SetRtHandler (enqueue_realtime_command_ptr handler)
 {
-    enqueue_realtime_command_ptr prev = enqueue_realtime_command2;
+    enqueue_realtime_command_ptr prev = enqueue_realtime_command3;
 
     if(handler)
-        enqueue_realtime_command2 = handler;
+        enqueue_realtime_command3 = handler;
 
     return prev;
 }
@@ -822,7 +1071,7 @@ static const io_stream_t *serial2Init (uint32_t baud_rate)
 {
     static const io_stream_t stream = {
         .type = StreamType_Serial,
-        .instance = 1,
+        .instance = 2,
         .is_connected = stream_connected,
         .read = serial2Read,
         .write = serial2WriteS,
@@ -841,12 +1090,12 @@ static const io_stream_t *serial2Init (uint32_t baud_rate)
         .set_enqueue_rt_handler = serial2SetRtHandler
     };
 
-    if(serial[1].flags.claimed)
+    if(serial[2].flags.claimed)
         return NULL;
 
-    serial[1].flags.claimed = On;
+    serial[2].flags.claimed = On;
 
-    memcpy(&uart2, &_uart_bus_array[1], sizeof(uart_t)); // use UART 1
+    memcpy(&uart2, &_uart_bus_array[2], sizeof(uart_t)); // use UART 2
 
     uartConfig(&uart2, baud_rate);
 
@@ -860,238 +1109,4 @@ static const io_stream_t *serial2Init (uint32_t baud_rate)
     return &stream;
 }
 
-#endif // SERIAL2_ENABLE
-
-#if SERIAL3_ENABLE
-
-static void IRAM_ATTR _uart3_isr (void *arg)
-{
-    uint32_t c, cnt = uart_ll_get_rxfifo_len(uart3.dev), iflags = uart_ll_get_intsts_mask(uart3.dev);
-
-    uart_ll_clr_intsts_mask(uart3.dev, iflags);
-
-    if(iflags & UART_INTR_RXFIFO_OVF)
-        rxbuffer3.overflow = On;
-
-    while(cnt) {
-
-        cnt--;
-        c = _uart_ll_read_rxfifo(uart3.dev);
-
-        if(!enqueue_realtime_command3(c)) {
-
-            uint32_t bptr = (rxbuffer3.head + 1) & RX_BUFFER_SIZE_MASK;  // Get next head pointer
-
-            if(bptr == rxbuffer3.tail)                    // If buffer full
-                rxbuffer3.overflow = On;                  // flag overflow,
-            else {
-                rxbuffer3.data[rxbuffer3.head] = (char)c; // else add data to buffer
-                rxbuffer3.head = bptr;                    // and update pointer
-            }
-        }
-    }
-}
-
-uint16_t static serial3Available (void)
-{
-    uint16_t head = rxbuffer3.head, tail = rxbuffer3.tail;
-
-    return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
-}
-
-uint16_t static serial3TxCount (void)
-{
-    return uart_ll_is_tx_idle(uart3.dev) ? 0 : (uint16_t)_uart_ll_get_txfifo_count(uart3.dev) + 1;
-}
-
-uint16_t static serial3RXFree (void)
-{
-    uint16_t head = rxbuffer3.head, tail = rxbuffer3.tail;
-
-    return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
-}
-
-bool static serial3PutC (const char c)
-{
-    UART_MUTEX_LOCK(&uart3);
-    serialPutC(c);
-    while(_uart_ll_get_txfifo_count(uart3.dev) == uart3.tx_len) {
-        if(!hal.stream_blocking_callback())
-            return false;
-    }
-
-    _uart_ll_write_txfifo(uart3.dev, c);
-
-    UART_MUTEX_UNLOCK(&uart3);
-
-    return true;
-}
-
-void static serial3WriteS (const char *data)
-{
-    char c, *ptr = (char *)data;
-
-    while((c = *ptr++) != '\0')
-        serial3PutC(c);
-}
-
-//
-// Writes a number of characters from a buffer to the serial output stream, blocks if buffer full
-//
-void static serial3Write (const char *s, uint16_t length)
-{
-    char *ptr = (char *)s;
-
-    while(length--)
-        serial3PutC(*ptr++);
-}
-
-int16_t static serial3Read (void)
-{
-    UART_MUTEX_LOCK(&uart3);
-
-    int16_t data;
-    uint16_t bptr = rxbuffer3.tail;
-
-    if(bptr == rxbuffer3.head) {
-        UART_MUTEX_UNLOCK(&uart3);
-        return -1; // no data available else EOF
-    }
-
-    data = rxbuffer3.data[bptr++];                 // Get next character, increment tmp pointer
-    rxbuffer3.tail = bptr & (RX_BUFFER_SIZE - 1);  // and update pointer
-
-    UART_MUTEX_UNLOCK(&uart3);
-
-    return data;
-}
-
-IRAM_ATTR static void serial3Flush (void)
-{
-    UART_MUTEX_LOCK(&uart3);
-
-    _uart_flush(&uart3, false);
-
-    rxbuffer3.tail = rxbuffer3.head;
-    rxbuffer3.overflow = Off;
-
-    UART_MUTEX_UNLOCK(&uart3);
-}
-
-IRAM_ATTR static void serial3TxFlush (void)
-{
-    UART_MUTEX_LOCK(&uart3);
-
-    _uart_flush(&uart3, true);
-
-    UART_MUTEX_UNLOCK(&uart3);
-}
-
-IRAM_ATTR static void serial3Cancel (void)
-{
-    UART_MUTEX_LOCK(&uart3);
-
-    rxbuffer3.data[rxbuffer3.head] = ASCII_CAN;
-    rxbuffer3.tail = rxbuffer3.head;
-    rxbuffer3.head = (rxbuffer3.tail + 1) & (RX_BUFFER_SIZE - 1);
-
-    UART_MUTEX_UNLOCK(&uart3);
-}
-
-static bool serial3SuspendInput (bool suspend)
-{
-    bool ok;
-
-    UART_MUTEX_LOCK(&uart3);
-
-    ok = stream_rx_suspend(&rxbuffer3, suspend);
-
-    UART_MUTEX_UNLOCK(&uart3);
-
-    return ok;
-}
-
-IRAM_ATTR static bool serial3Disable (bool disable)
-{
-    UART_MUTEX_LOCK(&uart3);
-
-    uart_ll_disable_intr_mask(uart3.dev, rx_int_flags);
-
-    if(!disable) {
-        // Clear and enable interrupts
-        _uart_flush(&uart3, false);
-        rxbuffer3.tail = rxbuffer3.head;
-        uart_ll_clr_intsts_mask(uart3.dev, rx_int_flags);
-        uart_ll_ena_intr_mask(uart3.dev, rx_int_flags);
-    }
-
-    UART_MUTEX_UNLOCK(&uart3);
-
-    return true;
-}
-
-static bool serial3SetBaudRate (uint32_t baud_rate)
-{
-    uartSetBaudRate(&uart3, baud_rate);
-
-    return true;
-}
-
-static bool serial3EnqueueRtCommand (char c)
-{
-    return enqueue_realtime_command3(c);
-}
-
-static enqueue_realtime_command_ptr serial3SetRtHandler (enqueue_realtime_command_ptr handler)
-{
-    enqueue_realtime_command_ptr prev = enqueue_realtime_command3;
-
-    if(handler)
-        enqueue_realtime_command3 = handler;
-
-    return prev;
-}
-
-static const io_stream_t *serial3Init (uint32_t baud_rate)
-{
-    static const io_stream_t stream = {
-        .type = StreamType_Serial,
-        .instance = 2,
-        .is_connected = stream_connected,
-        .read = serial3Read,
-        .write = serial3WriteS,
-        .write_n =  serial3Write,
-        .write_char = serial3PutC,
-        .enqueue_rt_command = serial3EnqueueRtCommand,
-        .get_rx_buffer_free = serial3RXFree,
-        .get_rx_buffer_count = serial3Available,
-        .get_tx_buffer_count = serial3TxCount,
-        .reset_write_buffer = serial3TxFlush,
-        .reset_read_buffer = serial3Flush,
-        .cancel_read_buffer = serial3Cancel,
-        .suspend_read = serial3SuspendInput,
-        .set_baud_rate = serial3SetBaudRate,
-        .disable_rx = serial3Disable,
-        .set_enqueue_rt_handler = serial3SetRtHandler
-    };
-
-    if(serial[2].flags.claimed)
-        return NULL;
-
-    serial[2].flags.claimed = On;
-
-    memcpy(&uart3, &_uart_bus_array[2], sizeof(uart_t)); // use UART 2
-
-    uartConfig(&uart3, baud_rate);
-
-    serial3Flush();
-#ifdef UART3_TX_PIN
-    uartEnableInterrupt(&uart3, _uart3_isr, true);
-#else
-    uartEnableInterrupt(&uart3, _uart3_isr, false);
-#endif
-
-    return &stream;
-}
-
-#endif // SERIAL3_ENABLE
+#endif // SERIAL2_PORT

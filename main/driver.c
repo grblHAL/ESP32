@@ -462,7 +462,7 @@ static probe_state_t probe = {
 static ioexpand_t iopins = {0};
 #endif
 
-#ifdef NEOPIXELS_PIN
+#ifdef LED_PIN
 neopixel_cfg_t neopixel = { .intensity = 255 };
 void neopixels_write (void);
 #endif
@@ -2180,7 +2180,7 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
 {
     if(IOInitDone) {
 
-#ifdef NEOPIXELS_PIN
+#ifdef LED_PIN
 
     if(neopixel.leds == NULL || hal.rgb0.num_devices != settings->rgb_strip.length0) {
 
@@ -2584,7 +2584,7 @@ static char *sdcard_mount (FATFS **fs)
 
 #endif
 
-#ifdef NEOPIXELS_PIN
+#ifdef LED_PIN
 
 //    https://github.com/adafruit/Adafruit_NeoPixel/blob/master/esp.c
 
@@ -2593,9 +2593,9 @@ static char *sdcard_mount (FATFS **fs)
 #endif
 
 #if CONFIG_IDF_TARGET_ESP32S3
-static rmt_config_t neo_config = RMT_DEFAULT_CONFIG_TX(NEOPIXELS_PIN, 3);
+static rmt_config_t neo_config = RMT_DEFAULT_CONFIG_TX(LED_PIN, 3);
 #else
-static rmt_config_t neo_config = RMT_DEFAULT_CONFIG_TX(NEOPIXELS_PIN, 7);
+static rmt_config_t neo_config = RMT_DEFAULT_CONFIG_TX(LED_PIN, 7);
 #endif
 
 #define WS2812_T0H_NS (450)
@@ -2715,7 +2715,7 @@ uint8_t neopixels_set_intensity (uint8_t value)
     return prev;
 }
 
-#endif // NEOPIXELS_PIN
+#endif // LED_PIN
 
 // Initializes MCU peripherals for grblHAL use
 static bool driver_setup (settings_t *settings)
@@ -2928,7 +2928,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "241208";
+    hal.driver_version = "241212";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3205,7 +3205,7 @@ bool driver_init (void)
     hal.signals_cap.safety_door_ajar = On;
 #endif
 
-#ifdef NEOPIXELS_PIN
+#ifdef LED_PIN
 
     neo_config.clk_div = 2;
 
@@ -3238,13 +3238,20 @@ bool driver_init (void)
     const periph_pin_t neopixels = {
         .function = Output_LED_Adressable,
         .group = PinGroup_LED,
-        .pin = NEOPIXELS_PIN,
-        .mode = { .mask = PINMODE_OUTPUT },
-        .description = "NeoPixels"
+        .pin = LED_PIN,
+        .mode = { .mask = PINMODE_OUTPUT }
     };
 
     hal.periph_port.register_pin(&neopixels);
 
+#endif
+
+#if TRINAMIC_SPI_ENABLE
+    extern void tmc_spi_init (void);
+    tmc_spi_init();
+#elif TRINAMIC_UART_ENABLE
+    extern void tmc_uart_init (void);
+    tmc_uart_init();
 #endif
 
 #ifdef HAS_BOARD_INIT

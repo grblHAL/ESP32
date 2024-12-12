@@ -36,13 +36,8 @@
 #define BOARD_NAME "CNC3040 4-axis CNC"
 #define BOARD_URL "https://github.com/shaise/GrblCNC/tree/master/Hardware/GrblCnc3040"
 
-// timer definitions
-#define STEP_TIMER_GROUP TIMER_GROUP_0
-#define STEP_TIMER_INDEX TIMER_0
-
-#ifdef ADD_SERIAL2
-#define UART2_TX_PIN        GPIO_NUM_17
-#define UART2_RX_PIN        GPIO_NUM_16
+#ifdef ADD_SERIAL1
+#define SERIAL1_PORT // RX: 16, TX: 17
 #endif
 
 // Define step pulse output pins.

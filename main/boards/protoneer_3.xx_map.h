@@ -27,10 +27,6 @@
 
 #define BOARD_NAME "Protoneer v3"
 
-// timer definitions
-#define STEP_TIMER_GROUP TIMER_GROUP_0
-#define STEP_TIMER_INDEX TIMER_0
-
 #if VFD_SPINDLE
 #error VFD Spindle not supported!
 #endif

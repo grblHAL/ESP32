@@ -32,10 +32,6 @@
 #endif
 #define BOARD_URL "https://www.sourcerabbit.com/Shop/pr-i-86-t-4-axis-cnc-motherboard.htm"
 
-// timer definitions
-#define STEP_TIMER_GROUP TIMER_GROUP_0
-#define STEP_TIMER_INDEX TIMER_0
-
 #if MODBUS_ENABLE & MODBUS_RTU_ENABLED
 #error VFD Spindle not supported!
 #endif

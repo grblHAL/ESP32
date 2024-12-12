@@ -179,7 +179,7 @@ set(NETWORKING_SOURCE
 
 set(TRINAMIC_SPI_SOURCE
  spi.c
- trinamic_if.c
+ tmc_spi.c
  motors/trinamic.c
  trinamic/common.c
  trinamic/tmc_interface.c
@@ -192,7 +192,7 @@ set(TRINAMIC_SPI_SOURCE
 )
 
 set(TRINAMIC_UART_SOURCE
- trinamic_if.c
+ tmc_uart.c
  motors/trinamic.c
  trinamic/common.c
  trinamic/tmc_interface.c
