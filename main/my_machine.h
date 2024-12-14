@@ -37,6 +37,7 @@
 //#define BOARD_ROOTCNC_V3              //
 //#define BOARD_ROOTCNC_PRO             //
 //#define BOARD_JACKPOT                 // Uses TMC2209 drivers, untested!
+//#define BOARD_BTT_RODENT              // Uses TMC2160 drivers, untested!
 //#define BOARD_CNC_BOOSTERPACK         //
 //#define BOARD_GENERIC_S3              // Generic map for ESP32-S3, untested - WIP!
 //#define BOARD_GENERIC_I2S_S3          // Generic map for ESP32-S3 with I2S shift registers for I/O expansion, untested - WIP!

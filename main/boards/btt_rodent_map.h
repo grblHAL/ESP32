@@ -25,9 +25,19 @@
 #define BOARD_URL "https://github.com/bigtreetech/Rodent/tree/master"
 // https://bttwiki.com/Rodent.html
 
+#if N_ABC_MOTORS > 2
+#error "Axis configuration is not supported!"
+#endif
+
 #if KEYPAD_ENABLE == 1
 #error No free pins for I2C keypad!
 #endif
+
+#if TRINAMIC_ENABLE != 5160
+#error BOARD_BTT_RODENT has soldered TMC2160 drivers.
+#endif
+
+//#define TRINAMIC_MIXED_DRIVERS 0 Uncomment when board verified
 
 #define USE_I2S_OUT
 #define I2S_OUT_PIN_BASE 64
@@ -66,13 +76,9 @@
 #define M4_STEP_PIN             I2SO(18)
 #define M4_DIRECTION_PIN        I2SO(17)
 #define M4_ENABLE_PIN           I2SO(16)
-#define M4_LIMIT_PIN            GPIO_NUM_34
+#define M4_LIMIT_PIN            GPIO_NUM_37
 #endif
 // Define driver spindle pins
-
-#define AUXOUTPUT0_PIN          I2SO(11)
-#define AUXOUTPUT0_PIN          I2SO(14)
-#define AUXOUTPUT0_PIN          I2SO(3)
 
 #if DRIVER_SPINDLE_PWM_ENABLE
 #define SPINDLE_PWM_PIN         GPIO_NUM_13
@@ -94,38 +100,42 @@
 
 // Define flood and mist coolant enable output pins.
 
-#define COOLANT_MIST_PIN    GPIO_NUM_2
-#define COOLANT_FLOOD_PIN   GPIO_NUM_3
+#define COOLANT_MIST_PIN        GPIO_NUM_2
+#define COOLANT_FLOOD_PIN       GPIO_NUM_4
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 
 // N/A
 
-#define AUXINPUT0_PIN       GPIO_NUM_5
+#define AUXINPUT0_PIN           GPIO_NUM_36
 
 #if PROBE_ENABLE
-#define PROBE_PIN           AUXINPUT0_PIN
+#define PROBE_PIN               AUXINPUT0_PIN
 #endif
 
 // Define I2C port/pins
-#define I2C_PORT            I2C_NUM_1
-#define I2C_SDA             GPIO_NUM_27
-#define I2C_SCL             GPIO_NUM_26
-#define I2C_CLOCK           100000
+#define I2C_PORT                I2C_NUM_1
+#define I2C_SDA                 GPIO_NUM_27
+#define I2C_SCL                 GPIO_NUM_26
+#define I2C_CLOCK               100000
 
-// Pin mapping when using SPI mode.
-// With this mapping, SD card can be used both in SPI and 1-line SD mode.
-// Note that a pull-up on CS line is required in SD mode.
-#define PIN_NUM_MISO        GPIO_NUM_19
-#define PIN_NUM_MOSI        GPIO_NUM_23
-#define PIN_NUM_CLK         GPIO_NUM_18
+// Define SPI port/pins
+#define PIN_NUM_MISO            GPIO_NUM_19
+#define PIN_NUM_MOSI            GPIO_NUM_23
+#define PIN_NUM_CLK             GPIO_NUM_18
+#define MOTOR_CS_PIN            GPIO_NUM_5
 #if SDCARD_ENABLE
-#define PIN_NUM_CS          GPIO_NUM_0
+#define PIN_NUM_CS              GPIO_NUM_2
 #endif
 
-#ifdef ADD_SERIAL1
+// Define Modbus serial port pins
+#if MODBUS_ENABLE
+#if !(MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED)
+#undef MODBUS_ENABLE
+#define MODBUS_ENABLE (MODBUS_RTU_ENABLED|MODBUS_RTU_DIR_ENABLED)
+#endif
 #define SERIAL1_PORT
-#define UART1_RX_PIN        GPIO_NUM_16
-#define UART1_TX_PIN        GPIO_NUM_15
-//#define UART1_RTS_PIN       GPIO_NUM_14
+#define UART1_RX_PIN            GPIO_NUM_16
+#define UART1_TX_PIN            GPIO_NUM_15
+#define MODBUS_DIRECTION_PIN    GPIO_NUM_14
 #endif

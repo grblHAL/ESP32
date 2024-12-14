@@ -43,10 +43,6 @@
 #define DRIVER_SPINDLE_ENABLE 0
 #endif
 
-// timer definitions
-#define STEP_TIMER_GROUP TIMER_GROUP_0
-#define STEP_TIMER_INDEX TIMER_0
-
 // Define step pulse output pins.
 #define X_STEP_PIN          GPIO_NUM_12
 #define Y_STEP_PIN          GPIO_NUM_27
@@ -67,7 +63,7 @@
 #define M3_AVAILABLE
 #define M3_STEP_PIN         GPIO_NUM_33
 #define M3_DIRECTION_PIN    GPIO_NUM_32
-#define M3_LIMIT_PIN        GPIO_NUM_36
+//#define M3_LIMIT_PIN        GPIO_NUM_36
 #endif
 
 // Define driver spindle pins
@@ -85,7 +81,7 @@
 #endif
 
 #define AUXINPUT0_PIN       GPIO_NUM_13
-#define AUXINPUT1_PIN       GPIO_NUM_0
+//#define AUXINPUT1_PIN       GPIO_NUM_0
 #define AUXINPUT2_PIN       GPIO_NUM_22
 
 // Define flood and mist coolant enable output pins.

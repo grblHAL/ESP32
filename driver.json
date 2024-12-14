@@ -69,6 +69,24 @@
       }
     },
     {
+      "name": "BTT Rodent",
+      "symbol": "BOARD_BTT_RODENT",
+      "URL": "https://github.com/bigtreetech/Rodent/tree/master",
+      "MAP": "main/boards/btt_rodent_map.h",
+      "notes": "Not tested!",
+      "caps": {
+        "axes": 5,
+        "serial_ports": 2,
+        "trinamic": 5160,
+        "trinamic_spi_cs": 1,
+        "trinamic_spi_chain": 1,
+        "i2c": 1,
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1
+      }
+    },
+    {
       "name": "BDRING 6-axis I2S",
       "symbol": "BOARD_BDRING_I2S6A",
       "URL": "https://github.com/bdring/6-Pack_CNC_Controller",

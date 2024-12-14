@@ -31,10 +31,6 @@
 #error No free pins for I2C keypad!
 #endif
 
-// timer definitions
-#define STEP_TIMER_GROUP        TIMER_GROUP_0
-#define STEP_TIMER_INDEX        TIMER_0
-
 // Define step pulse output pins.
 #define X_STEP_PIN              GPIO_NUM_12
 #define Y_STEP_PIN              GPIO_NUM_14

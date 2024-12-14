@@ -42,6 +42,8 @@
 #define WEBUI_INFLASH 1
 #endif
 
+#define OPTS_POSTPROCESSING
+
 #include "grbl/driver_opts.h"
 
 #include "soc/rtc.h"
@@ -156,6 +158,8 @@ typedef struct {
   #include "boards/cnc3040_map.h"
 #elif defined(BOARD_JACKPOT)
   #include "boards/jackpot_map.h"
+#elif defined(BOARD_BTT_RODENT)
+  #include "boards/btt_rodent_map.h"
 #elif defined(BOARD_MY_MACHINE)
   #include "boards/my_machine_map.h"
 #elif defined(BOARD_GENERIC_S3)
@@ -240,6 +244,10 @@ extern SemaphoreHandle_t i2cBusy;
 #define USE_I2S_OUT 0
 #define DIGITAL_IN(pin) gpio_ll_get_level(&GPIO, pin)
 #define DIGITAL_OUT(pin, state) gpio_ll_set_level(&GPIO, pin, (state))
+#endif
+
+#ifdef MODBUS_DIRECTION_PIN
+#define MODBUS_DIR_AUX 0
 #endif
 
 typedef enum

@@ -393,8 +393,7 @@ static output_signal_t outputpin[] = {
 #endif
 #ifdef MODBUS_DIRECTION_PIN
     { .id = Output_Aux0,           .pin = MODBUS_DIRECTION_PIN,  .group = PinGroup_AuxOutput },
-#endif
-#ifdef AUXOUTPUT0_PIN
+#elif defined(AUXOUTPUT0_PIN)
     { .id = Output_Aux0,           .pin = AUXOUTPUT0_PIN,        .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT1_PIN
@@ -413,7 +412,7 @@ static output_signal_t outputpin[] = {
     { .id = Output_Aux5,           .pin = AUXOUTPUT5_PIN,        .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT6_PIN
-    { .id = Output_Aux3,           .pin = AUXOUTPUT6_PIN,        .group = PinGroup_AuxOutput },
+    { .id = Output_Aux6,           .pin = AUXOUTPUT6_PIN,        .group = PinGroup_AuxOutput },
 #endif
 #ifdef AUXOUTPUT7_PIN
     { .id = Output_Aux7,           .pin = AUXOUTPUT7_PIN,        .group = PinGroup_AuxOutput }
@@ -2928,7 +2927,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "241212";
+    hal.driver_version = "241213";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;

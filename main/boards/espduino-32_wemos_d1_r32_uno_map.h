@@ -39,10 +39,6 @@
 
 #define BOARD_NAME "ESPDUINO-32 Wemos D1 R32"
 
-// timer definitions
-#define STEP_TIMER_GROUP TIMER_GROUP_0
-#define STEP_TIMER_INDEX TIMER_0
-
 // Define step pulse output pins.
 #define X_STEP_PIN          GPIO_NUM_26
 #define Y_STEP_PIN          GPIO_NUM_25
