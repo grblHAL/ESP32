@@ -66,25 +66,26 @@
 #define Y_LIMIT_PIN             GPIO_NUM_16
 #define Z_LIMIT_PIN             GPIO_NUM_32
 
-// Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_17
-#else
 #define AUXOUTPUT0_PIN          GPIO_NUM_17
-#endif
 
-#if DRIVER_SPINDLE_DIR_ENABLE
-#define SPINDLE_DIRECTION_PIN   IOEXPAND
-#endif
-
+// Define driver spindle pins
 #if DRIVER_SPINDLE_ENABLE
 #define SPINDLE_ENABLE_PIN      IOEXPAND
 #endif
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
+#endif
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+#define SPINDLE_DIRECTION_PIN   IOEXPAND
+#endif
 
 // Define flood and mist coolant enable output pins.
+#if COOLANT_ENABLE & COOLANT_FLOOD
 #define COOLANT_FLOOD_PIN       IOEXPAND
+#endif
+#if COOLANT_ENABLE & COOLANT_MIST
 #define COOLANT_MIST_PIN        IOEXPAND
+#endif
 
 #ifdef ADD_SERIAL1
 #define SERIAL1_PORT
@@ -130,9 +131,6 @@
 #else
 //#define AUXOUTPUT0_PIN          GPIO_NUM_25
 #endif
-
-#define NEOPIXELS_NUM       2
-#define NEOPIXELS_PIN       GPIO_NUM_25
 
 // Define I2C port/pins
 #define I2C_PORT                I2C_NUM_1

@@ -22,6 +22,8 @@
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "use_i2s_out.h"
+
 #define BOARD_NAME "MKS Tinybee V1.0"
 #define BOARD_URL "https://github.com/makerbase-mks/MKS-TinyBee"
 
@@ -32,9 +34,6 @@
 #if KEYPAD_ENABLE == 1
 #error "No free pins for I2C keypad!"
 #endif
-
-#define USE_I2S_OUT
-#define I2S_OUT_PIN_BASE 64
 
 #define SERIAL1_PORT // RX: 16, TX: 17
 
@@ -87,32 +86,32 @@
 #endif
 #endif
 
-#define AUXINPUT0_PIN       GPIO_NUM_39 // TB
+#define AUXOUTPUT0_PIN      GPIO_NUM_2 // Spindle PWM
+#define AUXOUTPUT1_PIN      I2SO(18)   // Spindle direction, HE1
+#define AUXOUTPUT2_PIN      I2SO(17)   // Spindle enable, HE0
+#define AUXOUTPUT3_PIN      I2SO(19)   // Coolant flood, FAN1
+#define AUXOUTPUT4_PIN      I2SO(20)   // Coolant mist, FAN2
 
 // Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_2
-#else
-#define AUXOUTPUT0_PIN          GPIO_NUM_2
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
 #endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE
-#define SPINDLE_DIRECTION_PIN   I2SO(18) // HE1
-#else
-#define AUXOUTPUT1_PIN          I2SO(18) // HE1
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT1_PIN
 #endif
-
-#if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN      I2SO(17) // HE0
-#else
-#define AUXOUTPUT2_PIN          I2SO(17) // HE0
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT2_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#define COOLANT_FLOOD_PIN       AUXOUTPUT3_PIN
+#endif
+#if COOLANT_ENABLE & COOLANT_MIST
+#define COOLANT_MIST_PIN        AUXOUTPUT4_PIN
+#endif
 
-#define COOLANT_FLOOD_PIN       I2SO(19) // FAN1
-#define COOLANT_MIST_PIN        I2SO(20) // FAN2
+#define AUXINPUT0_PIN           GPIO_NUM_39 // TB
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 #define CYCLE_START_PIN         GPIO_NUM_36 // TH1
@@ -120,7 +119,7 @@
 //#define RESET_PIN             (use board hardware)
 
 // Define probe switch input pin.
-#if PROBE_ENABLE
+#if PROBE_ENABLE && defined(AUXINPUT1_PIN)
 #define PROBE_PIN               AUXINPUT1_PIN // MT_DET
 #endif
 

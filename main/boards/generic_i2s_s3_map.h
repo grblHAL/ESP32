@@ -25,14 +25,13 @@
 #error "This board has ESP32-S3 processor, select a corresponding build!"
 #endif
 
+#include "use_i2s_out.h"
+
 #define BOARD_NAME "Generic I2S ESP32-S3"
 
 #if KEYPAD_ENABLE == 1
 #error No free pins for I2C keypad!
 #endif
-
-#define USE_I2S_OUT
-#define I2S_OUT_PIN_BASE 64
 
 #if SDCARD_ENABLE || TRINAMIC_SPI_ENABLE
 
@@ -93,34 +92,34 @@
 #define M5_LIMIT_PIN            GPIO_NUM_33
 #endif
 
+#define AUXOUTPUT0_PIN          GPIO_NUM_26 // Spindle PWM
+#define AUXOUTPUT1_PIN          GPIO_NUM_4  // Spindle enable
+#define AUXOUTPUT2_PIN          GPIO_NUM_16 // Spindle direction
+#define AUXOUTPUT3_PIN          I2SO(15)    // Coolant flood
+#define AUXOUTPUT4_PIN          I2SO(12)    // Coolant mist
+
 // Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_26
-#else
-#define AUXOUTPUT0_PIN          GPIO_NUM_26
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
 #endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE
-#define SPINDLE_DIRECTION_PIN   GPIO_NUM_16
-#else
-#define AUXOUTPUT1_PIN          GPIO_NUM_16
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT2_PIN
 #endif
-
-#if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN      GPIO_NUM_4
-#else
-#define AUXOUTPUT2_PIN          GPIO_NUM_4
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT1_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
-
-#define COOLANT_FLOOD_PIN       I2SO(15)
-#define COOLANT_MIST_PIN        I2SO(12)
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#define COOLANT_FLOOD_PIN       AUXOUTPUT3_PIN
+#endif
+#if COOLANT_ENABLE & COOLANT_MIST
+#define COOLANT_MIST_PIN        AUXOUTPUT4_PIN
+#endif
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-
-// N/A
+#undef CONTROL_ENABLE
+#define CONTROL_ENABLE 0 // No control inputs
 
 #if TRINAMIC_SPI_ENABLE
 #define MOTOR_CS_PIN            I2SO(3)

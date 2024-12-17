@@ -23,9 +23,6 @@
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define BOARD_NAME "Root CNC Pro"
-#define BOARD_URL "https://wiki.rootcnc.com/en/Root-Controller-pro/DetailedInfo"
-
 #if KEYPAD_ENABLE == 1
 #error No free pins for I2C keypad!
 #endif
@@ -34,8 +31,10 @@
 #error BOARD_ROOTCNC_PRO has soldered TMC5160 drivers.
 #endif
 
-#define USE_I2S_OUT
-#define I2S_OUT_PIN_BASE 64
+#include "use_i2s_out.h"
+
+#define BOARD_NAME "Root CNC Pro"
+#define BOARD_URL "https://wiki.rootcnc.com/en/Root-Controller-pro/DetailedInfo"
 
 #if SDCARD_ENABLE || TRINAMIC_SPI_ENABLE
 
@@ -101,37 +100,39 @@
 #define M5_CS_PIN               I2SO(18)
 #endif
 
-// Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_33
-#else
-#define AUXOUTPUT0_PIN          GPIO_NUM_33
-#endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE
-#define SPINDLE_DIRECTION_PIN   I2SO(0)
-#else
-#define AUXOUTPUT1_PIN          I2SO(0)
-#endif
-
-#if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN      I2SO(1)
-#else
-#define AUXOUTPUT2_PIN          I2SO(1)
-#endif
-
-// Define flood and mist coolant and aux enable output pins.
-
-#define COOLANT_MIST_PIN        I2SO(20)
-#define COOLANT_FLOOD_PIN       I2SO(21)
 #define AUXOUTPUT0_PIN          GPIO_NUM_13
 #define AUXOUTPUT1_PIN          I2SO(5)
 #define AUXOUTPUT2_PIN          I2SO(6)
 #define AUXOUTPUT3_PIN          I2SO(7)
 #define AUXOUTPUT4_PIN          I2SO(3)
+#define AUXOUTPUT5_PIN          GPIO_NUM_33 // Spindle PWM
+#define AUXOUTPUT6_PIN          I2SO(0)     // Spindle direction
+#define AUXOUTPUT7_PIN          I2SO(1)     // Spindle enable
+#define AUXOUTPUT8_PIN          I2SO(21)    // Coolant flood
+#define AUXOUTPUT9_PIN          I2SO(20)    // Coolant mist
+
+// Define driver spindle pins
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN         AUXOUTPUT5_PIN
+#endif
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT6_PIN
+#endif
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT7_PIN
+#endif
+
+// Define flood and mist coolant enable output pins.
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#define COOLANT_FLOOD_PIN       AUXOUTPUT8_PIN
+#endif
+#if COOLANT_ENABLE & COOLANT_MIST
+#define COOLANT_MIST_PIN        AUXOUTPUT9_PIN
+#endif
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
+#undef CONTROL_ENABLE
+#define CONTROL_ENABLE 0 // No control inputs
 
 #define AUXINPUT0_PIN           GPIO_NUM_33
 #define AUXINPUT1_PIN           GPIO_NUM_26

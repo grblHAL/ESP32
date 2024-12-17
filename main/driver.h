@@ -235,12 +235,7 @@ extern SemaphoreHandle_t i2cBusy;
 #define I2S_OUT_PIN_BASE 64
 #endif
 
-#ifdef USE_I2S_OUT
-#undef USE_I2S_OUT
-#define USE_I2S_OUT 1
-#define DIGITAL_IN(pin) (pin >= I2S_OUT_PIN_BASE ? i2s_out_state(pin - I2S_OUT_PIN_BASE) : gpio_ll_get_level(&GPIO, pin))
-#define DIGITAL_OUT(pin, state) { if(pin >= I2S_OUT_PIN_BASE) i2s_out_write(pin - I2S_OUT_PIN_BASE, state); else gpio_ll_set_level(&GPIO, pin, state); }
-#else
+#ifndef USE_I2S_OUT
 #define USE_I2S_OUT 0
 #define DIGITAL_IN(pin) gpio_ll_get_level(&GPIO, pin)
 #define DIGITAL_OUT(pin, state) gpio_ll_set_level(&GPIO, pin, (state))

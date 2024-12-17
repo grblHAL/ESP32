@@ -26,11 +26,12 @@
 #error "Board BOARD_MKS_DLC32_V2P0 does not have support for VFD spindle."
 #endif
 
+#include "use_i2s_out.h"
+
 #define BOARD_NAME "MKS DLC32 2.x"
 #define BOARD_URL "https://github.com/makerbase-mks/MKS-DLC32"
 
-#define USE_I2S_OUT
-#define I2S_OUT_PIN_BASE 64
+#define AUX_CONTROLS_OUT
 
 #if SDCARD_ENABLE
 
@@ -67,32 +68,44 @@
 #error "Board BOARD_MKS_DLC32_V2P0 does not have support for ABC Motors"
 #endif
 
+#define AUXOUTPUT0_PIN          GPIO_NUM_25 // EXP_1,7 (LCD_CS_0)
+#if PWM_SERVO_ENABLE || (SPINDLE_ENABLE & ((1<<SPINDLE_PWM2)|(1<<SPINDLE_PWM2_NODIR)))
+#define AUXOUTPUT0_PWM_PIN      GPIO_NUM_26 // EXP_1,5 (LCD_TOUCH_CS_0)
+#else
+#define AUXOUTPUT1_PIN          GPIO_NUM_26 // EXP_1,5 (LCD_TOUCH_CS_0)
+#endif
+#define AUXOUTPUT2_PIN          GPIO_NUM_27 // EXP_1,4 (LCD_RST_0)
+#define AUXOUTPUT3_PIN          GPIO_NUM_32 // LC
+#define AUXOUTPUT4_PIN          GPIO_NUM_5  //  EXP_1,3 (LCD_EN_0)
+
 // Define driver spindle pins
+#if DRIVER_SPINDLE_ENABLE & (SPINDLE_ENA|SPINDLE_PWM)
+#define SPINDLE_PWM_PIN         AUXOUTPUT3_PIN
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT2_PIN
+#elif DRIVER_SPINDLE_ENABLE & (SPINDLE_ENA|SPINDLE_DIR)
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT3_PIN
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT2_PIN
+#elif DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT3_PIN
+#endif
 
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN     GPIO_NUM_32
-#else
-#if DRIVER_SPINDLE_ENABLE
-#define AUXOUTPUT4_PIN      GPIO_NUM_27
-#else
-#define AUXOUTPUT4_PIN      GPIO_NUM_32
-#endif
-#endif
-
-#if DRIVER_SPINDLE_ENABLE
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_ENABLE_PIN  GPIO_NUM_27
-#else
-#define SPINDLE_ENABLE_PIN  GPIO_NUM_32
-#endif
-#else
-#define AUXOUTPUT5_PIN      GPIO_NUM_27
+#if DRIVER_SPINDLE1_ENABLE & (SPINDLE_ENA|SPINDLE_PWM)
+#define SPINDLE1_PWM_PIN         AUXOUTPUT0_PIN
+#define SPINDLE1_ENABLE_PIN      AUXOUTPUT1_PIN
+#elif DRIVER_SPINDLE1_ENABLE & (SPINDLE_ENA|SPINDLE_DIR)
+#define SPINDLE1_ENABLE_PIN      AUXOUTPUT1_PIN
+#define SPINDLE1_DIRECTION_PIN   AUXOUTPUT0_PIN
+#elif DRIVER_SPINDLE1_ENABLE & SPINDLE_ENA
+#define SPINDLE1_ENABLE_PIN      AUXOUTPUT1_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
-
-#define COOLANT_MIST_PIN    I2SO(7)
-#define COOLANT_FLOOD_PIN   GPIO_NUM_5
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#define COOLANT_FLOOD_PIN   AUXOUTPUT4_PIN
+#endif
+#if COOLANT_ENABLE & COOLANT_MIST
+#define COOLANT_MIST_PIN    I2SO(7)     // Beeper
+#endif
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 
@@ -108,11 +121,6 @@
 #if PROBE_ENABLE
 #define PROBE_PIN           AUXINPUT1_PIN
 #endif
-
-#define AUXOUTPUT0_PIN      GPIO_NUM_25 // EXP_1,7 (LCD_CS_0)
-#define AUXOUTPUT1_PIN      GPIO_NUM_26 // EXP_1,5 (LCD_TOUCH_CS_0)
-#define AUXOUTPUT2_PIN      GPIO_NUM_27 // EXP_1,4 (LCD_RST_0)
-#define AUXOUTPUT3_PIN      GPIO_NUM_5  // EXP_1,3 (LCD_EN_0)
 
 #if I2C_ENABLE
 // Define I2C port/pins

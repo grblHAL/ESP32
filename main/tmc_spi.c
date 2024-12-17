@@ -27,7 +27,6 @@
 #include <string.h>
 
 #include "spi.h"
-#include "i2s_out.h"
 #include "grbl/protocol.h"
 #include "grbl/settings.h"
 

@@ -69,43 +69,60 @@
 #define M3_DIRECTION_PIN    GPIO_NUM_13
 #endif
 
-// Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_21
-#else
-#define AUXOUTPUT2_PIN          GPIO_NUM_21
-#endif
-
 #ifdef BOARD_SOURCERABBIT_4AXIS_12
-#if DRIVER_SPINDLE_DIR_ENABLE
-#define SPINDLE_DIRECTION_PIN   GPIO_NUM_2
-#else
-#define AUXOUTPUT3_PIN          GPIO_NUM_2
-#endif
-#endif
 
-#ifndef BOARD_SOURCERABBIT_4AXIS_12
-#if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN      GPIO_NUM_2
-#else
-#define AUXOUTPUT3_PIN          GPIO_NUM_2
-#endif
-#endif
-
-#ifdef BOARD_SOURCERABBIT_4AXIS_12
 #define AUXINPUT1_PIN       GPIO_NUM_5  // ATC Door
 #define AUXOUTPUT0_PIN      GPIO_NUM_19 // ATC Lock
 #define AUXOUTPUT1_PIN      GPIO_NUM_18 // ATC Blow
+#define AUXOUTPUT2_PIN      GPIO_NUM_21 // Spindle PWM
+#define AUXOUTPUT3_PIN      GPIO_NUM_2  // Spindle direction
+#define AUXOUTPUT4_PIN      GPIO_NUM_22 // Coolant flood
+#define AUXOUTPUT5_PIN      GPIO_NUM_23 // Coolant mist
+
+/ Define driver spindle pins
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN         AUXOUTPUT2_PIN
+#endif
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT3_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#define COOLANT_FLOOD_PIN       AUXOUTPUT4_PIN
+#endif
+#if COOLANT_ENABLE & COOLANT_MIST
+#define COOLANT_MIST_PIN        AUXOUTPUT5_PIN
+#endif
 
-#define COOLANT_FLOOD_PIN   GPIO_NUM_22
-#define COOLANT_MIST_PIN    GPIO_NUM_23
+#else
+
+#define AUXOUTPUT0_PIN      GPIO_NUM_21 // Spindle PWM
+#define AUXOUTPUT1_PIN      GPIO_NUM_2  // Spindle enable
+#define AUXOUTPUT3_PIN      GPIO_NUM_22 // Coolant flood
+#define AUXOUTPUT4_PIN      GPIO_NUM_23 // Coolant mist
+
+// Define driver spindle pins
+#if DRIVER_SPINDLE1_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
+#endif
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT1_PIN
+#endif
+
+// Define flood and mist coolant enable output pins.
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#define COOLANT_FLOOD_PIN       AUXOUTPUT3_PIN
+#endif
+#if COOLANT_ENABLE & COOLANT_MIST
+#define COOLANT_MIST_PIN        AUXOUTPUT4_PIN
+#endif
+
+#endif // BOARD_SOURCERABBIT_4AXIS_12
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-// N/A
+#undef CONTROL_ENABLE
+#define CONTROL_ENABLE 0 // No control inputs
 
 #define AUXINPUT0_PIN       GPIO_NUM_32
 

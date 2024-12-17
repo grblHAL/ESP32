@@ -65,27 +65,30 @@
 #define M3_DIRECTION_PIN    GPIO_NUM_4
 #endif
 
+#define AUXOUTPUT0_PIN          GPIO_NUM_2  // Spindle enable
+#define AUXOUTPUT1_PIN          GPIO_NUM_21 // Spindle PWM
+#define AUXOUTPUT2_PIN          GPIO_NUM_22 // Coolant flood
+#define AUXOUTPUT3_PIN          GPIO_NUM_23 // Coolant mist
+
 // Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN     GPIO_NUM_21
-#else
-#define AUXOUTPUT0_PIN      GPIO_NUM_21
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN     AUXOUTPUT1_PIN
 #endif
-
 #if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN  GPIO_NUM_2
-#else
-#define AUXOUTPUT1_PIN      GPIO_NUM_2
+#define SPINDLE_ENABLE_PIN  AUXOUTPUT0_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
-
-#define COOLANT_FLOOD_PIN   GPIO_NUM_22
-#define COOLANT_MIST_PIN    GPIO_NUM_23
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#define COOLANT_FLOOD_PIN   AUXOUTPUT2_PIN
+#endif
+#if COOLANT_ENABLE & COOLANT_MIST
+#define COOLANT_MIST_PIN    AUXOUTPUT3_PIN
+#endif
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-// N/A
+#undef CONTROL_ENABLE
+#define CONTROL_ENABLE 0 // No control inputs
 
 #define AUXINPUT0_PIN       GPIO_NUM_35  // ATC Door
 #define AUXINPUT1_PIN       GPIO_NUM_25

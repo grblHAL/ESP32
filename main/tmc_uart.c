@@ -25,10 +25,6 @@
 
 #include <string.h>
 
-#if USE_I2S_OUT
-#include "i2s_out.h"
-#endif
-
 static io_stream_t tmc_uart = {0};
 
 TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read_datagram_t *dgr)

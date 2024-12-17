@@ -66,32 +66,62 @@
 //#define M3_LIMIT_PIN        GPIO_NUM_36
 #endif
 
-// Define driver spindle pins
+#ifdef ADD_SERIAL1
 
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN     GPIO_NUM_25
-#define SPINDLE_ENABLE_PIN  GPIO_NUM_4
-#elif defined(ADD_SERIAL1)
 #define SERIAL1_PORT
 #define UART1_RX_PIN        GPIO_NUM_25
 #define UART1_TX_PIN        GPIO_NUM_4
-#else
-#define AUXOUTPUT0_PIN      GPIO_NUM_25
-#define AUXOUTPUT1_PIN      GPIO_NUM_4
+
+#define AUXOUTPUT0_PIN      GPIO_NUM_21 // Coolant mist
+
+// Define flood and mist coolant enable output pins.
+#if COOLANT_ENABLE & COOLANT_MIST
+#define COOLANT_MIST_PIN    AUXOUTPUT0_PIN
 #endif
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#undef COOLANT_ENABLE
+#ifdef COOLANT_MIST_PIN
+#define COOLANT_ENABLE COOLANT_MIST
+#else
+#define COOLANT_ENABLE 0
+#endif
+#endif
+
+#else
+
+#define AUXOUTPUT0_PIN      GPIO_NUM_25 // Spindle PWM
+#define AUXOUTPUT1_PIN      GPIO_NUM_4  // Spindle enable
+#define AUXOUTPUT2_PIN      GPIO_NUM_21 // Coolant mist
+
+// Define driver spindle pins
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN     AUXOUTPUT0_PIN
+#endif
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#define SPINDLE_ENABLE_PIN  AUXOUTPUT1_PIN
+#endif
+
+// Define flood and mist coolant enable output pins.
+#if COOLANT_ENABLE & COOLANT_MIST
+#define COOLANT_MIST_PIN    AUXOUTPUT2_PIN
+#endif
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#undef COOLANT_ENABLE
+#ifdef COOLANT_MIST_PIN
+#define COOLANT_ENABLE COOLANT_MIST
+#else
+#define COOLANT_ENABLE 0
+#endif
+#endif
+
+#endif // ADD_SERIAL1
+
+// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
+#define RESET_PIN           GPIO_NUM_16
 
 #define AUXINPUT0_PIN       GPIO_NUM_13
 //#define AUXINPUT1_PIN       GPIO_NUM_0
 #define AUXINPUT2_PIN       GPIO_NUM_22
-
-// Define flood and mist coolant enable output pins.
-// Only one can be enabled!
-
-#define COOLANT_MIST_PIN    GPIO_NUM_21
-//#define COOLANT_FLOOD_PIN   GPIO_NUM_21
-// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-
-#define RESET_PIN           GPIO_NUM_16
 
 // Define probe switch input pin.
 #if PROBE_ENABLE

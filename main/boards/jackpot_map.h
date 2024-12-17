@@ -21,15 +21,14 @@
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "use_i2s_out.h"
+
 #define BOARD_NAME "Jackpot"
 #define BOARD_URL "https://docs.v1e.com/electronics/jackpot/"
 
 #if KEYPAD_ENABLE == 1
 #error No free pins for I2C keypad!
 #endif
-
-#define USE_I2S_OUT
-#define I2S_OUT_PIN_BASE 64
 
 #define I2S_OUT_BCK             GPIO_NUM_22
 #define I2S_OUT_WS              GPIO_NUM_17
@@ -80,36 +79,35 @@
 #define M5_UART_CS              I2SO(22)
 #endif
 
-// Define driver spindle pins
-
 #define AUXOUTPUT0_PIN          GPIO_NUM_27
+#define AUXOUTPUT1_PIN          GPIO_NUM_26 // Spindle PWM
+#define AUXOUTPUT2_PIN          GPIO_NUM_4  // Spindle enable
+#define AUXOUTPUT3_PIN          GPIO_NUM_16 // Spindle direction
+#define AUXOUTPUT4_PIN          GPIO_NUM_2  // Coolant flood
+#define AUXOUTPUT5_PIN          GPIO_NUM_16 // Coolant mist
 
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_26
-#else
-#define AUXOUTPUT1_PIN          GPIO_NUM_26
+// Define driver spindle pins
+#if DRIVER_SPINDLE1_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN         AUXOUTPUT1_PIN
 #endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE
-#define SPINDLE_DIRECTION_PIN   GPIO_NUM_16
-#else
-#define AUXOUTPUT3_PIN          GPIO_NUM_16
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT3_PIN
 #endif
-
-#if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN      GPIO_NUM_4
-#else
-#define AUXOUTPUT4_PIN          GPIO_NUM_4
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT2_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
-
-#define COOLANT_MIST_PIN    GPIO_NUM_16
-#define COOLANT_FLOOD_PIN   GPIO_NUM_2
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#define COOLANT_FLOOD_PIN       AUXOUTPUT4_PIN
+#endif
+#if COOLANT_ENABLE & COOLANT_MIST
+#define COOLANT_MIST_PIN        AUXOUTPUT5_PIN
+#endif
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-
-// N/A
+#undef CONTROL_ENABLE
+#define CONTROL_ENABLE 0 // No control inputs
 
 #define AUXINPUT0_PIN       GPIO_NUM_36
 

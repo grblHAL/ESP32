@@ -21,15 +21,22 @@
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#if KEYPAD_ENABLE == 1
+#error No free pins for I2C keypad!
+#endif
+
+#if TRINAMIC_ENABLE != 5160
+#error BOARD_ROOTCNC_PRO has soldered TMC5160 drivers.
+#endif
+
+#include "use_i2s_out.h"
+
 #define BOARD_NAME "Root CNC v2.x"
 #define BOARD_URL "https://wiki.rootcnc.com/en/Root-Controller-ISO/DetailedInfo"
 
 #if KEYPAD_ENABLE == 1
 #error No free pins for I2C keypad!
 #endif
-
-#define USE_I2S_OUT
-#define I2S_OUT_PIN_BASE 64
 
 #if SDCARD_ENABLE || TRINAMIC_SPI_ENABLE
 
@@ -90,34 +97,34 @@
 #define M5_LIMIT_PIN            GPIO_NUM_14
 #endif
 
+#define AUXOUTPUT0_PIN          GPIO_NUM_25 // Spindle PWM
+#define AUXOUTPUT1_PIN          I2SO(17)    // Spindle direction
+#define AUXOUTPUT2_PIN          I2SO(16)    // Spindle enable
+#define AUXOUTPUT3_PIN          I2SO(14)    // Coolant flood
+#define AUXOUTPUT4_PIN          I2SO(13)    // Coolant mist
+
 // Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_25
-#else
-#define AUXOUTPUT0_PIN          GPIO_NUM_25
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
 #endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE
-#define SPINDLE_DIRECTION_PIN   I2SO(17)
-#else
-#define AUXOUTPUT1_PIN          I2SO(17)
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT1_PIN
 #endif
-
-#if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN      I2SO(16)
-#else
-#define AUXOUTPUT2_PIN          I2SO(16)
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT2_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
-
-#define COOLANT_MIST_PIN        I2SO(13)
-#define COOLANT_FLOOD_PIN       I2SO(14)
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#define COOLANT_FLOOD_PIN       AUXOUTPUT3_PIN
+#endif
+#if COOLANT_ENABLE & COOLANT_MIST
+#define COOLANT_MIST_PIN        AUXOUTPUT4_PIN
+#endif
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-
-// N/A
+#undef CONTROL_ENABLE
+#define CONTROL_ENABLE 0 // No control inputs
 
 #ifdef ADD_SERIAL1
 #define SERIAL1_PORT

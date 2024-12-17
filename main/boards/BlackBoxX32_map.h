@@ -43,65 +43,71 @@
 #endif
 
 // Stepper Driver Pins
-#define STEPPERS_ENABLE_PIN   GPIO_NUM_17
+#define STEPPERS_ENABLE_PIN GPIO_NUM_17
 
-#define X_STEP_PIN            GPIO_NUM_12
-#define X_DIRECTION_PIN       GPIO_NUM_14
+#define X_STEP_PIN          GPIO_NUM_12
+#define X_DIRECTION_PIN     GPIO_NUM_14
 
-#define Y_STEP_PIN            GPIO_NUM_27
-#define Y_DIRECTION_PIN       GPIO_NUM_26
+#define Y_STEP_PIN          GPIO_NUM_27
+#define Y_DIRECTION_PIN     GPIO_NUM_26
 
-#define Z_STEP_PIN            GPIO_NUM_15
-#define Z_DIRECTION_PIN       GPIO_NUM_2
+#define Z_STEP_PIN          GPIO_NUM_15
+#define Z_DIRECTION_PIN     GPIO_NUM_2
 
 // Define ganged axis or A axis step pulse and step direction output pins.
 #if N_ABC_MOTORS > 0
   #define M3_AVAILABLE
-  #define M3_STEP_PIN         GPIO_NUM_33
-  #define M3_DIRECTION_PIN    GPIO_NUM_32
+  #define M3_STEP_PIN       GPIO_NUM_33
+  #define M3_DIRECTION_PIN  GPIO_NUM_32
  #if N_AUTO_SQUARED
 // add limit pin definitions to stop compiler complaints (from preprocessor).
   #if X_AUTO_SQUARE
-   #define M3_LIMIT_PIN       GPIO_NUM_35 // Same as X limit, switched to Z by board code during homing.
+   #define M3_LIMIT_PIN     GPIO_NUM_35 // Same as X limit, switched to Z by board code during homing.
   #elif Y_AUTO_SQUARE
-   #define M3_LIMIT_PIN       GPIO_NUM_34 // Same as Y limit, switched to Z by board code during homing.
+   #define M3_LIMIT_PIN     GPIO_NUM_34 // Same as Y limit, switched to Z by board code during homing.
   #else
-   #define M3_LIMIT_PIN       GPIO_NUM_39 // Same as Z limit, switched to X by board code during homing.
+   #define M3_LIMIT_PIN     GPIO_NUM_39 // Same as Z limit, switched to X by board code during homing.
   #endif
  #endif
 #endif
 
 // Endstops
-#define X_LIMIT_PIN           GPIO_NUM_35
-#define Y_LIMIT_PIN           GPIO_NUM_34
-#define Z_LIMIT_PIN           GPIO_NUM_39
+#define X_LIMIT_PIN         GPIO_NUM_35
+#define Y_LIMIT_PIN         GPIO_NUM_34
+#define Z_LIMIT_PIN         GPIO_NUM_39
+
+#define AUXOUTPUT0_PIN      GPIO_NUM_25 // Spindle PWM
+#define AUXOUTPUT1_PIN      GPIO_NUM_4  // Spindle direction
+#define AUXOUTPUT2_PIN      GPIO_NUM_13 // Spindle enable
+#define AUXOUTPUT3_PIN      GPIO_NUM_21 // Coolant flood
 
 // Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_25
-#else
-#define AUXOUTPUT0_PIN          GPIO_NUM_25
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
 #endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE
-#define SPINDLE_DIRECTION_PIN   GPIO_NUM_4
-#else
-#define AUXOUTPUT1_PIN          GPIO_NUM_4
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT1_PIN
 #endif
-
-#if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN      GPIO_NUM_13
-#else
-#define AUXOUTPUT2_PIN          GPIO_NUM_13
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT2_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
-// Only one can be enabled!
-#define COOLANT_FLOOD_PIN   GPIO_NUM_21 // coolant
-//#define COOLANT_MIST_PIN  GPIO_NUM_21 // or mist
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#define COOLANT_FLOOD_PIN       AUXOUTPUT3_PIN
+#endif
+#if COOLANT_ENABLE & COOLANT_MIST
+#undef COOLANT_ENABLE
+#ifdef COOLANT_FLOOD_PIN
+#define COOLANT_ENABLE COOLANT_FLOOD
+#else
+#define COOLANT_ENABLE 0
+#endif
+#endif
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
+#undef CONTROL_ENABLE
+#define CONTROL_ENABLE 0 // No control inputs
 
 #define AUXINPUT0_PIN       GPIO_NUM_0 // Mode button on front panel
 #define AUXINPUT1_PIN       GPIO_NUM_16

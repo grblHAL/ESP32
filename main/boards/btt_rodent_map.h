@@ -21,10 +21,6 @@
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define BOARD_NAME "BTT Rodent"
-#define BOARD_URL "https://github.com/bigtreetech/Rodent/tree/master"
-// https://bttwiki.com/Rodent.html
-
 #if N_ABC_MOTORS > 2
 #error "Axis configuration is not supported!"
 #endif
@@ -34,13 +30,16 @@
 #endif
 
 #if TRINAMIC_ENABLE != 5160
-#error BOARD_BTT_RODENT has soldered TMC2160 drivers.
+//#error BOARD_BTT_RODENT has soldered TMC2160 drivers.
 #endif
 
-//#define TRINAMIC_MIXED_DRIVERS 0 Uncomment when board verified
+#include "use_i2s_out.h"
 
-#define USE_I2S_OUT
-#define I2S_OUT_PIN_BASE 64
+#define BOARD_NAME "BTT Rodent"
+#define BOARD_URL "https://github.com/bigtreetech/Rodent/tree/master"
+// https://bttwiki.com/Rodent.html
+
+//#define TRINAMIC_MIXED_DRIVERS 0 Uncomment when board verified
 
 #define I2S_OUT_BCK             GPIO_NUM_22
 #define I2S_OUT_WS              GPIO_NUM_17
@@ -78,34 +77,35 @@
 #define M4_ENABLE_PIN           I2SO(16)
 #define M4_LIMIT_PIN            GPIO_NUM_37
 #endif
+
+#define AUXOUTPUT0_PIN          GPIO_NUM_25 // Spindle enable
+#define AUXOUTPUT1_PIN          GPIO_NUM_13 // Spindle PWM
+#define AUXOUTPUT2_PIN          GPIO_NUM_15 // Spindle direction
+#define AUXOUTPUT3_PIN          GPIO_NUM_2  // Coolant flood
+#define AUXOUTPUT4_PIN          GPIO_NUM_4  // Coolant mist
+
 // Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_13
-#else
-#define AUXOUTPUT1_PIN          GPIO_NUM_13
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN         AUXOUTPUT1_PIN
 #endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE
-#define SPINDLE_DIRECTION_PIN   GPIO_NUM_15
-#else
-#define AUXOUTPUT3_PIN          GPIO_NUM_15
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT2_PIN
 #endif
-
-#if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN      GPIO_NUM_25
-#else
-#define AUXOUTPUT4_PIN          GPIO_NUM_25
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT0_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
-
-#define COOLANT_MIST_PIN        GPIO_NUM_2
-#define COOLANT_FLOOD_PIN       GPIO_NUM_4
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#define COOLANT_FLOOD_PIN       AUXOUTPUT3_PIN
+#endif
+#if COOLANT_ENABLE & COOLANT_MIST
+#define COOLANT_MIST_PIN        AUXOUTPUT4_PIN
+#endif
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-
-// N/A
+#undef CONTROL_ENABLE
+#define CONTROL_ENABLE 0 // No control inputs
 
 #define AUXINPUT0_PIN           GPIO_NUM_36
 

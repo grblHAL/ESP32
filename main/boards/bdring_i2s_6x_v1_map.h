@@ -21,10 +21,9 @@
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define BOARD_NAME "BDRING 6x External Drives V1.1"
+#include "use_i2s_out.h"
 
-#define USE_I2S_OUT
-#define I2S_OUT_PIN_BASE 64
+#define BOARD_NAME "BDRING 6x External Drives V1.1"
 
 #if SDCARD_ENABLE
 // Pin mapping when using SPI mode.
@@ -82,20 +81,26 @@
 #define M5_LIMIT_PIN            GPIO_NUM_34
 #endif
 
+#define AUXOUTPUT0_PIN          GPIO_NUM_13 // Spindle PWM
+#define AUXOUTPUT1_PIN          GPIO_NUM_15 // Spindle enable
+
 // Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_13
-#else
-#define AUXOUTPUT0_PIN          GPIO_NUM_13
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
+#endif
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT1_PIN
 #endif
 
-#if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN      GPIO_NUM_15
-#endif
+// Define flood and mist coolant enable output pins.
+#undef COOLANT_ENABLE
+#define COOLANT_ENABLE 0 // No coolant outputs
+
+// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
+#undef CONTROL_ENABLE
+#define CONTROL_ENABLE 0 // No control inputs
 
 // Define MODBUS spindle pins (exclusive use - can use PWM or modbus since they share output pins)
-
 #if MODBUS_ENABLE & MODBUS_RTU_ENABLED
 #define UART1_RX_PIN            GPIO_NUM_16
 #define UART1_TX_PIN            GPIO_NUM_15
@@ -105,25 +110,17 @@
 #endif
 
 // If neither PWM nor modbus, gpio14 is aux output
-
-#if !MODBUS_ENABLE & !DRIVER_SPINDLE_PWM_ENABLE
-#define AUXOUTPUT1_PIN          GPIO_NUM_14
+#if !MODBUS_ENABLE && !(DRIVER_SPINDLE_ENABLE & SPINDLE_PWM)
+#define AUXOUTPUT2_PIN          GPIO_NUM_14
 #endif
+
+#define AUXINPUT0_PIN           GPIO_NUM_2
 
 // Define probe switch input pin.
 #if PROBE_ENABLE
-#define PROBE_PIN               GPIO_NUM_2
+#define PROBE_PIN               AUXINPUT0_PIN
 #endif
 
 #if KEYPAD_ENABLE
 #error No free pins for keypad!
 #endif
-
-
-// Define flood and mist coolant enable output pins.
-
-//#define COOLANT_MIST_PIN        ?
-
-// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-
-// N/A

@@ -21,10 +21,9 @@
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define BOARD_NAME "BDRING 6-Pack External drives V2.0"
+#include "use_i2s_out.h"
 
-#define USE_I2S_OUT
-#define I2S_OUT_PIN_BASE 64
+#define BOARD_NAME "BDRING 6-Pack External drives V2.0"
 
 #if SDCARD_ENABLE
 
@@ -81,30 +80,31 @@
 #define M5_STEP_PIN             I2SO(21)
 #define M5_DIRECTION_PIN        I2SO(20)
 #define M5_ENABLE_PIN           I2SO(23)
-#define M5_LIMIT_PIN            GPIO_NUM_34
 #endif
+
+#define AUXOUTPUT0_PIN          GPIO_NUM_26 // Spindle PWM
+#define AUXOUTPUT1_PIN          GPIO_NUM_16 // Spindle direction
+#define AUXOUTPUT2_PIN          GPIO_NUM_4  // Spindle enable
+#define AUXOUTPUT3_PIN          GPIO_NUM_2  // Coolant mist
 
 // Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE
-#define SPINDLE_PWM_PIN         GPIO_NUM_26
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
 #endif
-
-#if DRIVER_SPINDLE_DIR_ENABLE
-#define SPINDLE_DIRECTION_PIN   GPIO_NUM_16
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT1_PIN
 #endif
-
-#if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN      GPIO_NUM_4
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT2_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
-
-//#define COOLANT_MIST_PIN        ?
+#undef COOLANT_ENABLE
+#define COOLANT_ENABLE 0 // No coolant outputs
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-
-// N/A
+#undef CONTROL_ENABLE
+#define CONTROL_ENABLE 0 // No control inputs
 
 #define AUXINPUT0_PIN           GPIO_NUM_25
 

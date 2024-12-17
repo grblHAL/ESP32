@@ -28,10 +28,6 @@
 #include "grbl/protocol.h"
 #include "grbl/settings.h"
 
-#if USE_I2S_OUT
-#include "i2s_out.h"
-#endif
-
 static io_ports_data_t digital;
 static input_signal_t *aux_in;
 static output_signal_t *aux_out;

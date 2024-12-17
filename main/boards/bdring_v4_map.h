@@ -49,21 +49,34 @@
 #define Y_LIMIT_PIN         GPIO_NUM_4
 #define Z_LIMIT_PIN         GPIO_NUM_16
 
-// Define driver spindle pins
-
-#if DRIVER_SPINDLE_PWM_ENABLE && !(MODBUS_ENABLE & MODBUS_RTU_ENABLED)
-#define SPINDLE_PWM_PIN     GPIO_NUM_2
+#define AUXOUTPUT0_PIN      GPIO_NUM_2  // Spindle PWM
+#define AUXOUTPUT1_PIN      GPIO_NUM_22 // Spindle enable
+#define AUXOUTPUT2_PIN      GPIO_NUM_25 // Coolant flood
+#ifndef ADD_SERIAL1
+#define AUXOUTPUT3_PIN      GPIO_NUM_21 // Coolant mist
 #endif
 
-#if DRIVER_SPINDLE_ENABLE && !(MODBUS_ENABLE & MODBUS_RTU_ENABLED)
-#define SPINDLE_ENABLE_PIN  GPIO_NUM_22
+// Define driver spindle pins
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
+#endif
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT1_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
-
-#define COOLANT_FLOOD_PIN   GPIO_NUM_25
-#if DRIVER_SPINDLE_ENABLE
-#define COOLANT_MIST_PIN    GPIO_NUM_21
+#if COOLANT_ENABLE & COOLANT_FLOOD
+#define COOLANT_FLOOD_PIN       AUXOUTPUT2_PIN
+#endif
+#if (COOLANT_ENABLE & COOLANT_MIST) && defined(AUXOUTPUT3_PIN)
+#define COOLANT_MIST_PIN        AUXOUTPUT3_PIN
+#else
+#undef COOLANT_ENABLE
+#ifdef COOLANT_FLOOD_PIN
+#define COOLANT_ENABLE COOLANT_FLOOD
+#else
+#define COOLANT_ENABLE 0
+#endif
 #endif
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
