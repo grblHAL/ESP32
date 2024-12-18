@@ -2747,7 +2747,7 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
 
 static void enumeratePins (bool low_level, pin_info_ptr pin_info, void *data)
 {
-    static xbar_t pin = {0};
+    static xbar_t pin = {};
 
     uint32_t i, id = 0;
 
@@ -2780,6 +2780,8 @@ static void enumeratePins (bool low_level, pin_info_ptr pin_info, void *data)
     };
 
     periph_signal_t *ppin = periph_pins;
+
+    pin.port = NULL;
 
     if(ppin) do {
         pin.id = id++;
@@ -3266,7 +3268,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "241215";
+    hal.driver_version = "241218";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
