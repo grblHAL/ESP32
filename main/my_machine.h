@@ -70,6 +70,7 @@
 //#define ETHERNET_ENABLE         1 // Ethernet streaming. Uses networking plugin.
 //#define BLUETOOTH_ENABLE        1 // Set to 1 for native radio, 2 for HC-05 module.
 //#define SDCARD_ENABLE           1 // Run gcode programs from SD card. Set to 2 to enable YModem upload.
+//#define LITTLEFS_ENABLE         1 // Enable flash based storage, automatically enabled if WebUI is enabled. Set to 2 to mount as root.
 //#define MPG_ENABLE              1 // Enable MPG interface. Requires a serial stream and means to switch between normal and MPG mode.
                                     // 1: Mode switching is by handshake pin.
                                     // 2: Mode switching is by the CMD_MPG_ENABLE_TOGGLE (0x8B) command character.

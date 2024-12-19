@@ -3032,7 +3032,7 @@ static bool driver_setup (settings_t *settings)
 {
 
 #if LITTLEFS_ENABLE
-    fs_littlefs_mount("/littlefs", esp32_littlefs_hal());
+    fs_littlefs_mount(LITTLEFS_MOUNT_DIR, esp32_littlefs_hal());
 #endif
 
     /******************
@@ -3268,7 +3268,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "241218";
+    hal.driver_version = "241219";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
