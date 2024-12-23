@@ -271,6 +271,9 @@ static input_signal_t inputpin[] = {
 #ifdef C_LIMIT_PIN_MAX
     { .id = Input_LimitC_Max,   .pin = C_LIMIT_PIN_MAX,   .group = PinGroup_Limit },
 #endif
+#if SDCARD_ENABLE && defined(SD_DETECT_PIN)
+    { .id = Input_SdCardDetect, .pin = SD_DETECT_PIN,     .group = PinGroup_SdCard },
+#endif
 #ifndef AUX_DEVICES
   #if SAFETY_DOOR_BIT
     { .id = Input_SafetyDoor,   .pin = SAFETY_DOOR_PIN,   .group = PinGroup_Control },
@@ -491,7 +494,7 @@ static output_signal_t outputpin[] = {
 
 size_t outputPinsCount = sizeof(outputpin) / sizeof(output_signal_t);
 
-static bool IOInitDone = false, rtc_started = false;
+static bool IOInitDone = false;
 static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 static pin_group_pins_t limit_inputs = {0};
 static on_execute_realtime_ptr on_execute_realtime;
@@ -2659,6 +2662,13 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
                     signal->mode.inverted = limit_fei.c;
                     break;
 #endif
+#if SDCARD_ENABLE && defined(SD_DETECT_PIN)
+                case Input_SdCardDetect:
+                    signal->mode.pull_mode = PullMode_Up;
+                    signal->mode.irq_mode = IRQ_Mode_Change;
+                    signal->mode.debounce = On;
+                    break;
+#endif
 #ifndef AUX_DEVICES
                 case Input_Probe:
                     signal->mode.pull_mode = settings->probe.flag.disable_pullup ? PullMode_Down : PullMode_Up;
@@ -2830,26 +2840,36 @@ void setPeriphPinDescription (const pin_function_t function, const pin_group_t g
 
 #if SDCARD_ENABLE
 
+#ifndef SDCARD_SDIO
 static bool bus_ok = false;
+static spi_host_device_t spi_host;
+#endif
+
 static sdmmc_card_t *card = NULL;
 
 static bool sdcard_unmount (FATFS **fs)
 {
     if(card && esp_vfs_fat_sdcard_unmount("/sdcard", card) == ESP_OK) {
         card = NULL;
-        bus_ok = false;
-        spi_bus_free(SDSPI_DEFAULT_HOST);
+//        bus_ok = false;
+//        spi_bus_free(SDSPI_DEFAULT_HOST);
     }
 
     return card == NULL;
 }
 
+#ifdef SDCARD_SDIO
+#include "driver/sdmmc_host.h"
+
+#endif
+
 static char *sdcard_mount (FATFS **fs)
 {
-	spi_host_device_t spi_host;
+#ifndef SDCARD_SDIO
 
-    if(!(bus_ok = spi_bus_init(&spi_host)))
+    if(!bus_ok)
         return NULL;
+#endif
 
     if(card == NULL) {
 
@@ -2861,13 +2881,38 @@ static char *sdcard_mount (FATFS **fs)
             .allocation_unit_size = 16 * 1024
         };
 
-        sdspi_dev_handle_t dh;
+#ifdef SDCARD_SDIO
+
+        sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+        sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+
+        slot_config.width = 4;
+        host.slot = SDMMC_HOST_SLOT_0;
+#ifdef SDMMC_FREQ_KHZ
+        host.max_freq_khz = SDMMC_FREQ_KHZ;
+#endif
+        slot_config.clk = SD_CLK_PIN;
+        slot_config.cmd = SD_CMD_PIN;
+        slot_config.d0 = SD_D0_PIN;
+        slot_config.d1 = SD_D1_PIN;
+        slot_config.d2 = SD_D2_PIN;
+        slot_config.d3 = SD_D3_PIN;
+        slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
+
+        if((ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card)) != ESP_OK)
+            report_warning(ret == ESP_FAIL ? "Failed to mount filesystem" : "Failed to initialize SD card");
+
+#else
+
+        sdmmc_host_t host = SDSPI_HOST_DEFAULT();
         sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+
+        sdspi_dev_handle_t dh;
+
         slot_config.gpio_cs = PIN_NUM_CS;
         slot_config.host_id = spi_host;
         sdspi_host_init_device(&slot_config, &dh);
 
-        sdmmc_host_t host = SDSPI_HOST_DEFAULT();
         host.slot = dh;
 #ifdef SDMMC_FREQ_KHZ
         host.max_freq_khz = SDMMC_FREQ_KHZ;
@@ -2876,7 +2921,10 @@ static char *sdcard_mount (FATFS **fs)
         gpio_set_drive_capability(PIN_NUM_CS, GPIO_DRIVE_CAP_3);
 
         if((ret = esp_vfs_fat_sdspi_mount("/sdcard", &host, &slot_config, &mount_config, &card)) != ESP_OK)
-            protocol_enqueue_foreground_task(report_warning, ret == ESP_FAIL ? "Failed to mount filesystem" : "Failed to initialize SD card");
+            report_warning(ret == ESP_FAIL ? "Failed to mount filesystem" : "Failed to initialize SD card");
+
+#endif // SDCARD_SDIO
+
     }
 
     if(card && fs) {
@@ -2892,7 +2940,7 @@ static char *sdcard_mount (FATFS **fs)
     return "";
 }
 
-#endif
+#endif // SDCARD_ENABLE
 
 #ifdef LED_PIN
 
@@ -3209,6 +3257,21 @@ static bool driver_setup (settings_t *settings)
     grbl.on_spindle_selected = onSpindleSelected;
 #endif
 
+#if SDCARD_ENABLE
+
+    sdcard_events_t *card = sdcard_init();
+    card->on_mount = sdcard_mount;
+    card->on_unmount = sdcard_unmount;
+
+#ifdef SD_DETECT_PIN
+    if(!DIGITAL_IN(SD_DETECT_PIN))
+        sdcard_detect(true);
+#else
+    sdcard_detect(true);
+#endif
+
+#endif // SDCARD_ENABLE
+
 #if ETHERNET_ENABLE
     enet_start();
 #endif
@@ -3226,14 +3289,14 @@ static bool set_rtc_time (struct tm *time)
     t.tv_sec = mktime(time);
     t.tv_usec = 0;
 
-    return (rtc_started = settimeofday(&t, &tz) == 0);
+    return (hal.driver_cap.rtc_set = settimeofday(&t, &tz) == 0);
 }
 
 static bool get_rtc_time (struct tm *dt)
 {
     bool ok = false;
 
-    if(rtc_started) {
+    if(hal.driver_cap.rtc_set) {
         time_t now;
         if((ok = time(&now) != (time_t)-1))
             localtime_r(&now, dt);
@@ -3268,7 +3331,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "241219";
+    hal.driver_version = "241222";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3347,6 +3410,7 @@ bool driver_init (void)
     hal.periph_port.register_pin = registerPeriphPin;
     hal.periph_port.set_pin_description = setPeriphPinDescription;
 
+    hal.driver_cap.rtc = On;
     hal.rtc.get_datetime = get_rtc_time;
     hal.rtc.set_datetime = set_rtc_time;
 
@@ -3699,14 +3763,8 @@ bool driver_init (void)
     bluetooth_init_local();
 #endif
 
-#if SDCARD_ENABLE
-
-    sdcard_events_t *card = sdcard_init();
-    card->on_mount = sdcard_mount;
-    card->on_unmount = sdcard_unmount;
-
-    sdcard_mount(NULL);
-
+#if SDCARD_ENABLE && !defined(SDCARD_SDIO)
+    bus_ok = spi_bus_init(&spi_host);
 #endif
 
 #include "grbl/plugins_init.h"
@@ -3750,6 +3808,12 @@ void pin_debounce (void *pin)
             case PinGroup_AuxInput:
                 ioports_event(input);
                 break;
+
+#if SDCARD_ENABLE && defined(SD_DETECT_PIN)
+            case PinGroup_SdCard:
+                sdcard_detect(!DIGITAL_IN(SD_DETECT_PIN));
+                break;
+#endif
 
             default:
                 break;

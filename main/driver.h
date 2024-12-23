@@ -218,6 +218,11 @@ extern SemaphoreHandle_t i2cBusy;
 #error "I2C port not available!"
 #endif
 
+#if SDCARD_ENABLE && defined(SDCARD_SDIO) && SPI_ENABLE && !TRINAMIC_SPI_ENABLE
+#undef SPI_ENABLE
+#define SPI_ENABLE 0
+#endif
+
 // NOTE: #define SERIAL_PORT in map file if USB_SERIAL_CDC is enabled and the primary UART is not connected to a USB <> UART chip
 
 #include "grbl/driver_opts2.h"
