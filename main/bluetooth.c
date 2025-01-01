@@ -5,22 +5,22 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2024 Terje Io
+  Copyright (c) 2018-2025 Terje Io
 
   Some parts of the code is based on example code by Espressif, in the public domain
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "driver.h"
@@ -83,7 +83,7 @@ static const io_stream_t *claim_stream (uint32_t baud_rate);
 static enqueue_realtime_command_ptr BTSetRtHandler (enqueue_realtime_command_ptr handler);
 
 static uint32_t connection = 0;
-static bool is_second_attempt = false, is_up = false;
+static bool is_second_attempt = false, is_up = false, client_connected = false;
 static bluetooth_settings_t bluetooth;
 static SemaphoreHandle_t tx_busy = NULL;
 static EventGroupHandle_t event_group = NULL;
@@ -102,7 +102,6 @@ static io_stream_properties_t bt_streams[] = {
       .instance = 20,
       .flags.claimable = On,
       .flags.claimed = Off,
-      .flags.connected = Off,
       .flags.can_set_baud = On,
       .flags.modbus_ready = Off,
       .claim = claim_stream
@@ -271,7 +270,7 @@ static void flush_tx_queue (void)
 
 static bool is_connected (void)
 {
-    return bt_streams[0].flags.connected;
+    return client_connected;
 }
 
 static const io_stream_t *claim_stream (uint32_t baud_rate)
@@ -315,12 +314,12 @@ static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
                 txbuffer.head = 0;
                 uint8_t *mac = param->srv_open.rem_bda;
                 sprintf(client_mac, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-                bt_streams[0].flags.connected = stream_connect(claim_stream(0));
+                client_connected = stream_connect(claim_stream(0));
 
                 if(eTaskGetState(polltask) == eSuspended)
                     vTaskResume(polltask);
 
-                hal.stream.write_all("[MSG:BT OK]\r\n");
+                hal.stream.write_all("[MSG:BT OK]" ASCII_EOL);
             } else {
                 is_second_attempt = true;
                 esp_spp_disconnect(param->open.handle);
@@ -336,7 +335,7 @@ static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
                 connection = 0;
                 client_mac[0] = '\0';
                 flush_tx_queue();
-                bt_streams[0].flags.connected = Off;
+                client_connected = false;
                 if(bt_stream)
                     stream_disconnect(bt_stream);
                 bt_stream = NULL;
