@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2024 Terje Io
+  Copyright (c) 2020-2025 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,6 +32,16 @@
 
 #include "driver/spi_master.h"
 
+static volatile uint32_t dly = 100;
+
+static inline void delay (uint32_t delay)
+{
+    dly = delay;
+    while(--dly);
+}
+
+#if TRINAMIC_SPI_ENABLE & TRINAMIC_SPI_CS_SINGLE
+
 static struct {
     uint32_t pin;
 } cs;
@@ -46,7 +56,6 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *reg)
     uint8_t res;
     uint_fast8_t idx = n_motors;
     uint32_t f_spi = spi_set_speed(SPI_MASTER_FREQ_10M);
-    volatile uint32_t dly = 100;
 
     datagram[driver.seq].addr.value = reg->addr.value;
     datagram[driver.seq].addr.write = 0;
@@ -61,13 +70,9 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *reg)
         spi_put_byte(0);
     } while(idx);
 
-    while(--dly);
-
+    delay(100);
     DIGITAL_OUT(cs.pin, 1);
-
-    dly = 50;
-    while(--dly);
-
+    delay(50);
     DIGITAL_OUT(cs.pin, 0);
 
     idx = n_motors;
@@ -88,13 +93,9 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *reg)
         }
     } while(idx);
 
-    dly = 100;
-    while(--dly);
-
+    delay(100);
     DIGITAL_OUT(cs.pin, 1);
-
-    dly = 50;
-    while(--dly);
+    delay(50);
 
     spi_set_speed(f_spi);
 
@@ -108,7 +109,6 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *reg
     uint8_t res;
     uint_fast8_t idx = n_motors;
     uint32_t f_spi = spi_set_speed(SPI_MASTER_FREQ_10M);
-    volatile uint32_t dly = 100;
 
     memcpy(&datagram[driver.seq], reg, sizeof(TMC_spi_datagram_t));
     datagram[driver.seq].addr.write = 1;
@@ -129,12 +129,9 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *reg
         }
     } while(idx);
 
-    while(--dly);
-
+    delay(100);
     DIGITAL_OUT(cs.pin, 1);
-
-    dly = 50;
-    while(--dly);
+    delay(50);
 
     spi_set_speed(f_spi);
 
@@ -156,7 +153,6 @@ static void if_init (uint8_t motors, axes_signals_t axisflags)
 
 void tmc_spi_init (void)
 {
-
     trinamic_driver_if_t driver = {
         .on_drivers_init = if_init
     };
@@ -170,5 +166,115 @@ void tmc_spi_init (void)
 
     trinamic_if_init(&driver);
 }
+
+#else
+
+static struct {
+    uint16_t pin;
+} cs[TMC_N_MOTORS_MAX];
+
+TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *datagram)
+{
+    TMC_spi_status_t status;
+    uint32_t f_spi = spi_set_speed(SPI_MASTER_FREQ_10M);
+
+    DIGITAL_OUT(cs[driver.id].pin, 0);
+    delay(100);
+
+    datagram->payload.value = 0;
+
+    datagram->addr.write = 0;
+    spi_put_byte(datagram->addr.value);
+    spi_put_byte(0);
+    spi_put_byte(0);
+    spi_put_byte(0);
+    spi_put_byte(0);
+
+    DIGITAL_OUT(cs[driver.id].pin, 1);
+    delay(100);
+    DIGITAL_OUT(cs[driver.id].pin, 0);
+
+    status = spi_put_byte(datagram->addr.value);
+    datagram->payload.data[3] = spi_get_byte();
+    datagram->payload.data[2] = spi_get_byte();
+    datagram->payload.data[1] = spi_get_byte();
+    datagram->payload.data[0] = spi_get_byte();
+
+    DIGITAL_OUT(cs[driver.id].pin, 1);
+
+    spi_set_speed(f_spi);
+
+    return status;
+}
+
+TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *datagram)
+{
+    TMC_spi_status_t status;
+    uint32_t f_spi = spi_set_speed(SPI_MASTER_FREQ_10M);
+
+    DIGITAL_OUT(cs[driver.id].pin, 0);
+    delay(100);
+
+    datagram->addr.write = 1;
+    status = spi_put_byte(datagram->addr.value);
+    spi_put_byte(datagram->payload.data[3]);
+    spi_put_byte(datagram->payload.data[2]);
+    spi_put_byte(datagram->payload.data[1]);
+    spi_put_byte(datagram->payload.data[0]);
+
+    DIGITAL_OUT(cs[driver.id].pin, 1);
+
+    spi_set_speed(f_spi);
+
+    return status;
+}
+
+static void add_cs_pin (xbar_t *gpio, void *data)
+{
+    if(gpio->group == PinGroup_MotorChipSelect)
+      switch (gpio->function) {
+
+        case Output_MotorChipSelectX:
+            cs[X_AXIS].pin = gpio->pin;
+            break;
+
+        case Output_MotorChipSelectY:
+            cs[Y_AXIS].pin = gpio->pin;
+            break;
+
+        case Output_MotorChipSelectZ:
+            cs[Z_AXIS].pin = gpio->pin;
+            break;
+
+        case Output_MotorChipSelectM3:
+            cs[3].pin = gpio->pin;
+            break;
+
+        case Output_MotorChipSelectM4:
+            cs[4].pin = gpio->pin;
+            break;
+
+        case Output_MotorChipSelectM5:
+            cs[5].pin = gpio->pin;
+            break;
+
+        default:
+            break;
+    }
+}
+
+static void if_init (uint8_t motors, axes_signals_t enabled)
+{
+    hal.enumerate_pins(true, add_cs_pin, NULL);
+}
+
+void tmc_spi_init (void)
+{
+    static trinamic_driver_if_t driver_if = {.on_drivers_init = if_init};
+
+    trinamic_if_init(&driver_if);
+}
+
+#endif
 
 #endif // TRINAMIC_SPI_ENABLE
