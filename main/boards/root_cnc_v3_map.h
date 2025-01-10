@@ -32,18 +32,15 @@
 #define BOARD_NAME "Root CNC v3"
 #define BOARD_URL "https://wiki.rootcnc.com/en/Root-Controller-ISO/DetailedInfo"
 
-#if SDCARD_ENABLE || TRINAMIC_SPI_ENABLE
-
+#if SDCARD_ENABLE
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
 #define PIN_NUM_MISO            19
 #define PIN_NUM_MOSI            23
 #define PIN_NUM_CLK             18
-#if SDCARD_ENABLE
 // Note that a pull-up on CS line is required in SD mode.
 #define PIN_NUM_CS              5
 #endif // SDCARD_ENABLE
-#endif // SDCARD_ENABLE || TRINAMIC_SPI_ENABLE
 
 #define I2S_OUT_BCK             GPIO_NUM_22
 #define I2S_OUT_WS              GPIO_NUM_21

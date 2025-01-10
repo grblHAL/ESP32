@@ -79,7 +79,7 @@
 #define AUXOUTPUT4_PIN      GPIO_NUM_22 // Coolant flood
 #define AUXOUTPUT5_PIN      GPIO_NUM_23 // Coolant mist
 
-/ Define driver spindle pins
+// Define driver spindle pins
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
 #define SPINDLE_PWM_PIN         AUXOUTPUT2_PIN
 #endif

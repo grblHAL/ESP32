@@ -27,17 +27,12 @@
 #error No free pins for I2C keypad!
 #endif
 
-#if TRINAMIC_ENABLE != 5160
-#error BOARD_ROOTCNC_PRO has soldered TMC5160 drivers.
-#endif
-
 #include "use_i2s_out.h"
 
 #define BOARD_NAME "Root CNC Pro"
 #define BOARD_URL "https://wiki.rootcnc.com/en/Root-Controller-pro/DetailedInfo"
 
-#if SDCARD_ENABLE || TRINAMIC_SPI_ENABLE
-
+#if SDCARD_ENABLE
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
 // Note that a pull-up on CS line is required in SD mode.
@@ -49,7 +44,7 @@
 #define PIN_NUM_CS          GPIO_NUM_5
 #endif
 
-#endif // SDCARD_ENABLE || TRINAMIC_SPI_ENABLE
+#endif // SDCARD_ENABLE
 
 #define I2S_OUT_BCK             GPIO_NUM_22
 #define I2S_OUT_WS              GPIO_NUM_21

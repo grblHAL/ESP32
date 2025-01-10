@@ -32,9 +32,12 @@
 #define BOARD_NAME "x-Pro v5"
 #define BOARD_URL "https://www.spark-concepts.com/cnc-xpro-v5/"
 
-#if TRINAMIC_ENABLE != 5160
-#error BOARD_XPRO_V5 has soldered TMC5160 drivers.
-#endif
+#undef SPI_ENABLE
+#undef TRINAMIC_ENABLE
+#undef TRINAMIC_SPI_ENABLE
+#define SPI_ENABLE 1
+#define TRINAMIC_ENABLE 5160
+#define TRINAMIC_SPI_ENABLE 1
 
 #define TRINAMIC_MIXED_DRIVERS 0
 
