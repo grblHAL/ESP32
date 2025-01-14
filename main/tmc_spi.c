@@ -141,7 +141,7 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *reg
 static void add_cs_pin (xbar_t *gpio, void *data)
 {
     if(gpio->function == Output_MotorChipSelect)
-        cs.pin = gpio->pin;
+        cs.pin = gpio->pin + gpio->port ? I2S_OUT_PIN_BASE : 0;
 }
 
 static void if_init (uint8_t motors, axes_signals_t axisflags)
@@ -231,47 +231,53 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *dat
 
 static void add_cs_pin (xbar_t *gpio, void *data)
 {
-    if(gpio->group == PinGroup_MotorChipSelect)
-      switch (gpio->function) {
+    if(gpio->group == PinGroup_MotorChipSelect) {
 
-        case Output_MotorChipSelectX:
-            cs[X_AXIS].pin = gpio->pin;
-            break;
+        if(gpio->port)
+            gpio->pin += I2S_OUT_PIN_BASE;
 
-        case Output_MotorChipSelectY:
-            cs[Y_AXIS].pin = gpio->pin;
-            break;
+        switch (gpio->function) {
 
-        case Output_MotorChipSelectZ:
-            cs[Z_AXIS].pin = gpio->pin;
-            break;
+            case Output_MotorChipSelectX:
+                cs[X_AXIS].pin = gpio->pin;
+                break;
 
-        case Output_MotorChipSelectM3:
-            cs[3].pin = gpio->pin;
-            break;
+            case Output_MotorChipSelectY:
+                cs[Y_AXIS].pin = gpio->pin;
+                break;
 
-        case Output_MotorChipSelectM4:
-            cs[4].pin = gpio->pin;
-            break;
+            case Output_MotorChipSelectZ:
+                cs[Z_AXIS].pin = gpio->pin;
+                break;
 
-        case Output_MotorChipSelectM5:
-            cs[5].pin = gpio->pin;
-            break;
+            case Output_MotorChipSelectM3:
+                cs[3].pin = gpio->pin;
+                break;
 
-        default:
-            break;
+            case Output_MotorChipSelectM4:
+                cs[4].pin = gpio->pin;
+                break;
+
+            case Output_MotorChipSelectM5:
+                cs[5].pin = gpio->pin;
+                break;
+
+            default:
+                break;
+        }
     }
 }
 
 static void if_init (uint8_t motors, axes_signals_t enabled)
 {
-    hal.enumerate_pins(true, add_cs_pin, NULL);
+    hal.enumerate_pins(false, add_cs_pin, NULL);
 }
 
 void tmc_spi_init (void)
 {
     static trinamic_driver_if_t driver_if = {.on_drivers_init = if_init};
 
+    spi_init();
     trinamic_if_init(&driver_if);
 }
 
