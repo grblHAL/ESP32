@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2024 Terje Io
+  Copyright (c) 2020-2025 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,10 +28,21 @@
 #endif
 
 #if KEYPAD_ENABLE
-#error No free pins for I2C keypad!
+#error "No free pins for the keypad plugin!"
 #endif
 
 #define BOARD_NAME "Fysetc E4 v1.0"
+
+#define SERIAL1_PORT
+#define UART1_RX_PIN        GPIO_NUM_21
+#define UART1_TX_PIN        GPIO_NUM_22
+
+#if TRINAMIC_ENABLE != 2209
+#undef TRINAMIC_ENABLE
+#undef TRINAMIC_UART_ENABLE
+#define TRINAMIC_ENABLE      2209
+#define TRINAMIC_UART_ENABLE 1
+#endif
 
 // Define step pulse output pins.
 #define X_STEP_PIN          GPIO_NUM_27
@@ -65,15 +76,15 @@
 
 // Define driver spindle pins
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
-#define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
+#define SPINDLE_PWM_PIN     AUXOUTPUT0_PIN
 #endif
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
-#define SPINDLE_ENABLE_PIN      AUXOUTPUT1_PIN
+#define SPINDLE_ENABLE_PIN  AUXOUTPUT1_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
 #if COOLANT_ENABLE & COOLANT_FLOOD
-#define COOLANT_FLOOD_PIN       AUXOUTPUT2_PIN
+#define COOLANT_FLOOD_PIN   AUXOUTPUT2_PIN
 #endif
 #if COOLANT_ENABLE & COOLANT_MIST
 #undef COOLANT_ENABLE
@@ -84,28 +95,14 @@
 #endif
 #endif
 
+#define AUXINPUT0_PIN       GPIO_NUM_39 // Probe
+
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-#define RESET_PIN           GPIO_NUM_34
-#define FEED_HOLD_PIN       GPIO_NUM_36
-#define CYCLE_START_PIN     GPIO_NUM_39
 
-#if I2C_ENABLE
-// Define I2C port/pins
-#define I2C_PORT            I2C_NUM_1
-#define I2C_SDA             GPIO_NUM_21
-#define I2C_SCL             GPIO_NUM_22
-#define I2C_CLOCK           100000
-#else
-#define AUXINPUT0_PIN       GPIO_NUM_21
-#define AUXINPUT1_PIN       GPIO_NUM_22
-#endif
+#define RESET_PIN           GPIO_NUM_36
 
-#if PROBE_ENABLE && defined(AUXINPUT0_PIN)
+#if PROBE_ENABLE
 #define PROBE_PIN           AUXINPUT0_PIN
-#endif
-
-#if SAFETY_DOOR_ENABLE && defined(AUXINPUT1_PIN)
-#define SAFETY_DOOR_PIN     AUXINPUT1_PIN
 #endif
 
 #if SDCARD_ENABLE
@@ -116,20 +113,4 @@
 #define PIN_NUM_MOSI        GPIO_NUM_23
 #define PIN_NUM_CLK         GPIO_NUM_18
 #define PIN_NUM_CS          GPIO_NUM_5
-#endif
-
-#if IOEXPAND_ENABLE
-typedef union {
-    uint8_t mask;
-    struct {
-        uint8_t spindle_on       :1,
-                spindle_dir      :1,
-                mist_on          :1,
-                flood_on         :1,
-                stepper_enable_z :1,
-                stepper_enable_x :1,
-                stepper_enable_y :1,
-                reserved         :1;
-    };
-} ioexpand_t;
 #endif
