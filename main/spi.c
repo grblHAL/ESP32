@@ -3,7 +3,7 @@
 
   Part of grblHAL driver for ESP32
 
-  Copyright (c) 2020-2024 Terje Io
+  Copyright (c) 2020-2025 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -130,6 +130,16 @@ uint32_t spi_set_speed (uint32_t prescaler)
     uint32_t cur = 0;
 
     return cur;
+}
+
+esp_err_t spi_bus (bool aquire)
+{
+    if(aquire)
+        return spi_device_acquire_bus(handle, portMAX_DELAY);
+    else
+        spi_device_release_bus(handle);
+
+    return ESP_OK;
 }
 
 uint8_t spi_get_byte (void)

@@ -141,7 +141,7 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *reg
 static void add_cs_pin (xbar_t *gpio, void *data)
 {
     if(gpio->function == Output_MotorChipSelect)
-        cs.pin = gpio->pin + gpio->port ? I2S_OUT_PIN_BASE : 0;
+        cs.pin = gpio->pin + (gpio->port ? I2S_OUT_PIN_BASE : 0);
 }
 
 static void if_init (uint8_t motors, axes_signals_t axisflags)
@@ -179,6 +179,9 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *data
     uint32_t f_spi = spi_set_speed(SPI_MASTER_FREQ_10M);
 
     DIGITAL_OUT(cs[driver.id].pin, 0);
+
+    spi_bus(true);
+
     delay(100);
 
     datagram->payload.value = 0;
@@ -204,6 +207,8 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *data
 
     spi_set_speed(f_spi);
 
+    spi_bus(false);
+
     return status;
 }
 
@@ -213,6 +218,9 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *dat
     uint32_t f_spi = spi_set_speed(SPI_MASTER_FREQ_10M);
 
     DIGITAL_OUT(cs[driver.id].pin, 0);
+
+    spi_bus(true);
+
     delay(100);
 
     datagram->addr.write = 1;
@@ -225,6 +233,8 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *dat
     DIGITAL_OUT(cs[driver.id].pin, 1);
 
     spi_set_speed(f_spi);
+
+    spi_bus(false);
 
     return status;
 }

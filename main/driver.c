@@ -3331,7 +3331,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "241222";
+    hal.driver_version = "250122";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3771,12 +3771,12 @@ bool driver_init (void)
 
 #if MPG_ENABLE == 1
     if(!hal.driver_cap.mpg_mode)
-        hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, NULL);
+        hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, "MPG"), false, NULL);
     if(hal.driver_cap.mpg_mode)
         protocol_enqueue_foreground_task(mpg_enable, NULL);
 #elif MPG_ENABLE == 2
     if(!hal.driver_cap.mpg_mode)
-        hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, stream_mpg_check_enable);
+        hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, "MPG"), false, stream_mpg_check_enable);
 #endif
 
     // no need to move version check before init - compiler will fail any mismatch for existing entries
