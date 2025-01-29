@@ -42,7 +42,7 @@
 //#define BOARD_GENERIC_S3              // Generic map for ESP32-S3, untested - WIP!
 //#define BOARD_GENERIC_I2S_S3          // Generic map for ESP32-S3 with I2S shift registers for I/O expansion, untested - WIP!
 //#define BOARD_MY_MACHINE              // Add my_machine_map.h in the boards directory before enabling this!
-#define BOARD_MKS_DLC32_MAX_V1
+//#define BOARD_MKS_DLC32_MAX_V1        // Has a ESP32-S3 MCU
 
 // Configuration
 // Uncomment to enable, for some a value > 1 may be assigned, if so the default value is shown.

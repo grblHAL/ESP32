@@ -1,9 +1,9 @@
 /*
-  generic_s3_map.h - driver code for ESP32
+  mks_dlc32_max_1_0_map.h.h - driver code for ESP32
 
   Part of grblHAL
 
-  Copyright (c) 2024 Terje Io
+  Copyright (c) 2025 @luc-github
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -35,6 +35,9 @@
 #error No free pins for I2C keypad!
 #endif
 
+#define BOARD_NAME "MKS DLC32 MAX 1.0"
+#define BOARD_URL "https://github.com/makerbase-mks/MKS-DLC32"
+
 #define SERIAL1_PORT 
 #define UART1_RX_PIN            GPIO_NUM_18
 #define UART1_TX_PIN            GPIO_NUM_17
@@ -43,13 +46,11 @@
 #define X_STEP_PIN              GPIO_NUM_16
 #define Y_STEP_PIN              GPIO_NUM_7
 #define Z_STEP_PIN              GPIO_NUM_5
-//#define A_STEP_PIN              GPIO_NUM_20
 
 // Define step direction output pins. NOTE: All direction pins must be on the same port.
 #define X_DIRECTION_PIN         GPIO_NUM_15
 #define Y_DIRECTION_PIN         GPIO_NUM_6
 #define Z_DIRECTION_PIN         GPIO_NUM_4
-//#define A_DIRECTION_PIN         GPIO_NUM_19
 
 // Define stepper driver enable/disable output pin(s).
 #define STEPPERS_ENABLE_PIN     GPIO_NUM_8
@@ -58,7 +59,6 @@
 #define X_LIMIT_PIN             GPIO_NUM_39 // same as A_LIMIT_PIN and Probe pin
 #define Y_LIMIT_PIN             GPIO_NUM_40 // Same flame
 #define Z_LIMIT_PIN             GPIO_NUM_41 // Same as DOOR pin
-//#define A_LIMIT_PIN             GPIO_NUM_39 // same as X_LIMIT_PIN and Probe pin
 
 #define AUXOUTPUT0_PIN          GPIO_NUM_2  // Laser TTL
 #define AUXOUTPUT1_PIN          GPIO_NUM_35 // Spindle enable
@@ -126,4 +126,3 @@
 //#define I2C_SCL                 GPIO_NUM_4
 //#define I2C_CLOCK               100000
 #endif
-

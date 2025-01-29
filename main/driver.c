@@ -2867,6 +2867,8 @@ static bool sdcard_unmount (FATFS **fs)
 
 static char *sdcard_mount (FATFS **fs)
 {
+    static FATFS *fatfs;
+
 #ifndef SDCARD_SDIO
 
     if(!bus_ok)
@@ -2930,13 +2932,11 @@ static char *sdcard_mount (FATFS **fs)
     }
 
     if(card && fs) {
-        if(*fs == NULL)
-            *fs = malloc(sizeof(FATFS));
 
-        if(*fs && f_mount(*fs, "", 1) != FR_OK) {
-           free(*fs );
-           *fs  = NULL;
-        }
+        if(fatfs == NULL)
+            fatfs = malloc(sizeof(FATFS));
+
+        *fs = fatfs && f_mount(fatfs, "", 1) == FR_OK ? fatfs : NULL;
     }
 
     return "";
@@ -3333,7 +3333,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "250122";
+    hal.driver_version = "250129";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
