@@ -31,7 +31,7 @@
 
 #include "sdkconfig.h"
 
-#if CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3 && USB_SERIAL_CDC
 
 #include <stdint.h>
 #include "esp_log.h"

@@ -66,7 +66,9 @@
 
 #if CONFIG_IDF_TARGET_ESP32S3
 #include "esp32s3/clk.h"
+#if USB_SERIAL_CDC
 #include "usb_serial.h"
+#endif // USB_SERIAL_CDC
 #endif
 
 #if WIFI_ENABLE
