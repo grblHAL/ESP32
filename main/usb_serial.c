@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Some parts are copyright (c) 2023-2024 Terje Io
+  Some parts are copyright (c) 2023-2025 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
   
 */
 
-#include "sdkconfig.h"
+#include "driver.h"
 
 #if CONFIG_IDF_TARGET_ESP32S3 && USB_SERIAL_CDC
 
@@ -43,10 +43,7 @@
 #include <string.h>
 
 #include "usb_serial.h"
-#include "driver.h"
 #include "grbl/protocol.h"
-
-//#if USB_SERIAL_CDC == 2
 
 #define BLOCK_RX_BUFFER_SIZE 20
 

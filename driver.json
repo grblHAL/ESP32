@@ -3,6 +3,7 @@
     "informal": 1,
     "axes": 6,
     "uart": 1,
+    "usb_cdc": 1,
     "serial_ports": 3,
     "sdcard": 1,
     "littlefs": 1,
@@ -52,6 +53,7 @@
       "caps": {
         "axes": 4,
         "auto_square": 1,
+        "usb_cdc": 0,
         "digital_in": 2,
         "safety_door": 1,
         "serial_ports": 1,
@@ -76,6 +78,7 @@
       "notes": "Not tested!",
       "caps": {
         "axes": 5,
+        "usb_cdc": 0,
         "serial_ports": 2,
         "trinamic": 5160,
         "trinamic_spi_cs": 1,
@@ -93,6 +96,7 @@
       "MAP": "main/boards/bdring_i2s_6_axis_map.h",
       "caps": {
         "axes": 6,
+        "usb_cdc": 0,
         "serial_ports": 2,
         "trinamic_spi_cs": 1,
         "trinamic_spi_chain": 1,
@@ -107,6 +111,7 @@
       "URL": "",
       "caps": {
         "axes": 3,
+        "usb_cdc": 0,
         "serial_ports": 2,
         "safety_door": 0,
         "sdcard": 1,
@@ -123,6 +128,7 @@
       "MAP": "main/boards/mks_dlc32_2_0_map.h",
       "caps": {
         "axes": 3,
+        "usb_cdc": 0,
         "digital_in": 1,
         "digital_out": 4,
         "safety_door": 0,
@@ -134,6 +140,28 @@
       }
     },
     {
+      "name": "MKS DLC32 MAX v1, 8MB+ flash",
+      "symbol": "BOARD_MKS_DLC32_MAX_V1",
+      "URL": "https://github.com/makerbase-mks/MKS-DLC32",
+      "notes": "Experimental!",
+      "MAP": "mks_dlc32_max_1_0_map.h",
+      "caps": {
+        "axes": 3,
+        "serial_ports": 2,
+        "digital_in": 1,
+        "eeprom": 1,
+        "fram": 1,
+        "i2c": 1,
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1,
+        "pio_board": "esp32-s3-devkitc-1"
+      },
+      "cmake_args": {
+        "SDKCONFIG_DEFAULTS": "\"sdkconfig.defaults;sdkconfig_s3_8m\""
+      }
+    },
+    {
       "name": "MKS Tinybee V1.0",
       "symbol": "BOARD_MKS_TINYBEE_V1",
       "URL": "https://github.com/makerbase-mks/MKS-TinyBee",
@@ -141,6 +169,7 @@
       "caps": {
         "axes": 5,
         "auto_square": 2,
+        "usb_cdc": 0,
         "serial_ports": 2,
         "sdcard": 1,
         "estop": 0,
@@ -156,6 +185,7 @@
       "caps": {
         "axes": 4,
         "auto_square": 0,
+        "usb_cdc": 0,
         "safety_door": 0,
         "estop": 0,
         "serial_ports": 1,
@@ -172,6 +202,7 @@
       "caps": {
         "axes": 4,
         "auto_square": 0,
+        "usb_cdc": 0,
         "safety_door": 0,
         "estop": 0,
         "serial_ports": 1,
@@ -186,6 +217,7 @@
       "MAP": "main/boards/protoneer_3.xx_map.h",
       "caps": {
         "axes": 3,
+        "usb_cdc": 0,
         "pwm_spindle_aux": 2,
         "serial_ports": 1,
         "wifi": 1,
@@ -200,6 +232,7 @@
       "caps": {
         "axes": 4,
         "auto_square": 0,
+        "usb_cdc": 0,
         "pwm_spindle_aux": 2,
         "sdcard": 1,
         "i2c": 1,
@@ -216,6 +249,7 @@
       "caps": {
         "axes": 4,
         "digital_in": 2,
+        "usb_cdc": 0,
         "serial_ports": 2,
         "sdcard": 1,
         "trinamic": 5160,
@@ -234,6 +268,7 @@
         "axes": 6,
         "auto_square": 3,
         "digital_in": 1,
+        "usb_cdc": 0,
         "serial_ports": 2,
         "estop": 0,
         "sdcard": 1,
@@ -250,6 +285,7 @@
         "axes": 6,
         "auto_square": 3,
         "digital_in": 1,
+        "usb_cdc": 0,
         "serial_ports": 2,
         "estop": 0,
         "sdcard": 1,
@@ -266,6 +302,7 @@
       "caps": {
         "axes": 6,
         "digital_in": 1,
+        "usb_cdc": 0,
         "serial_ports": 2,
         "estop": 0,
         "sdcard": 1,
@@ -281,6 +318,7 @@
       "caps": {
         "axes": 4,
         "auto_square": 0,
+        "usb_cdc": 0,
         "serial_ports": 2,
         "estop": 0,
         "pwm_spindle_aux": 2,
@@ -295,6 +333,7 @@
       "caps": {
         "axes": 3,
         "digital_in": 1,
+        "usb_cdc": 0,
         "serial_ports": 1,
         "sdcard": 1,
         "wifi": 1,
@@ -308,6 +347,7 @@
       "MAP": "main/boards/bdring_v4_map.h",
       "caps": {
         "axes": 3,
+        "usb_cdc": 0,
         "serial_ports": 2,
         "digital_in": 1,
         "sdcard": 1,
@@ -325,6 +365,7 @@
         "axes": 6,
         "digital_in": 0,
         "digital_out": 1,
+        "usb_cdc": 0,
         "serial_ports": 2,
         "sdcard": 1,
         "trinamic": 2209,
@@ -334,12 +375,34 @@
       }
     },
     {
+      "name": "Generic map for ESP32-S3",
+      "symbol": "BOARD_MKS_DLC32_MAX_V1",
+      "notes": "Experimental!",
+      "MAP": "generic_s3_map.h",
+      "caps": {
+        "axes": 3,
+        "serial_ports": 1,
+        "digital_in": 1,
+        "eeprom": 1,
+        "fram": 1,
+        "i2c": 1,
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1,
+        "pio_board": "esp32-s3-devkitc-1"
+      },
+      "cmake_args": {
+        "SDKCONFIG_DEFAULTS": "\"sdkconfig.defaults;sdkconfig.defaults.esp32s3\""
+      }
+    },
+    {
       "name": "CNC BoosterPack",
       "symbol": "BOARD_CNC_BOOSTERPACK",
       "URL": "https://github.com/terjeio/CNC_Boosterpack",
       "MAP": "main/boards/boosterpack_map.h",
       "caps": {
         "axes": 3,
+        "usb_cdc": 0,
         "serial_ports": 2,
         "digital_in": 1,
         "eeprom": 1,

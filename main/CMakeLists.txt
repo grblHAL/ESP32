@@ -22,6 +22,7 @@ set(SRCS
  ioports.c
  ioports_analog.c
  i2c.c
+ spi.c
  ioexpand.c
  boards/BlackBoxX32.c
  networking/strutils.c
@@ -178,7 +179,6 @@ set(NETWORKING_SOURCE
 )
 
 set(TRINAMIC_SPI_SOURCE
- spi.c
  tmc_spi.c
  motors/trinamic.c
  trinamic/common.c
