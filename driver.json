@@ -29,6 +29,7 @@
       { "id": "laser_cluster" },
       { "id": "laser_coolant" },
       { "id": "motors" },
+      { "id": "openpnp" },
       { "id": "embroidery" }
     ]
   },
@@ -144,7 +145,7 @@
       "symbol": "BOARD_MKS_DLC32_MAX_V1",
       "URL": "https://github.com/makerbase-mks/MKS-DLC32",
       "notes": "Experimental!",
-      "MAP": "mks_dlc32_max_1_0_map.h",
+      "MAP": "main/boards/mks_dlc32_max_1_0_map.h",
       "caps": {
         "axes": 3,
         "serial_ports": 2,
@@ -378,7 +379,7 @@
       "name": "Generic map for ESP32-S3",
       "symbol": "BOARD_MKS_DLC32_MAX_V1",
       "notes": "Experimental!",
-      "MAP": "generic_s3_map.h",
+      "MAP": "main/boards/generic_s3_map.h",
       "caps": {
         "axes": 3,
         "serial_ports": 1,
