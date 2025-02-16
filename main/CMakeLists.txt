@@ -221,6 +221,10 @@ set(EMBROIDERY_SOURCE
  embroidery/tajima.c
 )
 
+set(OPENPNP_SOURCE
+ openpnp/openpnp.c
+)
+
 set(USB_SOURCE
  usb_serial.c
 )
@@ -246,6 +250,7 @@ list (APPEND SRCS ${EEPROM_SOURCE})
 list (APPEND SRCS ${LASER_SOURCE})
 list (APPEND SRCS ${MISC_PLUGINS_SOURCE})
 list (APPEND SRCS ${EMBROIDERY_SOURCE})
+list (APPEND SRCS ${OPENPNP_SOURCE})
 
 if(Ethernet OR ETHERNET_ENABLE EQUAL 1)
 list (APPEND SRCS ${ETHERNET_SOURCE})

@@ -1,7 +1,7 @@
 /*
   Part of grblHAL
 
-  Copyright (c) 2020-2024 Terje Io
+  Copyright (c) 2020-2025 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 //#define BOARD_FYSETC_E4               //
 //#define BOARD_XPRO_V5                 //
 //#define BOARD_MKS_DLC32_V2P0          //
+//#define BOARD_MKS_DLC32_MAX_V1        // Has a ESP32-S3 MCU
 //#define BOARD_MKS_TINYBEE_V1          //
 //#define BOARD_CNC3040                 //
 //#define BOARD_BLACKBOX_X32            // NOTE: Enable in CMakeLists.txt to set board specific defaults for the core!
@@ -42,7 +43,6 @@
 //#define BOARD_GENERIC_S3              // Generic map for ESP32-S3, untested - WIP!
 //#define BOARD_GENERIC_I2S_S3          // Generic map for ESP32-S3 with I2S shift registers for I/O expansion, untested - WIP!
 //#define BOARD_MY_MACHINE              // Add my_machine_map.h in the boards directory before enabling this!
-//#define BOARD_MKS_DLC32_MAX_V1        // Has a ESP32-S3 MCU
 
 // Configuration
 // Uncomment to enable, for some a value > 1 may be assigned, if so the default value is shown.
@@ -79,6 +79,7 @@
                                     // 2: uses a serial stream for input. If MPG_ENABLE is set > 0 the serial stream is shared with the MPG.
 //#define LASER_COOLANT_ENABLE    1 // Laser coolant plugin. To be completed.
 //#define LB_CLUSTERS_ENABLE      1 // LaserBurn cluster support.
+//#define OPENPNP_ENABLE          1 // OpenPNP plugin. To be completed.
 //#define FANS_ENABLE             1 // Enable fan control via M106/M107. Enables fans plugin.
 //#define EMBROIDERY_ENABLE       1 // Embroidery plugin. To be completed.
 //#define TRINAMIC_ENABLE      2130 // Trinamic TMC2130 stepper driver support. NOTE: work in progress.
