@@ -87,7 +87,7 @@
 #define AUXOUTPUT5_PIN          GPIO_NUM_16 // Coolant mist
 
 // Define driver spindle pins
-#if DRIVER_SPINDLE1_ENABLE & SPINDLE_PWM
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
 #define SPINDLE_PWM_PIN         AUXOUTPUT1_PIN
 #endif
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
