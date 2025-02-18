@@ -56,9 +56,9 @@
 #define STEPPERS_ENABLE_PIN     GPIO_NUM_8
 
 // Define homing/hard limit switch input pins and limit interrupt vectors.
-#define X_LIMIT_PIN             GPIO_NUM_39 // same as A_LIMIT_PIN and Probe pin
-#define Y_LIMIT_PIN             GPIO_NUM_40 // Same flame
-#define Z_LIMIT_PIN             GPIO_NUM_41 // Same as DOOR pin
+#define X_LIMIT_PIN             GPIO_NUM_39 
+#define Y_LIMIT_PIN             GPIO_NUM_40 
+#define Z_LIMIT_PIN             GPIO_NUM_41 
 
 #define AUXOUTPUT0_PIN          GPIO_NUM_2  // Laser TTL
 #define AUXOUTPUT1_PIN          GPIO_NUM_35 // Spindle enable
@@ -110,11 +110,11 @@
 #endif
 
 #if PROBE_ENABLE
-#define PROBE_PIN               GPIO_NUM_39 // same as X_LIMIT_PIN and Probe pin
+#define PROBE_PIN               GPIO_NUM_37 
 #endif
 
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN         GPIO_NUM_41 // same as Z_LIMIT_PIN
+#define SAFETY_DOOR_PIN         GPIO_NUM_38
 #endif
 
 #define I2C_ENABLE 0
