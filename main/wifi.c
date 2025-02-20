@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2024 Terje Io
+  Copyright (c) 2018-2025 Terje Io
 
   Some parts of the code is based on example code by Espressif, in the public domain
 
@@ -47,6 +47,7 @@
 #include "wifi.h"
 #include "dns_server.h"
 #include "grbl/report.h"
+#include "grbl/task.h"
 #include "grbl/nvs_buffer.h"
 #include "grbl/protocol.h"
 
@@ -75,7 +76,8 @@ static nvs_address_t nvs_address;
 static esp_netif_t *sta_netif = NULL, *ap_netif = NULL;
 static on_report_options_ptr on_report_options;
 static on_stream_changed_ptr on_stream_changed;
-static char netservices[NETWORK_SERVICES_LEN] = "";
+static network_flags_t sta_status = {}, ap_status = {};
+static char netservices[NETWORK_SERVICES_LEN] = "", sta_if_name[NETIF_NAMESIZE] = "", ap_if_name[NETIF_NAMESIZE] = "";
 static char *country_codes[] = {
     "01", "AT", "AU", "BE", "BG", "BR", "CA", "CH", "CN", "CY", "CZ", "DE", "DK",
     "EE", "ES", "FI", "FR", "GB", "GR", "HK", "HR", "HU", "IE", "IN", "IS", "IT",
@@ -133,6 +135,57 @@ char *iptoa (void *ip)
     return aip;
 }
 
+static network_info_t *get_info (const char *interface)
+{
+    static network_info_t info;
+
+    uint8_t bmac[6];
+
+    memcpy(&info.status, &network, sizeof(network_settings_t));
+
+    if(interface == NULL)
+        interface = sta_status.ip_aquired || !ap_status.ap_started ? sta_if_name : ap_if_name;
+
+    *info.mac = '\0';
+    *info.status.ip = '\0';
+    *info.status.gateway = '\0';
+    *info.status.mask = '\0';
+
+    esp_netif_t *netif = interface == sta_if_name ? sta_netif : ap_netif;
+
+    if(netif) {
+
+        esp_netif_ip_info_t ip_info;
+
+        if(esp_netif_get_mac(netif, bmac) == ESP_OK)
+            strcpy(info.mac, networking_mac_to_string(bmac));
+
+        if(esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
+
+            if(!networking_ismemnull(&ip_info.ip, sizeof(ip_info.ip)))
+                strcpy(info.status.ip, iptoa(&ip_info.ip));
+
+            if(!networking_ismemnull(&ip_info.gw, sizeof(ip_info.gw)))
+                strcpy(info.status.gateway, iptoa(&ip_info.gw));
+
+            if(!networking_ismemnull(&ip_info.netmask, sizeof(ip_info.netmask)))
+                strcpy(info.status.mask, iptoa(&ip_info.netmask));
+        }
+    }
+
+    info.interface = (const char *)interface;
+    info.is_ethernet = false;
+    info.link_up = false;
+//    info.mbps = 100;
+    info.status.services = services;
+
+#if MQTT_ENABLE
+    networking_make_mqtt_clientid(info.mac, info.mqtt_client_id);
+#endif
+
+    return &info;
+}
+
 static void reportIP (bool newopt)
 {
     on_report_options(newopt);
@@ -157,7 +210,7 @@ static void reportIP (bool newopt)
 #endif
     } else {
 
-        network_info_t *network = networking_get_info();
+        network_info_t *network = get_info(NULL);
 
         hal.stream.write("[WIFI MAC:");
         hal.stream.write(network->mac);
@@ -182,52 +235,6 @@ static void reportIP (bool newopt)
         }
 #endif
     }
-}
-
-network_info_t *networking_get_info (void)
-{
-    static network_info_t info;
-
-    uint8_t bmac[6];
-    ip4_addr_t *ip;
-
-    memcpy(&info.status, &network, sizeof(network_settings_t));
-
- #if NETWORK_IPMODE_STATIC
-    ip = (ip4_addr_t *)&wifi.sta.network.ip;
-#else
-    ip = ap_list.ap_selected ? &ap_list.ip_addr : (ip4_addr_t *)&wifi.ap.network.ip;
-#endif
-
-    if(!networking_ismemnull(ip, sizeof(ip)))
-        strcpy(info.status.ip, iptoa(ip));
-    else
-        *info.status.ip = '\0';
-
- #if WIFI_SOFTAP
-     if(esp_read_mac(bmac, ESP_MAC_WIFI_SOFTAP) == ESP_OK) {
- #else
-     if(esp_read_mac(bmac, ESP_MAC_WIFI_STA) == ESP_OK) {
- #endif
-         strcpy(info.mac, networking_mac_to_string(bmac));
-     } else
-         *info.mac = '\0';
-
-    if(info.status.ip_mode == IpMode_DHCP) {
-        *info.status.gateway = '\0';
-        *info.status.mask = '\0';
-    }
-
-    info.is_ethernet = false;
-    info.link_up = false;
-//    info.mbps = 100;
-    info.status.services = services;
-
-#if MQTT_ENABLE
-    networking_make_mqtt_clientid(info.mac, info.mqtt_client_id);
-#endif
-
-    return &info;
 }
 
 #if TELNET_ENABLE || WEBSOCKET_ENABLE || FTP_ENABLE
@@ -315,12 +322,32 @@ static void start_services (bool start_ssdp)
 
 #if MQTT_ENABLE
     if(!mqtt_connected)
-        mqtt_connect(&network.mqtt, networking_get_info()->mqtt_client_id);
+        mqtt_connect(&network.mqtt, get_info(NULL)->mqtt_client_id);
 #endif
 
 #if TELNET_ENABLE || WEBSOCKET_ENABLE || FTP_ENABLE
     sys_timeout(STREAM_POLL_INTERVAL, lwIPHostTimerHandler, NULL);
 #endif
+}
+
+static void status_event_out (void *data)
+{
+    networking.event(sta_if_name, (network_status_t){ .value = (uint32_t)data });
+}
+
+static void status_event_publish (network_flags_t changed)
+{
+    task_add_immediate(status_event_out, (void *)((network_status_t){ .changed = changed, .flags = sta_status }).value);
+}
+
+static void status_ap_event_out (void *data)
+{
+    networking.event(ap_if_name, (network_status_t){ .value = (uint32_t)data });
+}
+
+static void status_ap_event_publish (network_flags_t changed)
+{
+    task_add_immediate(status_ap_event_out, (void *)((network_status_t){ .changed = changed, .flags = ap_status }).value);
 }
 
 static void stop_services (void)
@@ -382,15 +409,11 @@ void wifi_ap_scan (void)
 
     if(!(xEventGroupGetBits(wifi_event_group) & SCANNING_BIT) && esp_wifi_scan_start(&scan_config, false) == ESP_OK)
         xEventGroupSetBits(wifi_event_group, SCANNING_BIT);
-}
 
-static void msg_sta_active (void *data)
-{
-    char buf[50 + 45]; // + 45 due to compiler issue?
-
-    sprintf(buf, "[MSG:WIFI STA ACTIVE, IP=%s]" ASCII_EOL, iptoa(&ap_list.ip_addr));
-
-    hal.stream.write_all(buf);
+    if(sta_status.ap_scan_completed) {
+        sta_status.ap_scan_completed = Off;
+        status_event_publish((network_flags_t){ .ap_scan_completed = On });
+    }
 }
 
 static void ip_event_handler (void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
@@ -414,7 +437,17 @@ static void ip_event_handler (void *arg, esp_event_base_t event_base, int32_t ev
                 // commit to EEPROM?
             } else
                 wifi_ap_scan();
-            protocol_enqueue_foreground_task(msg_sta_active, NULL);
+            if(!sta_status.ip_aquired) {
+                sta_status.ip_aquired = On;
+                status_event_publish((network_flags_t){ .ip_aquired = On });
+            }
+            break;
+
+        case IP_EVENT_STA_LOST_IP:
+            if(sta_status.ip_aquired) {
+                sta_status.ip_aquired = Off;
+                status_event_publish((network_flags_t){ .ip_aquired = On });
+            }
             break;
 
         default:
@@ -427,11 +460,14 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
     if(event_base == WIFI_EVENT) switch(event_id) {
 
         case WIFI_EVENT_AP_START:
-            protocol_enqueue_foreground_task(report_plain, "WIFI AP READY");
             if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT) {
                 start_services(false);
                 services.dns = dns_server_start(sta_netif);
 //                protocol_enqueue_rt_command(wifi_ap_scan);
+            }
+            if(!ap_status.ap_started) {
+                ap_status.ap_started = ap_status.ip_aquired = On;
+                status_ap_event_publish((network_flags_t){ .ap_started = On, .ip_aquired = On });
             }
             break;
 /*??
@@ -536,8 +572,10 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
                 if((ap_list.ap_records = (wifi_ap_record_t *)malloc(sizeof(wifi_ap_record_t) * ap_list.ap_num)) != NULL)
                     esp_wifi_scan_get_ap_records(&ap_list.ap_num, ap_list.ap_records);
 
-                protocol_enqueue_foreground_task(report_plain, "WIFI AP SCAN COMPLETED");
-
+                if(!sta_status.ap_scan_completed) {
+                    sta_status.ap_scan_completed = On;
+                    status_event_publish((network_flags_t){ .ap_scan_completed = On });
+                }
                 xSemaphoreGive(aplist_mutex);
             }
             // Start a new scan in 10 secs if no station connected...
@@ -680,6 +718,8 @@ bool wifi_start (void)
         if(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config) != ESP_OK)
             return false;
 
+        esp_netif_get_netif_impl_name(ap_netif, ap_if_name);
+
         if(wifi.mode == WiFiMode_APSTA)
             xEventGroupSetBits(wifi_event_group, APSTA_BIT);
     }
@@ -717,10 +757,25 @@ bool wifi_start (void)
 
         if(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_sta_config) != ESP_OK)
             return false;
+
+        esp_netif_get_netif_impl_name(sta_netif, sta_if_name);
+
+        if(!strcmp(ap_if_name, sta_if_name))
+            ap_if_name[2] += 1; // fck ESP
     }
 
     if(esp_wifi_start() != ESP_OK)
         return false;
+
+    if(wifi.mode == WiFiMode_AP || wifi.mode == WiFiMode_APSTA) {
+        ap_status.interface_up = On;
+        status_ap_event_publish((network_flags_t){ .interface_up = On });
+    }
+
+    if(wifi.mode == WiFiMode_STA || wifi.mode == WiFiMode_APSTA) {
+        sta_status.interface_up = On;
+        status_event_publish((network_flags_t){ .interface_up = On });
+    }
 
     if(wifi.mode == WiFiMode_APSTA)
         wifi_ap_scan();
@@ -1243,6 +1298,8 @@ bool wifi_init (void)
 {
     if((nvs_address = nvs_alloc(sizeof(wifi_settings_t)))) {
 
+        networking_init();
+
         on_report_options = grbl.on_report_options;
         grbl.on_report_options = reportIP;
 
@@ -1255,6 +1312,7 @@ bool wifi_init (void)
 #endif
         settings_register(&setting_details);
 
+        networking.get_info = get_info;
         allowed_services.mask = networking_get_services_list((char *)netservices).mask;
     }
 

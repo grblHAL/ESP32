@@ -79,16 +79,6 @@ static void usb_out_chars (const char *buf, int length)
     }
 }
 
-static int32_t usb_in_chars (char *buf, uint32_t length)
-{
-    uint32_t count = 0;
-
-    if (usb_connected() && tud_cdc_available())
-            count = tud_cdc_read(buf, length);
-
-    return count ? count : -1;
-}
-
 //
 // Returns number of characters in USB input buffer
 //
