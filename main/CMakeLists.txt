@@ -25,7 +25,6 @@ set(SRCS
  spi.c
  ioexpand.c
  boards/BlackBoxX32.c
- networking/strutils.c
  grbl/grbllib.c
  grbl/canbus.c
  grbl/coolant_control.c
@@ -50,6 +49,7 @@ set(SRCS
  grbl/stream_file.c
  grbl/stepper.c
  grbl/stepper2.c
+ grbl/strutils.c
  grbl/system.c
  grbl/tool_change.c
  grbl/alarms.c
@@ -92,6 +92,7 @@ set(SDCARD_SOURCE
  sdcard/sdcard.c
  sdcard/ymodem.c
  sdcard/fs_fatfs.c
+ sdcard/fs_stream.c
  sdcard/macros.c
 )
 
