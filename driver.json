@@ -155,7 +155,7 @@
         "i2c": 1,
         "sdcard": 1,
         "wifi": 1,
-        "bluetooth": 1,
+        "bluetooth": 0,
         "pio_board": "esp32-s3-devkitc-1"
       },
       "cmake_args": {
@@ -389,7 +389,7 @@
         "i2c": 1,
         "sdcard": 1,
         "wifi": 1,
-        "bluetooth": 1,
+        "bluetooth": 0,
         "pio_board": "esp32-s3-devkitc-1"
       },
       "cmake_args": {
