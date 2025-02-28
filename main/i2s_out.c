@@ -568,7 +568,7 @@ uint32_t IRAM_ATTR i2s_out_push_sample (uint32_t num)
     return n;
 }
 
-i2s_out_pulser_status_t IRAM_ATTR i2s_out_get_pulser_status (void)
+i2s_out_pulser_status_t i2s_out_get_pulser_status (void)
 {
     I2S_OUT_PULSER_ENTER_CRITICAL();
     i2s_out_pulser_status_t s = i2s_out_pulser_status;
@@ -587,7 +587,7 @@ void IRAM_ATTR i2s_out_set_passthrough (void)
     I2S_OUT_PULSER_EXIT_CRITICAL();
 }
 
-void IRAM_ATTR i2s_out_set_stepping (void)
+void i2s_out_set_stepping (void)
 {
     I2S_OUT_PULSER_ENTER_CRITICAL();
 
@@ -633,7 +633,7 @@ void IRAM_ATTR i2s_out_set_pulse_period (uint32_t period)
     i2s_out_pulse_period = period;
 }
 
-void IRAM_ATTR i2s_out_set_pulse_callback (i2s_out_pulse_func_t func)
+void i2s_out_set_pulse_callback (i2s_out_pulse_func_t func)
 {
     i2s_out_pulse_func = func;
 }
@@ -658,7 +658,7 @@ void IRAM_ATTR i2s_out_reset (void)
 //
 // Initialize funtion (external function)
 //
-bool IRAM_ATTR i2s_out_init2 (i2s_out_init_t init_param)
+bool i2s_out_init2 (i2s_out_init_t init_param)
 {
     if (i2s_out_initialized) {
         // already initialized
@@ -889,7 +889,7 @@ bool IRAM_ATTR i2s_out_init2 (i2s_out_init_t init_param)
 
   return -1 ... already initialized
 */
-bool IRAM_ATTR i2s_out_init (void)
+bool i2s_out_init (void)
 {
     i2s_out_init_t default_param = {
         .ws_pin       = I2S_OUT_WS,

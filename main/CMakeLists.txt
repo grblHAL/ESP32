@@ -119,7 +119,7 @@ set(BLUETOOTH_SOURCE
 )
 
 set(MODBUS_SOURCE
- spindle/modbus_rtu
+ spindle/modbus_rtu.c
 )
 
 set(SPINDLE_SOURCE

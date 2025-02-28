@@ -3,7 +3,7 @@
 
   Part of grblHAL driver for ESP32
 
-  Copyright (c) 2018-2023 Terje Io
+  Copyright (c) 2018-2025 Terje Io
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,12 +19,6 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __I2C_DRIVER_H__
-#define __I2C_DRIVER_H__
+#pragma once
 
 #include "driver.h"
-
-void I2CInit (void);
-void i2c_get_keycode (uint_fast16_t i2c_address, keycode_callback_ptr callback);
-
-#endif

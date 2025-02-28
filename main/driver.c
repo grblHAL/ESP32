@@ -102,10 +102,6 @@
 #include "eeprom/eeprom.h"
 #endif
 
-#if I2C_ENABLE
-#include "i2c.h"
-#endif
-
 #if PWM_RAMPED
 
 #define SPINDLE_RAMP_STEP_INCR 20 // timer compare register change per ramp step
@@ -3426,10 +3422,6 @@ bool driver_init (void)
 #else
     if(!stream_connect_instance(SERIAL_STREAM, BAUD_RATE))
         while(true); // Cannot boot if no communication channel is available!
-#endif
-
-#if I2C_ENABLE
-    I2CInit();
 #endif
 
 #if EEPROM_ENABLE

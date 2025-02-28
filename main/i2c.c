@@ -3,7 +3,7 @@
 
   Part of grblHAL driver for ESP32
 
-  Copyright (c) 2018-2024 Terje Io
+  Copyright (c) 2018-2025 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "i2c.h"
+#include "driver.h"
 
 #if I2C_ENABLE
 
@@ -29,6 +29,10 @@
 
 #if TRINAMIC_ENABLE && TRINAMIC_I2C
 #define I2C_ADR_I2CBRIDGE 0x47
+#endif
+
+#ifndef I2C_CLOCK
+#define I2C_CLOCK 100000
 #endif
 
 QueueHandle_t i2cQueue = NULL;
@@ -76,13 +80,11 @@ static void I2CTask (void *queue)
     }
 }
 
-void I2CInit (void)
+i2c_cap_t i2c_start (void)
 {
-    static bool init_ok = false;
+    static i2c_cap_t cap = {};
 
-    if(!init_ok) {
-
-        init_ok = true;
+    if(!cap.started) {
 
         i2c_config_t i2c_config = {
             .mode = I2C_MODE_MASTER,
@@ -121,10 +123,14 @@ void I2CInit (void)
 
         hal.periph_port.register_pin(&scl);
         hal.periph_port.register_pin(&sda);
+
+        cap.started = cap.tx_non_blocking = On;
     }
+
+    return cap;
 }
 
-bool i2c_probe (uint_fast16_t i2c_address)
+bool i2c_probe (i2c_address_t i2c_address)
 {
     esp_err_t ret = ESP_FAIL;
 
@@ -142,7 +148,7 @@ bool i2c_probe (uint_fast16_t i2c_address)
     return ret == ESP_OK;
 }
 
-bool i2c_send (uint_fast16_t i2c_address, uint8_t *data, size_t size, bool block)
+bool i2c_send (i2c_address_t i2c_address, uint8_t *data, size_t size, bool block)
 {
     esp_err_t ret = ESP_FAIL;
 
@@ -163,7 +169,7 @@ bool i2c_send (uint_fast16_t i2c_address, uint8_t *data, size_t size, bool block
     return ret == ESP_OK;
 }
 
-void i2c_get_keycode (uint_fast16_t i2cAddr, keycode_callback_ptr callback)
+bool i2c_get_keycode (i2c_address_t i2cAddr, keycode_callback_ptr callback)
 {
     static i2c_task_t i2c_task = {
         .action = 1,
@@ -175,11 +181,11 @@ void i2c_get_keycode (uint_fast16_t i2cAddr, keycode_callback_ptr callback)
 
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     xQueueSendFromISR(i2cQueue, (void *)&i2c_task, &xHigherPriorityTaskWoken);
+
+    return true;
 }
 
-#if EEPROM_ENABLE
-
-nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
+bool i2c_transfer (i2c_transfer_t *i2c, bool read)
 {
     if(i2cBusy != NULL && xSemaphoreTake(i2cBusy, 5 / portTICK_PERIOD_MS) == pdTRUE) {
 
@@ -210,17 +216,10 @@ nvs_transfer_result_t i2c_nvs_transfer (nvs_transfer_t *i2c, bool read)
         i2c_cmd_link_delete(cmd);
 
         xSemaphoreGive(i2cBusy);
-
-#if !EEPROM_IS_FRAM
-        if(!read) // Delay 5ms for write to complete
-            vTaskDelay(10 / portTICK_PERIOD_MS);
-#endif
     }
 
-    return NVS_TransferResult_OK;
+    return true;
 }
-
-#endif // EEPROM_ENABLE
 
 #if TRINAMIC_ENABLE && TRINAMIC_I2C
 
