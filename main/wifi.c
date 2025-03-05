@@ -139,51 +139,53 @@ static network_info_t *get_info (const char *interface)
 {
     static network_info_t info;
 
-    uint8_t bmac[6];
+    if(interface == sta_if_name || interface == ap_if_name) {
 
-    memcpy(&info.status, &network, sizeof(network_settings_t));
+        uint8_t bmac[6];
 
-    if(interface == NULL)
-        interface = sta_status.ip_aquired || !ap_status.ap_started ? sta_if_name : ap_if_name;
+        memcpy(&info.status, &network, sizeof(network_settings_t));
 
-    *info.mac = '\0';
-    *info.status.ip = '\0';
-    *info.status.gateway = '\0';
-    *info.status.mask = '\0';
+        *info.mac = '\0';
+        *info.status.ip = '\0';
+        *info.status.gateway = '\0';
+        *info.status.mask = '\0';
 
-    esp_netif_t *netif = interface == sta_if_name ? sta_netif : ap_netif;
+        esp_netif_t *netif = interface == sta_if_name ? sta_netif : ap_netif;
 
-    if(netif) {
+        if(netif) {
 
-        esp_netif_ip_info_t ip_info;
+            esp_netif_ip_info_t ip_info;
 
-        if(esp_netif_get_mac(netif, bmac) == ESP_OK)
-            strcpy(info.mac, networking_mac_to_string(bmac));
+            if(esp_netif_get_mac(netif, bmac) == ESP_OK)
+                strcpy(info.mac, networking_mac_to_string(bmac));
 
-        if(esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
+            if(esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
 
-            if(!networking_ismemnull(&ip_info.ip, sizeof(ip_info.ip)))
-                strcpy(info.status.ip, iptoa(&ip_info.ip));
+                if(!networking_ismemnull(&ip_info.ip, sizeof(ip_info.ip)))
+                    strcpy(info.status.ip, iptoa(&ip_info.ip));
 
-            if(!networking_ismemnull(&ip_info.gw, sizeof(ip_info.gw)))
-                strcpy(info.status.gateway, iptoa(&ip_info.gw));
+                if(!networking_ismemnull(&ip_info.gw, sizeof(ip_info.gw)))
+                    strcpy(info.status.gateway, iptoa(&ip_info.gw));
 
-            if(!networking_ismemnull(&ip_info.netmask, sizeof(ip_info.netmask)))
-                strcpy(info.status.mask, iptoa(&ip_info.netmask));
+                if(!networking_ismemnull(&ip_info.netmask, sizeof(ip_info.netmask)))
+                    strcpy(info.status.mask, iptoa(&ip_info.netmask));
+            }
         }
-    }
 
-    info.interface = (const char *)interface;
-    info.is_ethernet = false;
-    info.link_up = false;
-//    info.mbps = 100;
-    info.status.services = services;
+        info.interface = (const char *)interface;
+        info.is_ethernet = false;
+        info.link_up = false;
+    //    info.mbps = 100;
+        info.status.services = services;
 
 #if MQTT_ENABLE
-    networking_make_mqtt_clientid(info.mac, info.mqtt_client_id);
+        networking_make_mqtt_clientid(info.mac, info.mqtt_client_id);
 #endif
 
-    return &info;
+        return &info;
+    }
+
+    return NULL;
 }
 
 static void reportIP (bool newopt)
@@ -210,30 +212,53 @@ static void reportIP (bool newopt)
 #endif
     } else {
 
-        network_info_t *network = get_info(NULL);
+        network_info_t *network;
 
-        hal.stream.write("[WIFI MAC:");
-        hal.stream.write(network->mac);
-        hal.stream.write("]" ASCII_EOL);
+        if(*sta_if_name && (network = get_info(sta_if_name))) {
 
-        hal.stream.write("[IP:");
-        hal.stream.write(network->status.ip);
-        hal.stream.write("]" ASCII_EOL);
+            hal.stream.write("[WIFI STA MAC:");
+            hal.stream.write(network->mac);
+            hal.stream.write("]" ASCII_EOL);
+
+            hal.stream.write("[STA IP:");
+            hal.stream.write(network->status.ip);
+            hal.stream.write("]" ASCII_EOL);
+
+#if MQTT_ENABLE
+            char *client_id;
+            if(*(client_id = network->mqtt_client_id)) {
+                hal.stream.write("[MQTT CLIENTID:");
+                hal.stream.write(client_id);
+                hal.stream.write(mqtt_connected ? "]" ASCII_EOL : " (offline)]" ASCII_EOL);
+            }
+#endif
+        }
+
+        if(*ap_if_name && (network = get_info(ap_if_name))) {
+
+            hal.stream.write("[WIFI AP MAC:");
+            hal.stream.write(network->mac);
+            hal.stream.write("]" ASCII_EOL);
+
+            hal.stream.write("[AP IP:");
+            hal.stream.write(network->status.ip);
+            hal.stream.write("]" ASCII_EOL);
+
+#if MQTT_ENABLE
+            char *client_id;
+            if(*(client_id = network->mqtt_client_id)) {
+                hal.stream.write("[MQTT CLIENTID:");
+                hal.stream.write(client_id);
+                hal.stream.write(mqtt_connected ? "]" ASCII_EOL : " (offline)]" ASCII_EOL);
+            }
+#endif
+        }
 
         if(active_stream == StreamType_Telnet || active_stream == StreamType_WebSocket) {
             hal.stream.write("[NETCON:");
             hal.stream.write(active_stream == StreamType_Telnet ? "Telnet" : "Websocket");
             hal.stream.write("]" ASCII_EOL);
         }
-
-#if MQTT_ENABLE
-        char *client_id;
-        if(*(client_id = network->mqtt_client_id)) {
-            hal.stream.write("[MQTT CLIENTID:");
-            hal.stream.write(client_id);
-            hal.stream.write(mqtt_connected ? "]" ASCII_EOL : " (offline)]" ASCII_EOL);
-        }
-#endif
     }
 }
 
@@ -287,7 +312,7 @@ static void start_services (bool start_ssdp)
     }
   #if SSDP_ENABLE
     if(start_ssdp && services.http && !services.ssdp)
-        services.ssdp = ssdp_init(network.http_port);
+        services.ssdp = ssdp_init(get_info(*sta_if_name ? sta_if_name : ap_if_name));
   #endif
 #endif
 
@@ -322,7 +347,7 @@ static void start_services (bool start_ssdp)
 
 #if MQTT_ENABLE
     if(!mqtt_connected)
-        mqtt_connect(&network.mqtt, get_info(NULL)->mqtt_client_id);
+        mqtt_connect(&network.mqtt, get_info(*sta_if_name ? sta_if_name : ap_if_name));
 #endif
 
 #if TELNET_ENABLE || WEBSOCKET_ENABLE || FTP_ENABLE

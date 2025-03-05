@@ -1,12 +1,12 @@
 //
 // mqtt.c - MQTT client API for grblHAL, ESP32 version
 //
-// v0.2 / 2024-05-08 / Io Engineering / Terje
+// v0.3 / 2025-03-04 / Io Engineering / Terje
 //
 
 /*
 
-Copyright (c) 2023-2024, Terje Io
+Copyright (c) 2023-2025, Terje Io
 
 All rights reserved.
 
@@ -136,18 +136,18 @@ static bool isnull (char *d, size_t len)
     return true;
 }
 
-bool mqtt_connect (mqtt_settings_t *mqtt, const char *client_id)
+bool mqtt_connect (network_info_t *network, mqtt_settings_t *mqtt)
 {
     static char uri[INET6_ADDRSTRLEN + 7];
 
-    if(!connecting && mqtt->port > 0 && !isnull(mqtt->ip, sizeof(mqtt->ip))) {
+    if(!connecting && network && mqtt->port && !isnull(mqtt->ip, sizeof(mqtt->ip))) {
 
         esp_mqtt_client_config_t mqtt_cfg = {0};
 
         strcpy(uri, "mqtt://");
         inet_ntop(AF_INET, &mqtt->ip, uri + 7, INET6_ADDRSTRLEN);
 
-        mqtt_cfg.client_id = client_id;
+        mqtt_cfg.client_id = network->mqtt_client_id;
         mqtt_cfg.uri = uri;
         mqtt_cfg.port = mqtt->port;
         mqtt_cfg.username = mqtt->user;
