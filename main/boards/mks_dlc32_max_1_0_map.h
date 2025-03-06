@@ -38,6 +38,9 @@
 #define BOARD_NAME "MKS DLC32 MAX 1.0"
 #define BOARD_URL "https://github.com/makerbase-mks/MKS-DLC32"
 
+#undef I2C_ENABLE
+#define I2C_ENABLE 0
+
 #define SERIAL1_PORT 
 #define UART1_RX_PIN            GPIO_NUM_18
 #define UART1_TX_PIN            GPIO_NUM_17
@@ -116,8 +119,6 @@
 #if SAFETY_DOOR_ENABLE
 #define SAFETY_DOOR_PIN         GPIO_NUM_38
 #endif
-
-#define I2C_ENABLE 0
 
 // Define I2C port/pins
 #if I2C_ENABLE
