@@ -230,6 +230,10 @@ set(USB_SOURCE
  usb_serial.c
 )
 
+if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/../3rdParty.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../3rdParty.cmake)
+endif()
+
 if("${target}" STREQUAL "esp32s3")
 list (APPEND SRCS ${USB_SOURCE})
 list (APPEND SRCS ${I2S_S3_SOURCE})
