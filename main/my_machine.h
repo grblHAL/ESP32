@@ -42,6 +42,7 @@
 //#define BOARD_CNC_BOOSTERPACK         //
 //#define BOARD_GENERIC_S3              // Generic map for ESP32-S3, untested - WIP!
 //#define BOARD_GENERIC_I2S_S3          // Generic map for ESP32-S3 with I2S shift registers for I/O expansion, untested - WIP!
+//#define BOARD_PIBOT_I2S_6_AXIS        // PiBot 6-axis I2S board
 //#define BOARD_MY_MACHINE              // Add my_machine_map.h in the boards directory before enabling this!
 
 // Configuration
