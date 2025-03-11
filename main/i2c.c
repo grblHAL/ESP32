@@ -135,12 +135,14 @@ bool i2c_probe (i2c_address_t i2c_address)
     esp_err_t ret = ESP_FAIL;
 
     if(i2cBusy != NULL && xSemaphoreTake(i2cBusy, 5 / portTICK_PERIOD_MS) == pdTRUE) {
-        i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-        i2c_master_start(cmd);
-        i2c_master_write_byte(cmd, (i2c_address << 1)|I2C_MASTER_WRITE, true);
-        i2c_master_stop(cmd);
-        ret = i2c_master_cmd_begin(I2C_PORT, cmd, 1000 / portTICK_PERIOD_MS);
-        i2c_cmd_link_delete(cmd);
+
+        i2c_cmd_handle_t cmd;
+
+        if((cmd = i2c_cmd_link_create()) && i2c_master_start(cmd) == ESP_OK) {
+            if(i2c_master_write_byte(cmd, (i2c_address << 1)|I2C_MASTER_WRITE, true) == ESP_OK && i2c_master_stop(cmd) == ESP_OK)
+                ret = i2c_master_cmd_begin(I2C_PORT, cmd, 1000 / portTICK_PERIOD_MS);
+            i2c_cmd_link_delete(cmd);
+        }
 
         xSemaphoreGive(i2cBusy);
     }
@@ -155,13 +157,17 @@ bool i2c_send (i2c_address_t i2c_address, uint8_t *data, size_t size, bool block
     // always blocking... TODO: post non-blocking to I2CTask()
 
     if(i2cBusy != NULL && xSemaphoreTake(i2cBusy, 5 / portTICK_PERIOD_MS) == pdTRUE) {
-        i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-        i2c_master_start(cmd);
-        i2c_master_write_byte(cmd, (i2c_address << 1)|I2C_MASTER_WRITE, true);
-        i2c_master_write(cmd, data, size, true);
-        i2c_master_stop(cmd);
-        ret = i2c_master_cmd_begin(I2C_PORT, cmd, 1000 / portTICK_PERIOD_MS);
-        i2c_cmd_link_delete(cmd);
+
+        i2c_cmd_handle_t cmd;
+
+        if((cmd = i2c_cmd_link_create()) && i2c_master_start(cmd) == ESP_OK) {
+
+            if(i2c_master_write_byte(cmd, (i2c_address << 1)|I2C_MASTER_WRITE, true) == ESP_OK &&
+                i2c_master_write(cmd, data, size, true) == ESP_OK &&
+                 i2c_master_stop(cmd) == ESP_OK)
+                ret = i2c_master_cmd_begin(I2C_PORT, cmd, 1000 / portTICK_PERIOD_MS);
+            i2c_cmd_link_delete(cmd);
+        }
 
         xSemaphoreGive(i2cBusy);
     }
@@ -187,38 +193,44 @@ bool i2c_get_keycode (i2c_address_t i2cAddr, keycode_callback_ptr callback)
 
 bool i2c_transfer (i2c_transfer_t *i2c, bool read)
 {
+    esp_err_t ret = ESP_FAIL;
+
     if(i2cBusy != NULL && xSemaphoreTake(i2cBusy, 5 / portTICK_PERIOD_MS) == pdTRUE) {
 
-        i2c->address <<= 1;
-        i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-        i2c_master_start(cmd);
-        i2c_master_write_byte(cmd, i2c->address|I2C_MASTER_WRITE, true);
-        if(i2c->word_addr_bytes == 2) {
-            i2c_master_write_byte(cmd, i2c->word_addr >> 8, true);
-            i2c_master_write_byte(cmd, i2c->word_addr & 0xFF, true);
-        } else
-            i2c_master_write_byte(cmd, i2c->word_addr, true);
+        i2c_cmd_handle_t cmd;
 
-        if(read) {
-            i2c_master_start(cmd);
-            i2c_master_write_byte(cmd, i2c->address|I2C_MASTER_READ, true);
-            if (i2c->count > 1)
-                i2c_master_read(cmd, i2c->data, i2c->count - 1, I2C_MASTER_ACK);
-            i2c_master_read_byte(cmd, i2c->data + i2c->count - 1, I2C_MASTER_NACK);
-            i2c_master_stop(cmd);
-        } else {
-            i2c_master_write(cmd, i2c->data, i2c->count, true);
-            i2c_master_stop(cmd);
+        if((cmd = i2c_cmd_link_create()) && i2c_master_start(cmd) == ESP_OK) {
+
+            bool ok = i2c_master_write_byte(cmd, (i2c->address << 1)|I2C_MASTER_WRITE, true) == ESP_OK;
+
+            if(i2c->word_addr_bytes == 2) {
+                ok = ok && i2c_master_write_byte(cmd, i2c->word_addr >> 8, true) == ESP_OK;
+                ok = ok && i2c_master_write_byte(cmd, i2c->word_addr & 0xFF, true) == ESP_OK;
+            } else
+                ok = ok && i2c_master_write_byte(cmd, i2c->word_addr, true) == ESP_OK;
+
+            if(read) {
+                ok = ok && i2c_master_start(cmd) == ESP_OK;
+                ok = ok && i2c_master_write_byte(cmd, (i2c->address << 1)|I2C_MASTER_READ, true) == ESP_OK;
+                if(i2c->count > 1)
+                    ok = ok && i2c_master_read(cmd, i2c->data, i2c->count - 1, I2C_MASTER_ACK) == ESP_OK;
+                ok = ok && i2c_master_read_byte(cmd, i2c->data + i2c->count - 1, I2C_MASTER_NACK) == ESP_OK;
+                ok = ok && i2c_master_stop(cmd) == ESP_OK;
+            } else {
+                ok = ok && i2c_master_write(cmd, i2c->data, i2c->count, true) == ESP_OK;
+                ok = ok && i2c_master_stop(cmd) == ESP_OK;
+            }
+
+            if(ok)
+                ret = i2c_master_cmd_begin(I2C_PORT, cmd, 1000 / portTICK_PERIOD_MS);
+
+            i2c_cmd_link_delete(cmd);
         }
-
-        i2c_master_cmd_begin(I2C_PORT, cmd, 1000 / portTICK_PERIOD_MS);
-//      printf("EE %d %d %d\n", read, i2c.count, ret);
-        i2c_cmd_link_delete(cmd);
 
         xSemaphoreGive(i2cBusy);
     }
 
-    return true;
+    return ret == ESP_OK;
 }
 
 #if TRINAMIC_ENABLE && TRINAMIC_I2C

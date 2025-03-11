@@ -103,27 +103,19 @@
 //#define RESET_PIN               GPIO_NUM_?
 //#define FEED_HOLD_PIN           GPIO_NUM_?
 
-#define CYCLE_START_PIN         GPIO_NUM_36 //???
+#define CYCLE_START_PIN         GPIO_NUM_36 // Flame
 
-//#define AUXINPUT0_PIN           GPIO_NUM_?
-//#define AUXINPUT1_PIN           GPIO_NUM_?
+#define AUXINPUT0_PIN           GPIO_NUM_38 // Door
+#define AUXINPUT1_PIN           GPIO_NUM_37 // Probe
 
 #if RGB_LED_ENABLE
 #define LED_PIN                 GPIO_NUM_48 // for ESP32-S3-DevKit
 #endif
 
 #if PROBE_ENABLE
-#define PROBE_PIN               GPIO_NUM_37 
+#define PROBE_PIN               AUXINPUT1_PIN
 #endif
 
 #if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN         GPIO_NUM_38
-#endif
-
-// Define I2C port/pins
-#if I2C_ENABLE
-//#define I2C_PORT                I2C_NUM_1
-//#define I2C_SDA                 GPIO_NUM_3
-//#define I2C_SCL                 GPIO_NUM_4
-//#define I2C_CLOCK               100000
+#define SAFETY_DOOR_PIN         AUXINPUT0_PIN
 #endif
