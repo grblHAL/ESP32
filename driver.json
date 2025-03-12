@@ -214,7 +214,7 @@
     },
     {
       "name": "PiBot 6-axis I2S",
-      "symbol": "BOARD_BDRING_I2S6A",
+      "symbol": "BOARD_PIBOT_I2S_6_AXIS",
       "URL": "https://www.pibot.com/pibot-fluidnc-grbl-cnc-controller-v4-9",
       "MAP": "main/boards/pibot_i2s_6_axis_map.h",
       "caps": {
