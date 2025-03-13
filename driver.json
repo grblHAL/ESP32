@@ -222,6 +222,7 @@
         "usb_cdc": 0,
         "serial_ports": 2,
         "i2c": 1,
+	"sdcard": 1,
         "wifi": 1,
         "bluetooth": 1
       }
