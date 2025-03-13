@@ -91,7 +91,7 @@
       }
     },
     {
-      "name": "BDRING 6-axis I2S",
+      "name": "BDRING 6-PACK v1?",
       "symbol": "BOARD_BDRING_I2S6A",
       "URL": "https://github.com/bdring/6-Pack_CNC_Controller",
       "MAP": "main/boards/bdring_i2s_6_axis_map.h",
@@ -101,6 +101,22 @@
         "serial_ports": 2,
         "trinamic_spi_cs": 1,
         "trinamic_spi_chain": 1,
+        "wifi": 1,
+        "bluetooth": 1
+      }
+    },
+    {
+      "name": "FluidNC v3 6-Pack",
+      "symbol": "BOARD_BDRING_6X_V3",
+      "URL": "http://wiki.fluidnc.com/en/hardware/official/6_Pack_Integrated_ESP32",
+      "MAP": "main/boards/bdring_i2s_6x_v3_map.h",
+      "caps": {
+        "axes": 6,
+        "usb_cdc": 0,
+        "serial_ports": 2,
+        "trinamic_spi_cs": 1,
+        "trinamic_spi_chain": 0,
+        "sdcard": 1,
         "wifi": 1,
         "bluetooth": 1
       }
@@ -134,6 +150,7 @@
         "digital_out": 4,
         "safety_door": 0,
         "serial_ports": 1,
+        "i2c": 1,
         "pwm_spindle_aux": 2,
         "sdcard": 1,
         "wifi": 1,

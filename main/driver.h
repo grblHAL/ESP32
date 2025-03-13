@@ -128,6 +128,8 @@ typedef struct {
   #include "boards/bdring_i2s_6_axis_map.h"
 #elif defined(BOARD_BDRING_6X)
   #include "boards/bdring_i2s_6x_v1_map.h"
+#elif defined(BOARD_BDRING_6X_V3)
+  #include "boards/bdring_i2s_6x_v3_map.h"
 #elif defined(BOARD_BDRING_I2S_6PACK_EXT_V2)
   #include "boards/bdring_i2s_6pack_ext_v2_map.h"
 #elif defined(BOARD_ESPDUINO32)
