@@ -23,7 +23,7 @@
 #error "This board has ESP32-S3 processor, select a corresponding build!"
 #endif
 
-#if N_ABC_MOTORS > 0
+#if N_ABC_MOTORS > 1
 #error "Axis configuration is not supported!"
 #endif
 
@@ -62,6 +62,13 @@
 #define X_LIMIT_PIN             GPIO_NUM_39 
 #define Y_LIMIT_PIN             GPIO_NUM_40 
 #define Z_LIMIT_PIN             GPIO_NUM_41 
+
+#if N_ABC_MOTORS == 1
+#define M3_AVAILABLE
+#define M3_STEP_PIN             GPIO_NUM_20
+#define M3_DIRECTION_PIN        GPIO_NUM_19
+#define M3_LIMIT_PIN            GPIO_NUM_48
+#endif
 
 #define AUXOUTPUT0_PIN          GPIO_NUM_2  // Laser TTL
 #define AUXOUTPUT1_PIN          GPIO_NUM_35 // Spindle enable

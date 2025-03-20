@@ -164,7 +164,7 @@
       "notes": "Experimental!",
       "MAP": "main/boards/mks_dlc32_max_1_0_map.h",
       "caps": {
-        "axes": 3,
+        "axes": 4,
         "usb_cdc": 0,
         "serial_ports": 2,
         "digital_in": 1,
