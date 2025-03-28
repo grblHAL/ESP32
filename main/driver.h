@@ -203,6 +203,11 @@ typedef struct {
 #define SAFETY_DOOR_ENABLE 0
 #endif
 
+// Minimum pulse off time
+#ifndef STEP_PULSE_TOFF_MIN
+#define STEP_PULSE_TOFF_MIN 2.0f
+#endif
+
 #ifndef STEP_TIMER_GROUP
 #define STEP_TIMER_GROUP TIMER_GROUP_0
 #endif

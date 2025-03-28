@@ -490,9 +490,10 @@ static output_signal_t outputpin[] = {
 #endif
 };
 
-size_t outputPinsCount = sizeof(outputpin) / sizeof(output_signal_t);
+static const size_t outputPinsCount = sizeof(outputpin) / sizeof(output_signal_t);
 
 static bool IOInitDone = false;
+static uint32_t t_min_period;
 static portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 static pin_group_pins_t limit_inputs = {0};
 static on_execute_realtime_ptr on_execute_realtime;
@@ -681,15 +682,15 @@ IRAM_ATTR static void stepperCyclesPerTick (uint32_t cycles_per_tick)
 // Limit min steps/s to about 2 (hal.f_step_timer @ 20MHz)
 #if CONFIG_IDF_TARGET_ESP32S3
   #ifdef ADAPTIVE_MULTI_AXIS_STEP_SMOOTHING
-    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarmlo.val = cycles_per_tick < (1UL << 18) ? cycles_per_tick : (1UL << 18) - 1UL;
+    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarmlo.val = cycles_per_tick < (1UL << 18) ? max(cycles_per_tick, t_min_period) : (1UL << 18) - 1UL;
   #else
-    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarmlo.val = cycles_per_tick < (1UL << 23) ? cycles_per_tick : (1UL << 23) - 1UL;
+    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarmlo.val = cycles_per_tick < (1UL << 23) ? max(cycles_per_tick, t_min_period) : (1UL << 23) - 1UL;
   #endif
 #else
   #ifdef ADAPTIVE_MULTI_AXIS_STEP_SMOOTHING
-    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = cycles_per_tick < (1UL << 18) ? cycles_per_tick : (1UL << 18) - 1UL;
+    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = cycles_per_tick < (1UL << 18) ? max(cycles_per_tick, t_min_period) : (1UL << 18) - 1UL;
   #else
-    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = cycles_per_tick < (1UL << 23) ? cycles_per_tick : (1UL << 23) - 1UL;
+    TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = cycles_per_tick < (1UL << 23) ? max(cycles_per_tick, t_min_period) : (1UL << 23) - 1UL;
   #endif
 #endif
 }
@@ -801,6 +802,7 @@ static void StepperDisableMotors (axes_signals_t axes, squaring_mode_t mode)
 #if USE_I2S_OUT
 
 static bool goIdlePending = false;
+static uint32_t t_max_period;
 static uint32_t i2s_step_length = I2S_OUT_USEC_PER_PULSE, i2s_delay_length = I2S_OUT_USEC_PER_PULSE, i2s_delay_samples = 1, i2s_step_samples = 1;
 static bool laser_mode = false;
 #if DRIVER_SPINDLE_ENABLE
@@ -833,21 +835,22 @@ IRAM_ATTR static void delay_us (uint32_t us)
 
 IRAM_ATTR static void I2SStepperCyclesPerTick (uint32_t cycles_per_tick)
 {
-    i2s_out_set_pulse_period((cycles_per_tick < (1UL << 18) ? cycles_per_tick : (1UL << 18) - 1UL) / (hal.f_step_timer / 1000000));
+    i2s_out_set_pulse_period((cycles_per_tick < (1UL << 18) ? max(cycles_per_tick, t_min_period) : (1UL << 18) - 1) / t_max_period);
 }
 
 // Sets stepper direction and pulse pins and starts a step pulse
 // Called when in I2S stepping mode
 IRAM_ATTR static void I2SStepperPulseStart (stepper_t *stepper)
 {
-    if(stepper->dir_change) {
-        set_dir_outputs(stepper->dir_outbits);
-        if(stepper->step_outbits.value)
+    if(stepper->dir_changed.bits) {
+        stepper->dir_changed.bits = 0;
+        set_dir_outputs(stepper->dir_out);
+        if(stepper->step_out.bits)
             i2s_out_push_sample(i2s_delay_samples);
     }
 
-    if(stepper->step_outbits.value) {
-        i2s_set_step_outputs(stepper->step_outbits);
+    if(stepper->step_out.bits) {
+        i2s_set_step_outputs(stepper->step_out);
         i2s_out_push_sample(i2s_step_samples);
         i2s_set_step_outputs((axes_signals_t){0});
     }
@@ -1481,21 +1484,22 @@ IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
     static bool add_dir_delay = false;
 #endif
 
-    if(stepper->dir_change) {
+    if(stepper->dir_change.bits) {
+        stepper->dir_changed.bits = 0;
         set_dir_outputs(stepper->dir_outbits);
 #if USE_I2S_OUT
-        if(!(add_dir_delay = !!stepper->step_outbits.value))
+        if(!(add_dir_delay = !!stepper->step_out.bits))
             i2s_out_commit(0, i2s_delay_samples);
 #endif
     }
 
-    if(stepper->step_outbits.value) {
+    if(stepper->step_out.bits) {
 #if USE_I2S_OUT
-        i2s_set_step_outpustep_outstep_outbits);
+        i2s_set_step_outputs(stepper->step_out);
         i2s_out_commit(i2s_step_samples, add_dir_delay ? i2s_delay_samples : 0);
         add_dir_delay = false;
 #else
-        set_step_outputs(stepper->step_outbits);
+        set_step_outputs(stepper->step_out);
 #endif
     }
 }
@@ -1504,21 +1508,22 @@ IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
 
 IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
 {
-    if(stepper->dir_change) {
-        set_dir_outputs(stepper->dir_outbits);
+    if(stepper->dir_changed.bits) {
+        stepper->dir_changed.bits = 0;
+        set_dir_outputs(stepper->dir_out);
 #if USE_I2S_OUT
-        if(stepper->step_outbits.value)
+        if(stepper->step_out.bits)
             delay_us(i2s_delay_length + 1);
 #endif
     }
 
-    if(stepper->step_outbits.value) {
+    if(stepper->step_out.bits) {
 #if USE_I2S_OUT
-        i2s_set_step_outputs(stepper->step_outbits);
+        i2s_set_step_outputs(stepper->step_out);
         delay_us(i2s_step_length + 1);
         i2s_set_step_outputs((axes_signals_t){0});
 #else
-        set_step_outputs(stepper->step_outbits);
+        set_step_outputs(stepper->step_out);
 #endif
     }
 }
@@ -2543,7 +2548,11 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
          * Step pulse config *
          *********************/
 
+        t_min_period = (uint32_t)ceilf((hal.f_step_timer / 1000000.0f) * (settings->steppers.pulse_microseconds + STEP_PULSE_TOFF_MIN));
+
 #if USE_I2S_OUT
+
+        t_max_period = (uint32_t)(hal.f_step_timer / 1000000.0f);
 
         i2s_delay_length = (uint32_t)ceilf(settings->steppers.pulse_delay_microseconds);
         i2s_step_length = (uint32_t)ceilf(settings->steppers.pulse_microseconds);
@@ -3096,7 +3105,7 @@ static bool driver_setup (settings_t *settings)
 
     timer_init(STEP_TIMER_GROUP, STEP_TIMER_INDEX, &timerConfig);
     timer_set_counter_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 0ULL);
-    timer_isr_register(STEP_TIMER_GROUP, STEP_TIMER_INDEX, stepper_driver_isr, 0, ESP_INTR_FLAG_IRAM, NULL);
+    timer_isr_register(STEP_TIMER_GROUP, STEP_TIMER_INDEX, stepper_driver_isr, 0, ESP_INTR_FLAG_LEVEL3|ESP_INTR_FLAG_IRAM, NULL);
     timer_enable_intr(STEP_TIMER_GROUP, STEP_TIMER_INDEX);
 
 #if USE_I2S_OUT
@@ -3329,7 +3338,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "250129";
+    hal.driver_version = "250328";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3341,6 +3350,7 @@ bool driver_init (void)
     hal.driver_setup = driver_setup;
     hal.f_mcu = cpu.freq_mhz;
     hal.f_step_timer = rtc_clk_apb_freq_get() / STEPPER_DRIVER_PRESCALER; // 20 MHz
+
     hal.rx_buffer_size = RX_BUFFER_SIZE;
     hal.get_free_mem = esp_get_free_heap_size;
     hal.delay_ms = driver_delay_ms;
@@ -3353,6 +3363,7 @@ bool driver_init (void)
     hal.settings_changed = settings_changed;
 
 #if USE_I2S_OUT
+    hal.step_us_min = I2S_OUT_USEC_PER_PULSE;
     hal.driver_reset = I2SReset;
     hal.stepper.wake_up = I2SStepperWakeUp;
     hal.stepper.go_idle = I2SStepperGoIdle;
