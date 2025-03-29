@@ -1486,7 +1486,7 @@ IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
 
     if(stepper->dir_changed.bits) {
         stepper->dir_changed.bits = 0;
-        set_dir_outputs(stepper->dir_outbits);
+        set_dir_outputs(stepper->dir_out);
 #if USE_I2S_OUT
         if(!(add_dir_delay = !!stepper->step_out.bits))
             i2s_out_commit(0, i2s_delay_samples);
