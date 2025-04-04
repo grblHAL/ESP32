@@ -21,9 +21,14 @@
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#if N_ABC_MOTORS > 2
+#if N_ABC_MOTORS > 1
 #error "Axis configuration is not supported!"
 #endif
+
+#if N_ABC_MOTORS == 0
+#error "Axis configuration is not supported! The A motor must be enabled for proper Trinamic communication"
+#endif
+
 
 #if KEYPAD_ENABLE == 1
 #error No free pins for I2C keypad!
@@ -39,11 +44,14 @@
 #define BOARD_URL "https://github.com/bigtreetech/Rodent/tree/master"
 // https://bttwiki.com/Rodent.html
 
-//#define TRINAMIC_MIXED_DRIVERS 0 Uncomment when board verified
 
 #define I2S_OUT_BCK             GPIO_NUM_22
 #define I2S_OUT_WS              GPIO_NUM_17
 #define I2S_OUT_DATA            GPIO_NUM_21
+
+// General TMC settings 
+#define TMC_STEALTHCHOP         0 // Disable stealthchop
+
 
 #define X_STEP_PIN              I2SO(2)
 #define X_DIRECTION_PIN         I2SO(1)
@@ -55,28 +63,20 @@
 #define Y_ENABLE_PIN            I2SO(7)
 #define Y_LIMIT_PIN             GPIO_NUM_34
 
+
 #define Z_STEP_PIN              I2SO(10)
 #define Z_DIRECTION_PIN         I2SO(9)
 #define Z_ENABLE_PIN            I2SO(8)
 #define Z_LIMIT_PIN             GPIO_NUM_33
 
+
 // Define ganged axis or A axis step pulse and step direction output pins.
-#if N_ABC_MOTORS >= 1
 #define M3_AVAILABLE
 #define M3_STEP_PIN             I2SO(13)
 #define M3_DIRECTION_PIN        I2SO(12)
 #define M3_ENABLE_PIN           I2SO(15)
 #define M3_LIMIT_PIN            GPIO_NUM_32
-#endif
 
-// Define ganged axis or B axis step pulse and step direction output pins.
-#if N_ABC_MOTORS == 2
-#define M4_AVAILABLE
-#define M4_STEP_PIN             I2SO(18)
-#define M4_DIRECTION_PIN        I2SO(17)
-#define M4_ENABLE_PIN           I2SO(16)
-#define M4_LIMIT_PIN            GPIO_NUM_37
-#endif
 
 #define AUXOUTPUT0_PIN          GPIO_NUM_25 // Spindle enable
 #define AUXOUTPUT1_PIN          GPIO_NUM_13 // Spindle PWM
@@ -125,8 +125,10 @@
 #define PIN_NUM_CLK             GPIO_NUM_18
 #define MOTOR_CS_PIN            GPIO_NUM_5
 #if SDCARD_ENABLE
-#define PIN_NUM_CS              GPIO_NUM_2
+#define PIN_NUM_CS              GPIO_NUM_0
 #endif
+
+//#define TMC_ONE_SPI
 
 // Define Modbus serial port pins
 #if MODBUS_ENABLE
