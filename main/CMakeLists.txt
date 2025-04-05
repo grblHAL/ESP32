@@ -70,7 +70,7 @@ set(SRCS
  sdcard/fs_littlefs.c
 )
 
-if(AddMyPlugin)
+if(AddMyPlugin OR EXISTS ${CMAKE_CURRENT_LIST_DIR}/my_plugin.c)
 set(MY_PLUGIN_SOURCE
  my_plugin.c
 )
@@ -202,8 +202,10 @@ set(TRINAMIC_UART_SOURCE
 )
 
 set(LASER_SOURCE
+ laser/co2.c
  laser/coolant.c
  laser/lb_clusters.c
+ laser/ppi.c
 )
 
 set(MISC_PLUGINS_SOURCE

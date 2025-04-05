@@ -33,6 +33,12 @@
 
 #define AUX_CONTROLS_OUT
 
+#ifdef ADD_SERIAL1
+#define SERIAL1_PORT
+#define UART1_RX_PIN        GPIO_NUM_18
+#define UART1_TX_PIN        GPIO_NUM_19
+#endif
+
 #if SDCARD_ENABLE
 
 // Pin mapping when using SPI mode.

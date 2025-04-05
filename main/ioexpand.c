@@ -6,7 +6,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2024 Terje Io
+  Copyright (c) 2018-2025 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,6 +31,9 @@
 
 void ioexpand_init (void)
 {
+    if(!(i2c_start().ok && i2c_probe(IOEX_ADDRESS)))
+        return;
+
     if(i2cBusy != NULL && xSemaphoreTake(i2cBusy, 5 / portTICK_PERIOD_MS) == pdTRUE) {
 
         // 0 = output, 1 = input
