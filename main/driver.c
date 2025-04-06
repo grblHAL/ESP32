@@ -1875,12 +1875,15 @@ static bool aux_claim_explicit (aux_ctrl_t *aux_ctrl)
         ioport_assign_function(aux_ctrl, &((input_signal_t *)aux_ctrl->input)->id);
 #ifdef PROBE_PIN
         if(aux_ctrl->function == Input_Probe) {
+
+            xbar_t *pin = hal.port.get_pin_info(Port_Digital, Port_Input, aux_ctrl->aux_port);
+
             probe_port = aux_ctrl->aux_port;
             hal.probe.get_state = probeGetState;
             hal.probe.configure = probeConfigure;
             hal.probe.connected_toggle = probeConnectedToggle;
             hal.driver_cap.probe_pull_up = On;
-            hal.signals_cap.probe_triggered = hal.driver_cap.probe_latch = aux_ctrl->irq_mode != IRQ_Mode_None;
+            hal.signals_cap.probe_triggered = hal.driver_cap.probe_latch = (pin->cap.irq_mode & aux_ctrl->irq_mode) == aux_ctrl->irq_mode;;
         }
 #endif
 #ifdef SAFETY_DOOR_PIN
