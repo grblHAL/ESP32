@@ -23,7 +23,6 @@ set(SRCS
  ioports_analog.c
  i2c.c
  spi.c
- ioexpand.c
  boards/BlackBoxX32.c
  grbl/grbllib.c
  grbl/canbus.c
@@ -213,6 +212,8 @@ set(MISC_PLUGINS_SOURCE
  plugins/eventout.c
  plugins/feed_override_m220.c
  plugins/homing_pulloff.c
+ plugins/mcp3221.c
+ plugins/pca9654e.c
  plugins/pwm_servo_m280.c
  plugins/rgb_led_m150.c
  plugins/rgb_led_strips.c

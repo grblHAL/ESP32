@@ -94,10 +94,6 @@
 #include "sdcard/fs_littlefs.h"
 #endif
 
-#if IOEXPAND_ENABLE
-#include "ioexpand.h"
-#endif
-
 #if EEPROM_ENABLE
 #include "eeprom/eeprom.h"
 #endif
@@ -345,55 +341,61 @@ static output_signal_t outputpin[] = {
 #ifdef Z2_STEP_PIN
     { .id = Output_StepZ_2,        .pin = Z2_STEP_PIN,           .group = PinGroup_StepperStep },
 #endif
-#if defined(STEPPERS_ENABLE_PIN) && STEPPERS_ENABLE_PIN != IOEXPAND
+
+#if defined(STEPPERS_ENABLE_PIN) && !defined(STEPPERS_ENABLE_PORT)
     { .id = Output_StepperEnable,  .pin = STEPPERS_ENABLE_PIN,   .group = PinGroup_StepperEnable },
 #endif
-#if defined(X_ENABLE_PIN) && X_ENABLE_PIN != IOEXPAND
+#if defined(XY_ENABLE_PIN) && !defined(XY_ENABLE_PORT)
+    { .id = Output_StepperEnableXY, .pin = XY_ENABLE_PIN,         .group = PinGroup_StepperEnable },
+#else
+  #if defined(X_ENABLE_PIN) && !defined(X_ENABLE_PORT)
     { .id = Output_StepperEnableX, .pin = X_ENABLE_PIN,          .group = PinGroup_StepperEnable },
-#endif
-#if defined(Y_ENABLE_PIN) && Y_ENABLE_PIN != IOEXPAND
+  #endif
+  #if defined(Y_ENABLE_PIN) && !defined(Y_ENABLE_PORT)
     { .id = Output_StepperEnableY, .pin = Y_ENABLE_PIN,          .group = PinGroup_StepperEnable },
+  #endif
 #endif
-#if defined(Z_ENABLE_PIN) && Z_ENABLE_PIN != IOEXPAND
+#if defined(Z_ENABLE_PIN) && !defined(Z_ENABLE_PORT)
     { .id = Output_StepperEnableZ, .pin = Z_ENABLE_PIN,          .group = PinGroup_StepperEnable },
 #endif
-#if defined(A_ENABLE_PIN) && A_ENABLE_PIN != IOEXPAND
+#if defined(A_ENABLE_PIN) && !defined(A_ENABLE_PORT)
     { .id = Output_StepperEnableA, .pin = A_ENABLE_PIN,          .group = PinGroup_StepperEnable },
 #endif
-#if defined(B_ENABLE_PIN) && B_ENABLE_PIN != IOEXPAND
+#if defined(B_ENABLE_PIN) && !defined(B_ENABLE_PORT)
     { .id = Output_StepperEnableB, .pin = B_ENABLE_PIN,          .group = PinGroup_StepperEnable },
 #endif
-#if defined(C_ENABLE_PIN) && C_ENABLE_PIN != IOEXPAND
+#if defined(C_ENABLE_PIN) && !defined(C_ENABLE_PORT)
     { .id = Output_StepperEnableC, .pin = C_ENABLE_PIN,          .group = PinGroup_StepperEnable },
 #endif
-#if defined(X2_ENABLE_PIN) && X2_ENABLE_PIN != IOEXPAND
+#if defined(X2_ENABLE_PIN) && !defined(X2_ENABLE_PORT)
     { .id = Output_StepperEnableX, .pin = X2_ENABLE_PIN,         .group = PinGroup_StepperEnable },
 #endif
-#if defined(Y2_ENABLE_PIN) && Y2_ENABLE_PIN != IOEXPAND
+#if defined(Y2_ENABLE_PIN) && !defined(Y2_ENABLE_PORT)
     { .id = Output_StepperEnableY, .pin = Y2_ENABLE_PIN,         .group = PinGroup_StepperEnable },
 #endif
-#if defined(Z2_ENABLE_PIN) && Z2_ENABLE_PIN != IOEXPAND
+#if defined(Z2_ENABLE_PIN) && !defined(Z2_ENABLE_PORT)
     { .id = Output_StepperEnableZ, .pin = Z2_ENABLE_PIN,         .group = PinGroup_StepperEnable },
 #endif
+
 #if !(AUX_CONTROLS & AUX_CONTROL_SPINDLE)
-  #if defined(SPINDLE_ENABLE_PIN) && SPINDLE_ENABLE_PIN != IOEXPAND
+  #if defined(SPINDLE_ENABLE_PIN) && !defined(SPINDLE_ENABLE_PORT)
     { .id = Output_SpindleOn,      .pin = SPINDLE_ENABLE_PIN,    .group = PinGroup_SpindleControl },
   #endif
-  #if defined(SPINDLE_DIRECTION_PIN) && SPINDLE_DIRECTION_PIN != IOEXPAND
+  #if defined(SPINDLE_DIRECTION_PIN) && !defined(SPINDLE_DIRECTION_PORT)
     { .id = Output_SpindleDir,     .pin = SPINDLE_DIRECTION_PIN, .group = PinGroup_SpindleControl },
   #endif
-  #if defined(SPINDLE1_ENABLE_PIN) && SPINDLE1_ENABLE_PIN != IOEXPAND
+  #if defined(SPINDLE1_ENABLE_PIN) && !defined(SPINDLE1_ENABLE_PORT)
     { .id = Output_SpindleOn,      .pin = SPINDLE1_ENABLE_PIN,   .group = PinGroup_SpindleControl },
   #endif
-  #if defined(SPINDLE1_DIRECTION_PIN) && SPINDLE1_DIRECTION_PIN != IOEXPAND
+  #if defined(SPINDLE1_DIRECTION_PIN) && !defined(SPINDLE1_DIRECTION_PIN_PORT)
     { .id = Output_SpindleDir,     .pin = SPINDLE1_DIRECTION_PIN, .group = PinGroup_SpindleControl },
   #endif
 #endif // AUX_CONTROL_SPINDLE
 #if !(AUX_CONTROLS & AUX_CONTROL_COOLANT)
-#if defined(COOLANT_FLOOD_PIN) && COOLANT_FLOOD_PIN != IOEXPAND
+#if defined(COOLANT_FLOOD_PIN) && !defined(COOLANT_FLOOD_PORT)
     { .id = Output_CoolantFlood,   .pin = COOLANT_FLOOD_PIN,     .group = PinGroup_Coolant },
 #endif
-#if defined(COOLANT_MIST_PIN) && COOLANT_MIST_PIN != IOEXPAND
+#if defined(COOLANT_MIST_PIN) && !defined(COOLANT_MIST_PORT)
     { .id = Output_CoolantMist,    .pin = COOLANT_MIST_PIN,      .group = PinGroup_Coolant },
 #endif
 #endif // AUX_CONTROL_COOLANT
@@ -517,8 +519,8 @@ static probe_state_t probe = {
 };
 #endif
 
-#if IOEXPAND_ENABLE
-static ioexpand_t iopins = {0};
+#ifdef USE_EXPANDERS
+static xbar_t *iox_out[8] = {};
 #endif
 
 #ifdef LED_PIN
@@ -614,28 +616,50 @@ static void stepperEnable (axes_signals_t enable, bool hold)
     enable.mask ^= settings.steppers.enable_invert.mask;
 
 #if !TRINAMIC_MOTOR_ENABLE
- #if IOEXPAND_ENABLE // TODO: read from expander?
-    iopins.stepper_enable_x = enable.x;
-    iopins.stepper_enable_y = enable.y;
-    iopins.stepper_enable_z = enable.z;
-    ioexpand_out(iopins);
- #elif defined(STEPPERS_ENABLE_PIN)
+ #if defined(STEPPERS_ENABLE_PIN)
+  #if STEPPERS_ENABLE_PORT == EXPANDER_PORT
+    EXPANDER_OUT(STEPPERS_ENABLE_PIN, enable.x);
+  #else
     DIGITAL_OUT(STEPPERS_ENABLE_PIN, enable.x);
+  #endif
  #else
+  #ifdef XY_ENABLE_PIN
+   #if XY_ENABLE_PORT == EXPANDER_PORT
+    EXPANDER_OUT(XY_ENABLE_PIN, enable.x || enable.y);
+   #else
+    DIGITAL_OUT(XY_ENABLE_PIN, enable.x || enable.y);
+   #endif
+  #endif
   #ifdef X_ENABLE_PIN
+   #if X_ENABLE_PORT == EXPANDER_PORT
+    EXPANDER_OUT(X_ENABLE_PIN, enable.x);
+   #else
     DIGITAL_OUT(X_ENABLE_PIN, enable.x);
+   #endif
   #endif
   #ifdef X2_ENABLE_PIN
     DIGITAL_OUT(X2_ENABLE_PIN, enable.x);
   #endif
   #ifdef Y_ENABLE_PIN
+   #if Y_ENABLE_PORT == EXPANDER_PORT
+    EXPANDER_OUT(Y_ENABLE_PIN, enable.y);
+   #else
     DIGITAL_OUT(Y_ENABLE_PIN, enable.y);
+   #endif
   #endif
   #ifdef Y2_ENABLE_PIN
+   #if Y2_ENABLE_PORT == EXPANDER_PORT
+    EXPANDER_OUT(XY_ENABLE_PIN, enable.y);
+   #else
     DIGITAL_OUT(Y2_ENABLE_PIN, enable.y);
+   #endif
   #endif
   #ifdef Z_ENABLE_PIN
+   #if Z_ENABLE_PORT == EXPANDER_PORT
+    EXPANDER_OUT(Z_ENABLE_PIN, enable.z);
+   #else
     DIGITAL_OUT(Z_ENABLE_PIN, enable.z);
+   #endif
   #endif
   #ifdef Z2_ENABLE_PIN
     DIGITAL_OUT(Z2_ENABLE_PIN, enable.z);
@@ -1904,9 +1928,17 @@ static bool aux_claim_explicit (aux_ctrl_t *aux_ctrl)
 
 bool aux_out_claim_explicit (aux_ctrl_out_t *aux_ctrl)
 {
-    if(ioport_claim(Port_Digital, Port_Output, &aux_ctrl->aux_port, NULL)) {
-        ioport_assign_out_function(aux_ctrl, &((output_signal_t *)aux_ctrl->output)->id);
+#ifdef USE_EXPANDERS
+    if(aux_ctrl->port == (void *)EXPANDER_PORT) {
+        if((iox_out[aux_ctrl->pin] = malloc(sizeof(xbar_t))))
+            memcpy(iox_out[aux_ctrl->pin], aux_ctrl->output, sizeof(xbar_t));
+        else
+            aux_ctrl->aux_port = 0xFF;
     } else
+#endif
+    if(ioport_claim(Port_Digital, Port_Output, &aux_ctrl->aux_port, NULL))
+        ioport_assign_out_function(aux_ctrl, &((output_signal_t *)aux_ctrl->output)->id);
+    else
         aux_ctrl->aux_port = 0xFF;
 
     return aux_ctrl->aux_port != 0xFF;
@@ -1940,60 +1972,30 @@ static void spindlePulseOn (uint_fast16_t pulse_length)
 
 // Static spindle (off, on cw & on ccw)
 
-#if IOEXPAND_ENABLE
-
-IRAM_ATTR inline static void spindle_off (spindle_ptrs_t *spindle)
-{
-    spindle->context.pwm->flags.enable_out = Off;
-#ifdef SPINDLE_DIRECTION_PIN
-    if(spindle->context.pwm->flags.cloned)
-        iopins.spindle_dir = settings.pwm_spindle.invert.ccw;
-    else
-        iopins.spindle_on = settings.pwm_spindle.invert.on;
-#else
-    iopins.spindle_on = settings.pwm_spindle.invert.on;
-#endif
-    ioexpand_out(iopins);
-}
-
-IRAM_ATTR static void spindleOffBasic (spindle_ptrs_t *spindle)
-{
-    spindle_off(spindle);
-}
-
-IRAM_ATTR inline static void spindle_on (spindle_ptrs_t *spindle)
-{
-    spindle->context.pwm->flags.enable_out = Off;
-#ifdef SPINDLE_DIRECTION_PIN
-    if(spindle->context.pwm->flags.cloned)
-        iopins.spindle_dir = !settings.pwm_spindle.invert.ccw;
-    else
-        iopins.spindle_on = !settings.pwm_spindle.invert.on;
-#else
-    iopins.spindle_on = !settings.pwm_spindle.invert.on;
-#endif
-    ioexpand_out(iopins);
-}
-
-IRAM_ATTR inline static void spindle_dir (bool ccw)
-{
-    iopins.spindle_dir = (ccw ^ settings.pwm_spindle.invert.ccw) ? On : Off;
-    ioexpand_out(iopins);
-}
-
-#else
 
 IRAM_ATTR inline static void spindle_off (spindle_ptrs_t *spindle)
 {
     spindle->context.pwm->flags.enable_out = Off;
 #ifdef SPINDLE_DIRECTION_PIN
     if(spindle->context.pwm->flags.cloned) {
+  #if SPINDLE_DIRECTION_PORT == EXPANDER_PORT
+        EXPANDER_OUT(SPINDLE_DIRECTION_PIN, settings.pwm_spindle.invert.ccw);
+  #else
         DIGITAL_OUT(SPINDLE_DIRECTION_PIN, settings.pwm_spindle.invert.ccw);
+  #endif
     } else {
+  #if SPINDLE_ENABLE_PORT == EXPANDER_PORT
+        EXPANDER_OUT(SPINDLE_ENABLE_PIN, settings.pwm_spindle.invert.on);
+  #else
         DIGITAL_OUT(SPINDLE_ENABLE_PIN, settings.pwm_spindle.invert.on);
+  #endif
     }
 #else
+  #if SPINDLE_ENABLE_PORT == EXPANDER_PORT
+    EXPANDER_OUT(SPINDLE_ENABLE_PIN, settings.pwm_spindle.invert.on);
+  #else
     DIGITAL_OUT(SPINDLE_ENABLE_PIN, settings.pwm_spindle.invert.on);
+  #endif
 #endif
 }
 
@@ -2004,26 +2006,39 @@ IRAM_ATTR static void spindleOffBasic (spindle_ptrs_t *spindle)
 
 IRAM_ATTR inline static void spindle_on (spindle_ptrs_t *spindle)
 {
-    spindle->context.pwm->flags.enable_out = Off;
 #ifdef SPINDLE_DIRECTION_PIN
     if(spindle->context.pwm->flags.cloned) {
+  #if SPINDLE_DIRECTION_PORT == EXPANDER_PORT
+        EXPANDER_OUT(SPINDLE_DIRECTION_PIN, !settings.pwm_spindle.invert.ccw);
+  #else
         DIGITAL_OUT(SPINDLE_DIRECTION_PIN, !settings.pwm_spindle.invert.ccw);
+  #endif
     } else {
+  #if SPINDLE_ENABLE_PORT == EXPANDER_PORT
+        EXPANDER_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
+  #else
         DIGITAL_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
+ #endif
     }
 #else
+  #if SPINDLE_ENABLE_PORT == EXPANDER_PORT
+    EXPANDER_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
+  #else
     DIGITAL_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
+  #endif
 #endif
 }
 
 IRAM_ATTR inline static void spindle_dir (bool ccw)
 {
 #if defined(SPINDLE_DIRECTION_PIN)
+  #if SPINDLE_DIRECTION_PORT == EXPANDER_PORT
+    EXPANDER_OUT(SPINDLE_DIRECTION_PIN, (ccw ^ settings.pwm_spindle.invert.ccw));
+  #else
     DIGITAL_OUT(SPINDLE_DIRECTION_PIN, (ccw ^ settings.pwm_spindle.invert.ccw) ? 1 : 0);
+  #endif
 #endif
 }
-
-#endif
 
 // Start or stop spindle
 IRAM_ATTR static void spindleSetState (spindle_ptrs_t *spindle, spindle_state_t state, float rpm)
@@ -2189,18 +2204,22 @@ static spindle_state_t spindleGetState (spindle_ptrs_t *spindle)
 
     UNUSED(spindle);
 
-#if IOEXPAND_ENABLE // TODO: read from expander?
-    state.on = iopins.spindle_on;
-    state.ccw = iopins.spindle_dir;
+#if SPINDLE_ENABLE_PORT == EXPANDER_PORT
+    state.on = EXPANDER_IN(SPINDLE_ENABLE_PIN);
 #else
- #if defined(SPINDLE_ENABLE_PIN)
     state.on = DIGITAL_IN(SPINDLE_ENABLE_PIN) != 0;
- #endif
- #if defined(SPINDLE_DIRECTION_PIN)
-    state.ccw = DIGITAL_IN(SPINDLE_DIRECTION_PIN) != 0;
- #endif
 #endif
+
+#if defined(SPINDLE_DIRECTION_PIN)
+  #if SPINDLE_DIRECTION_PORT == EXPANDER_PORT
+    state.ccw = EXPANDER_IN(SPINDLE_DIRECTION_PIN);
+  #else
+    state.ccw = DIGITAL_IN(SPINDLE_DIRECTION_PIN) != 0;
+  #endif
+#endif
+
     state.value ^= settings.pwm_spindle.invert.mask;
+
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
     state.on |= spindle->param->state.on;
   #if PWM_RAMPED
@@ -2453,17 +2472,21 @@ static void spindle1_settings_changed (spindle1_pwm_settings_t *settings)
 IRAM_ATTR static void coolantSetState (coolant_state_t mode)
 {
     mode.value ^= settings.coolant.invert.mask;
-#if IOEXPAND_ENABLE
-    iopins.flood_on = mode.flood;
-    iopins.mist_on = mode.mist;
-    ioexpand_out(iopins);
-#else
- #ifdef COOLANT_FLOOD_PIN
-    DIGITAL_OUT(COOLANT_FLOOD_PIN, mode.flood ? 1 : 0);
- #endif
- #ifdef COOLANT_MIST_PIN
-    DIGITAL_OUT(COOLANT_MIST_PIN, mode.mist ? 1 : 0);
- #endif
+
+#if defined(COOLANT_FLOOD_PIN)
+  #if COOLANT_FLOOD_PORT == EXPANDER_PORT
+    EXPANDER_OUT(COOLANT_FLOOD_PIN, mode.flood);
+  #else
+    DIGITAL_OUT(COOLANT_FLOOD_PIN, mode.flood);
+  #endif
+#endif
+
+#if defined(COOLANT_MIST_PIN)
+  #if COOLANT_MIST_PORT== EXPANDER_PORT
+    EXPANDER_OUT(COOLANT_MIST_PIN, mode.mist);
+  #else
+    DIGITAL_OUT(COOLANT_MIST_PIN, mode.mist);
+  #endif
 #endif
 }
 
@@ -2472,16 +2495,20 @@ static coolant_state_t coolantGetState (void)
 {
     coolant_state_t state = {settings.coolant.invert.mask};
 
-#if IOEXPAND_ENABLE // TODO: read from expander?
-    state.flood = iopins.flood_on;
-    state.mist = iopins.mist_on;
-#else
- #ifdef COOLANT_FLOOD_PIN
+#if defined(COOLANT_FLOOD_PIN)
+  #if COOLANT_FLOOD_PORT == EXPANDER_PORT
+    state.flood = EXPANDER_IN(COOLANT_FLOOD_PIN);
+  #else
     state.flood = DIGITAL_IN(COOLANT_FLOOD_PIN);
- #endif
- #ifdef COOLANT_MIST_PIN
+  #endif
+#endif
+
+#if defined(COOLANT_MIST_PIN)
+  #if COOLANT_MIST_PORT== EXPANDER_PORT
+    state.mist = EXPANDER_IN(COOLANT_MIST_PIN);
+  #else
     state.mist = DIGITAL_IN(COOLANT_MIST_PIN);
- #endif
+  #endif
 #endif
 
     state.value ^= settings.coolant.invert.mask;
@@ -3317,10 +3344,6 @@ static bool driver_setup (settings_t *settings)
 
 #endif // DRIVER_SPINDLE1_ENABLE & SPINDLE_PWM
 
-#if IOEXPAND_ENABLE
-    ioexpand_init();
-#endif
-
   // Set defaults
 
     IOInitDone = settings->version.id == 23;
@@ -3548,7 +3571,7 @@ bool driver_init (void)
             .variable = On,
             .laser = On,
             .pwm_invert = On,
-  #if IOEXPAND_ENABLE || DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+  #if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
             .direction = On,
   #endif
   #if PWM_RAMPED
@@ -3575,17 +3598,17 @@ bool driver_init (void)
 
     static const spindle_ptrs_t spindle = {
         .type = SpindleType_Basic,
-#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+  #if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
         .ref_id = SPINDLE_ONOFF0_DIR,
-#else
+  #else
         .ref_id = SPINDLE_ONOFF0,
-#endif
+  #endif
         .set_state = spindleSetState,
         .get_state = spindleGetState,
         .esp32_off = spindleOffBasic,
         .cap = {
             .gpio_controlled = On,
-  #if IOEXPAND_ENABLE || (DRIVER_SPINDLE_ENABLE & SPINDLE_DIR)
+  #if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
             .direction = On
   #endif
         }
@@ -3621,7 +3644,7 @@ bool driver_init (void)
             .variable = On,
             .laser = On,
             .pwm_invert = On,
-  #if IOEXPAND_ENABLE || DRIVER_SPINDLE1_ENABLE & SPINDLE_DIR
+  #if DRIVER_SPINDLE1_ENABLE & SPINDLE_DIR
             .direction = On,
   #endif
   #if PWM_RAMPED
@@ -3665,7 +3688,7 @@ bool driver_init (void)
         .esp32_off = spindle1OffBasic,
         .cap = {
             .gpio_controlled = On,
-  #if IOEXPAND_ENABLE || (DRIVER_SPINDLE1_ENABLE & SPINDLE_DIR)
+  #if DRIVER_SPINDLE1_ENABLE & SPINDLE_DIR
             .direction = On
   #endif
         }
@@ -3680,10 +3703,10 @@ bool driver_init (void)
 
   // driver capabilities, used for announcing and negotiating (with the core) driver functionality
 
-#if IOEXPAND_ENABLE || defined(COOLANT_FLOOD_PIN)
+#ifdef COOLANT_FLOOD_PIN
     hal.coolant_cap.flood = On;
 #endif
-#if IOEXPAND_ENABLE || defined(COOLANT_MIST_PIN)
+#ifdef COOLANT_MIST_PIN
     hal.coolant_cap.mist = On;
 #endif
     hal.driver_cap.software_debounce = On;
@@ -3761,6 +3784,8 @@ bool driver_init (void)
     ioports_init(&aux_inputs, &aux_outputs);
     if(aux_analog_in.n_pins || aux_analog_out.n_pins)
         ioports_init_analog(&aux_analog_in, &aux_analog_out);
+
+    io_expanders_init();
 
 #if AUX_CONTROLS_ENABLED
     aux_ctrl_claim_ports(aux_claim_explicit, NULL);

@@ -23,10 +23,6 @@
 
 #if I2C_ENABLE
 
-#if IOEXPAND_ENABLE
-#include "ioexpand.h"
-#endif
-
 #if TRINAMIC_ENABLE && TRINAMIC_I2C
 #define I2C_ADR_I2CBRIDGE 0x47
 #endif
@@ -60,14 +56,13 @@ static void I2CTask (void *queue)
             }
         }
 
-#if IOEXPAND_ENABLE
         if(task.action == 2) { // Write to I/O expander (from ISR)
             if(i2cBusy != NULL && xSemaphoreTake(i2cBusy, 5 / portTICK_PERIOD_MS) == pdTRUE) {
 
                 i2c_cmd_handle_t cmd = i2c_cmd_link_create();
                 i2c_master_start(cmd);
                 i2c_master_write_byte(cmd, task.address|I2C_MASTER_WRITE, true);
-                i2c_master_write_byte(cmd, RW_OUTPUT, true);
+                i2c_master_write_byte(cmd, 33, true);
                 i2c_master_write_byte(cmd, (uint8_t)((uint32_t)task.params & 0xFF), true);
                 i2c_master_stop(cmd);
                 i2c_master_cmd_begin(I2C_PORT, cmd, 1000 / portTICK_PERIOD_MS);
@@ -76,7 +71,6 @@ static void I2CTask (void *queue)
                 xSemaphoreGive(i2cBusy);
             }
         }
-#endif
     }
 }
 

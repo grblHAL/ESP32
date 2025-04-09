@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2024 Terje Io
+  Copyright (c) 2020-2025 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,11 @@
 #define BOARD_NAME "CNC BoosterPack"
 #define BOARD_URL "https://github.com/terjeio/CNC_Boosterpack"
 
+#define USE_EXPANDERS
+#if !PCA9654E_ENABLE
+#error "This board uses PCA9654E I/O expander, enable it in my_machine.h!"
+#endif
+
 #if TRINAMIC_ENABLE
 #ifdef TRINAMIC_MIXED_DRIVERS
 #undef TRINAMIC_MIXED_DRIVERS
@@ -40,12 +45,7 @@
 
 #if !EEPROM_ENABLE
 //#undef EEPROM_ENABLE
-//#define EEPROM_ENABLE 1 // I2C EEPROM (24LC16) support.
-#endif
-
-#if !IOEXPAND_ENABLE
-#undef IOEXPAND_ENABLE
-#define IOEXPAND_ENABLE 1 // I2C IO expander for some output signals.
+//#define EEPROM_ENABLE 16 // I2C EEPROM (24LC16) support.
 #endif
 
 // Define step pulse output pins.
@@ -59,7 +59,11 @@
 #define Z_DIRECTION_PIN         GPIO_NUM_12
 
 // Define stepper driver enable/disable output pin(s).
-#define STEPPERS_ENABLE_PIN    IOEXPAND
+
+#define XY_ENABLE_PORT          EXPANDER_PORT
+#define XY_ENABLE_PIN           6
+#define Z_ENABLE_PORT           EXPANDER_PORT
+#define Z_ENABLE_PIN            0
 
 // Define homing/hard limit switch input pins and limit interrupt vectors.
 #define X_LIMIT_PIN             GPIO_NUM_4
@@ -70,21 +74,25 @@
 
 // Define driver spindle pins
 #if DRIVER_SPINDLE_ENABLE
-#define SPINDLE_ENABLE_PIN      IOEXPAND
+#define SPINDLE_ENABLE_PORT     EXPANDER_PORT
+#define SPINDLE_ENABLE_PIN      7
 #endif
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
 #define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
 #endif
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
-#define SPINDLE_DIRECTION_PIN   IOEXPAND
+#define SPINDLE_DIRECTION_PORT  EXPANDER_PORT
+#define SPINDLE_DIRECTION_PIN   5
 #endif
 
 // Define flood and mist coolant enable output pins.
 #if COOLANT_ENABLE & COOLANT_FLOOD
-#define COOLANT_FLOOD_PIN       IOEXPAND
+#define COOLANT_FLOOD_PORT 		EXPANDER_PORT
+#define COOLANT_FLOOD_PIN       3
 #endif
 #if COOLANT_ENABLE & COOLANT_MIST
-#define COOLANT_MIST_PIN        IOEXPAND
+#define COOLANT_MIST_PORT       EXPANDER_PORT
+#define COOLANT_MIST_PIN        2
 #endif
 
 #ifdef ADD_SERIAL1
@@ -147,20 +155,3 @@
 #define PIN_NUM_CLK         GPIO_NUM_18
 #define PIN_NUM_CS          GPIO_NUM_5
 #endif
-
-#if IOEXPAND_ENABLE
-typedef union {
-    uint8_t mask;
-    struct {
-        uint8_t stepper_enable_z :1,
-                stepper_enable_y :1,
-                mist_on          :1,
-                flood_on         :1,
-                reserved         :1,
-                spindle_dir      :1,
-                stepper_enable_x :1,
-                spindle_on       :1;
-    };
-} ioexpand_t;
-#endif
-

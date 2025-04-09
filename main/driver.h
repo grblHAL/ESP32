@@ -42,6 +42,8 @@
 #define WEBUI_INFLASH 1
 #endif
 
+#define EXPANDER_PORT 1
+
 #define OPTS_POSTPROCESSING
 
 #include "grbl/driver_opts.h"
@@ -80,12 +82,6 @@
 #define PROBE_ISR 0 // Catch probe state change by interrupt TODO: needs verification!
 
 // DO NOT change settings here!
-
-#ifndef IOEXPAND_ENABLE
-#define IOEXPAND_ENABLE 0 // I2C IO expander for some output signals.
-#endif
-
-#define IOEXPAND 0xFF   // Dummy pin number for I2C IO expander
 
 static const DRAM_ATTR float FZERO = 0.0f;
 
@@ -183,7 +179,7 @@ typedef struct {
 #error "Add #define GRBL_ESP32 in grbl/config.h or update your CMakeLists.txt to the latest version!"
 #endif
 
-#if IOEXPAND_ENABLE == 0 && ((DIRECTION_MASK|STEPPERS_DISABLE_MASK|SPINDLE_MASK|COOLANT_MASK) & 0xC00000000ULL)
+#if ((DIRECTION_MASK|STEPPERS_DISABLE_MASK|SPINDLE_MASK|COOLANT_MASK) & 0xC00000000ULL)
 #error "Pins 34 - 39 are input only!"
 #endif
 
@@ -215,7 +211,7 @@ typedef struct {
 #define STEP_TIMER_INDEX TIMER_0
 #endif
 
-#if IOEXPAND_ENABLE || EEPROM_ENABLE || KEYPAD_ENABLE == 1 || I2C_STROBE_ENABLE || (TRINAMIC_ENABLE && TRINAMIC_I2C)
+#if EEPROM_ENABLE || KEYPAD_ENABLE == 1 || I2C_STROBE_ENABLE || (TRINAMIC_ENABLE && TRINAMIC_I2C)
 #undef I2C_ENABLE
 #define I2C_ENABLE 1
 #elif !defined(I2C_ENABLE)
@@ -256,6 +252,9 @@ extern SemaphoreHandle_t i2cBusy;
 #define DIGITAL_IN(pin) gpio_ll_get_level(&GPIO, pin)
 #define DIGITAL_OUT(pin, state) gpio_ll_set_level(&GPIO, pin, (state))
 #endif
+
+#define EXPANDER_IN(pin) ( iox_out[pin] && iox_out[pin]->get_value(iox_out[pin]) != 0.0f )
+#define EXPANDER_OUT(pin, state) { if(iox_out[pin]) iox_out[pin]->set_value(iox_out[pin], (float)state); }
 
 #ifdef MODBUS_DIRECTION_PIN
 #define MODBUS_DIR_AUX 0
