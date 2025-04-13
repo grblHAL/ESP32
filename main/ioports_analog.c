@@ -305,10 +305,29 @@ static int32_t wait_on_input (io_port_type_t type, uint8_t port, wait_mode_t wai
 
 #endif
 
+static bool set_function (xbar_t *port, pin_function_t function)
+{
+    if(port->mode.input)
+        aux_in_analog[port->id].id = function;
+#if AUX_ANALOG_OUT
+    else
+        aux_out_analog[port->id].id = function;
+
+    return true;
+#else
+    return !!port->mode.input;
+#endif
+}
+
 static xbar_t *get_pin_info (io_port_direction_t dir, uint8_t port)
 {
     static xbar_t pin;
+
     xbar_t *info = NULL;
+
+    memset(&pin, 0, sizeof(xbar_t));
+
+    pin.set_function = set_function;
 
     switch(dir) {
 
