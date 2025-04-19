@@ -34,6 +34,7 @@ set(SRCS
  grbl/machine_limits.c
  grbl/messages.c
  grbl/modbus.c
+ grbl/modbus_rtu.c
  grbl/motion_control.c
  grbl/nuts_bolts.c
  grbl/override.c
@@ -115,10 +116,6 @@ set(WEBUI_SOURCE
 
 set(BLUETOOTH_SOURCE
  bluetooth.c
-)
-
-set(MODBUS_SOURCE
- spindle/modbus_rtu.c
 )
 
 set(SPINDLE_SOURCE
@@ -252,7 +249,6 @@ list (APPEND SRCS ${TRINAMIC_UART_SOURCE})
 list (APPEND SRCS ${WEBUI_SOURCE})
 list (APPEND SRCS ${SDCARD_SOURCE})
 list (APPEND SRCS ${BLUETOOTH_SOURCE})
-list (APPEND SRCS ${MODBUS_SOURCE})
 list (APPEND SRCS ${SPINDLE_SOURCE})
 list (APPEND SRCS ${EEPROM_SOURCE})
 list (APPEND SRCS ${LASER_SOURCE})
