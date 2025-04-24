@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2021 Terje Io
+  Copyright (c) 2021-2025 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,6 +39,8 @@
 #error SD card not supported!
 #endif
 
+// CoolEn not available, use instead E-STOP
+
 // Define step pulse output pins.
 #define X_STEP_PIN          GPIO_NUM_26 // D2
 #define Y_STEP_PIN          GPIO_NUM_25 // D3
@@ -57,13 +59,14 @@
 #define Y_LIMIT_PIN         GPIO_NUM_5  // D10
 #define Z_LIMIT_PIN         GPIO_NUM_23 // D11
 
-#define AUXOUTPUT0_PIN      GPIO_NUM_19 // Spindle PWM
-#define AUXOUTPUT1_PIN      GPIO_NUM_18 // Spindle enable
-#define AUXOUTPUT2_PIN      GPIO_NUM_34 // Coolant flood,  A3
-#define AUXOUTPUT3_PIN      GPIO_NUM_36 // Coolant mist, A4
+#define AUXOUTPUT0_PIN      GPIO_NUM_18 // Spindle PWM/spindle direction
+#define AUXOUTPUT1_PIN      GPIO_NUM_19 // Spindle enable
+#define AUXOUTPUT2_PIN      GPIO_NUM_0  // Coolant flood, NC/BOOT (E-STOP)
 
 // Define driver spindle pins
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#define SPINDLE_PWM_PIN     AUXOUTPUT0_PIN
+#elif DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
 #define SPINDLE_PWM_PIN     AUXOUTPUT0_PIN
 #endif
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
@@ -75,16 +78,21 @@
 #define COOLANT_FLOOD_PIN   AUXOUTPUT2_PIN
 #endif
 #if COOLANT_ENABLE & COOLANT_MIST
-#define COOLANT_MIST_PIN    AUXOUTPUT3_PIN
+// N/A
 #endif
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-#define RESET_PIN           GPIO_NUM_2 // A0
-#define FEED_HOLD_PIN       GPIO_NUM_4 // A1
+#define RESET_PIN           GPIO_NUM_2  // A0
+#define FEED_HOLD_PIN       GPIO_NUM_4  // A1
 #define CYCLE_START_PIN     GPIO_NUM_35 // A2
 
-#define AUXINPUT0_PIN       GPIO_NUM_39 // A5
+#define AUXINPUT0_PIN       GPIO_NUM_39 // Probe, A5 (SCL)
+#define AUXINPUT1_PIN       GPIO_NUM_36 // Door, A4 (SDA)
 
 #if PROBE_ENABLE
 #define PROBE_PIN           AUXINPUT0_PIN
+#endif
+
+#if SAFETY_DOOR_ENABLE
+#define SAFETY_DOOR_PIN     AUXINPUT1_PIN
 #endif

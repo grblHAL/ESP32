@@ -55,7 +55,7 @@
 #define AUX_CONTROLS (AUX_CONTROL_SPINDLE|AUX_CONTROL_COOLANT)
 #endif
 
-#include "grbl/protocol.h"
+#include "grbl/task.h"
 #include "grbl/state_machine.h"
 #include "grbl/motor_pins.h"
 #include "grbl/machine_limits.h"
@@ -1869,7 +1869,7 @@ IRAM_ATTR static void aux_irq_handler (uint8_t port, bool state)
 #endif
 #ifdef MPG_MODE_PIN
             case Input_MPGSelect:
-                protocol_enqueue_foreground_task(mpg_select, NULL);
+                task_add_immediate(mpg_select, NULL);
                 break;
 #endif
             default:
@@ -2028,6 +2028,7 @@ IRAM_ATTR inline static void spindle_on (spindle_ptrs_t *spindle)
     DIGITAL_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
   #endif
 #endif
+    spindle->context.pwm->flags.enable_out = On;
 }
 
 IRAM_ATTR inline static void spindle_dir (bool ccw)
@@ -3243,6 +3244,13 @@ static bool driver_setup (settings_t *settings)
 
     } while(idx);
 
+#if !CONFIG_IDF_TARGET_ESP32S3
+    if(mask & ((1ULL<<GPIO_NUM_34)|(1ULL<<GPIO_NUM_35)|(1ULL<<GPIO_NUM_36)|(1ULL<<GPIO_NUM_39))) {
+        mask &= ~((1ULL<<GPIO_NUM_34)|(1ULL<<GPIO_NUM_35)|(1ULL<<GPIO_NUM_36)|(1ULL<< GPIO_NUM_39));
+        task_run_on_startup(report_warning, "Input only pins configured for output!");
+    }
+#endif
+
     gpio_config_t gpioConfig = {
         .pin_bit_mask = mask,
         .mode = GPIO_MODE_INPUT_OUTPUT,
@@ -3431,7 +3439,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "250412";
+    hal.driver_version = "250420";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3672,7 +3680,7 @@ bool driver_init (void)
         if((spindle1_id = spindle_register(&spindle1, DRIVER_SPINDLE1_NAME)) != -1)
             spindle1_settings_register(spindle1.cap, spindle1_settings_changed);
         else
-            protocol_enqueue_foreground_task(report_warning, "PWM2 spindle failed to initialize!");
+            task_run_on_startup(report_warning, "PWM2 spindle failed to initialize!");
     }
 
  #else
@@ -3873,7 +3881,7 @@ bool driver_init (void)
     if(!hal.driver_cap.mpg_mode)
         hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, "MPG"), false, NULL);
     if(hal.driver_cap.mpg_mode)
-        protocol_enqueue_foreground_task(mpg_enable, NULL);
+        task_run_on_startup(mpg_enable, NULL);
 #elif MPG_ENABLE == 2
     if(!hal.driver_cap.mpg_mode)
         hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, "MPG"), false, stream_mpg_check_enable);
@@ -3968,7 +3976,7 @@ IRAM_ATTR static void gpio_mpg_isr (void *signal)
 
     if(!mpg_mutex) {
         mpg_mutex = true;
-        protocol_enqueue_foreground_task(modeChange, NULL);
+        task_add_immediate(modeChange, NULL);
         mpg_mutex = false;
     }
 }
@@ -4025,7 +4033,7 @@ IRAM_ATTR static void gpio_isr (void *arg)
 
     if((grp & PinGroup_MPG) && !mpg_mutex) {
         mpg_mutex = true;
-        protocol_enqueue_foreground_task(modeChange, NULL);
+        task_add_immediate(modeChange, NULL);
         mpg_mutex = false;
     }
   #endif

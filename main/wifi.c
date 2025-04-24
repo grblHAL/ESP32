@@ -497,12 +497,12 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
             break;
 /*??
         case WIFI_EVENT_AP_STOP:
-            protocol_enqueue_foreground_task(report_plain, "WIFI AP SCAN COMPLETED");
+            task_add_immediate(report_plain, "WIFI AP SCAN COMPLETED");
             wifi_stop();
             break;
 */
         case WIFI_EVENT_AP_STACONNECTED:
-            protocol_enqueue_foreground_task(report_plain, "WIFI AP CONNECTED");
+            task_add_immediate(report_plain, "WIFI AP CONNECTED");
             if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT) {
                 if(!(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT)) {
                     /* // screws up dns?
@@ -531,7 +531,7 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
             else if(!(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT))
                 ssdp_stop();
 #endif
-            protocol_enqueue_foreground_task(report_plain, "WIFI AP DISCONNECTED");
+            task_add_immediate(report_plain, "WIFI AP DISCONNECTED");
             break;
                 
         case WIFI_EVENT_STA_START:
@@ -547,7 +547,7 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
 #if WEBSOCKET_ENABLE
             websocketd_close_connections();
 #endif
-            protocol_enqueue_foreground_task(report_plain, "WIFI STA DISCONNECTED");
+            task_add_immediate(report_plain, "WIFI STA DISCONNECTED");
             memset(&wifi_sta_config, 0, sizeof(wifi_config_t));
             esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_sta_config);
             if((xEventGroupGetBits(wifi_event_group) & APSTA_BIT) && !(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT)) {
