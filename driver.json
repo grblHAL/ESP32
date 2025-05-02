@@ -77,7 +77,6 @@
       "symbol": "BOARD_BTT_RODENT",
       "URL": "https://github.com/bigtreetech/Rodent/tree/master",
       "MAP": "main/boards/btt_rodent_map.h",
-      "notes": "Not tested!",
       "caps": {
         "axes": 5,
         "usb_cdc": 0,

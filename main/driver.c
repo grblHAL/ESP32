@@ -3439,7 +3439,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "250420";
+    hal.driver_version = "250501";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3949,7 +3949,7 @@ IRAM_ATTR static void stepper_driver_isr (void *arg)
 
 IRAM_ATTR static void gpio_limit_isr (void *signal)
 {
-    if(((input_signal_t *)signal)->debounce)
+    if(((input_signal_t *)signal)->cap.debounce)
         task_add_delayed(pin_debounce, (input_signal_t *)signal, 40);
     else
         hal.limits.interrupt_callback(limitsGetState());
@@ -3957,7 +3957,7 @@ IRAM_ATTR static void gpio_limit_isr (void *signal)
 
 IRAM_ATTR static void gpio_control_isr (void *signal)
 {
-    if(((input_signal_t *)signal)->debounce)
+    if(((input_signal_t *)signal)->cap.debounce)
         task_add_delayed(pin_debounce, (input_signal_t *)signal, 40);
     else
         hal.control.interrupt_callback(systemGetState());

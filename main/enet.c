@@ -4,7 +4,7 @@
 
 /*
 
-Copyright (c) 2018-2023, Terje Io
+Copyright (c) 2018-2025, Terje Io
 Copyright (c) 2022, @Henrikastro
 All rights reserved.
 
@@ -60,6 +60,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "grbl/report.h"
 #include "grbl/nvs_buffer.h"
+#include "grbl/task.h"
+
 #include "networking/networking.h"
 
 #define SYSTICK_INT_PRIORITY    0x80
@@ -87,7 +89,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //
 
-static volatile bool linkUp = false;
+static char if_name[NETIF_NAMESIZE] = "";
 static stream_type_t active_stream = StreamType_Null;
 static network_settings_t network, ethernet;
 static network_services_t services = {0}, allowed_services;
@@ -96,6 +98,7 @@ static on_report_options_ptr on_report_options;
 static on_stream_changed_ptr on_stream_changed;
 static uint8_t mac_addr[6] = {0};
 static esp_netif_ip_info_t *ip_info = NULL;
+static network_flags_t network_status = {};
 
 static char netservices[NETWORK_SERVICES_LEN] = "";
 
@@ -110,6 +113,42 @@ static char *enet_ip_address (void)
     return ip;
 }
 
+static network_info_t *get_info (const char *interface)
+{
+    static network_info_t info = {};
+
+    if(interface == if_name) {
+
+        memcpy(&info.status, &network, sizeof(network_settings_t));
+
+        info.interface = (const char *)if_name;
+        info.is_ethernet = true;
+        info.link_up = network_status.link_up;
+        info.mbps = 100;
+        info.status.services = services;
+        *info.mac = *info.status.ip = *info.status.gateway = *info.status.mask = '\0';
+
+        struct netif *netif = netif_default;
+
+        if(netif) {
+
+            sprintf(info.mac, MAC_FORMAT_STRING, mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+
+            if(network_status.link_up) {
+                strcpy(info.status.ip, enet_ip_address());
+            }
+        }
+
+    #if MQTT_ENABLE
+        networking_make_mqtt_clientid(info.mac, info.mqtt_client_id);
+    #endif
+
+        return &info;
+    }
+
+    return NULL;
+}
+
 static void report_options (bool newopt)
 {
     on_report_options(newopt);
@@ -122,50 +161,35 @@ static void report_options (bool newopt)
 #endif
     } else {
 
-        network_info_t *net = networking_get_info();
+        network_info_t *network;
 
-        hal.stream.write("[MAC:");
-        hal.stream.write(net->mac);
-        hal.stream.write("]" ASCII_EOL);
+        if((network = get_info(if_name))) {
 
-        hal.stream.write("[IP:");
-        hal.stream.write(net->status.ip);
-        hal.stream.write("]" ASCII_EOL);
-
-        if(active_stream == StreamType_Telnet || active_stream == StreamType_WebSocket) {
-            hal.stream.write("[NETCON:");
-            hal.stream.write(active_stream == StreamType_Telnet ? "Telnet" : "Websocket");
+            hal.stream.write("[MAC:");
+            hal.stream.write(network->mac);
             hal.stream.write("]" ASCII_EOL);
+
+            hal.stream.write("[IP:");
+            hal.stream.write(network->status.ip);
+            hal.stream.write("]" ASCII_EOL);
+
+            if(active_stream == StreamType_Telnet || active_stream == StreamType_WebSocket) {
+                hal.stream.write("[NETCON:");
+                hal.stream.write(active_stream == StreamType_Telnet ? "Telnet" : "Websocket");
+                hal.stream.write("]" ASCII_EOL);
+            }
         }
     }
 }
 
-network_info_t *networking_get_info (void)
+static void status_event_out (void *data)
 {
-    static network_info_t info;
+    networking.event(if_name, (network_status_t){ .value = (uint32_t)data });
+}
 
-    memcpy(&info.status, &network, sizeof(network_settings_t));
-
-    sprintf(info.mac, MAC_FORMAT_STRING, mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-
-    if(ip_info)
-        strcpy(info.status.ip, enet_ip_address());
-
-    if(info.status.ip_mode == IpMode_DHCP) {
-        *info.status.gateway = '\0';
-        *info.status.mask = '\0';
-    }
-
-    info.is_ethernet = true;
-    info.link_up = linkUp;
-    info.mbps = 100;
-    info.status.services = services;
-
-#if MQTT_ENABLE
-    networking_make_mqtt_clientid(info.mac, info.mqtt_client_id);
-#endif
-
-    return &info;
+static void status_event_publish (network_flags_t changed)
+{
+    task_add_immediate(status_event_out, (void *)((network_status_t){ .changed = changed, .flags = network_status }).value);
 }
 
 static void lwIPHostTimerHandler (void *arg)
@@ -208,6 +232,11 @@ static void start_services (void)
 #if TELNET_ENABLE || WEBSOCKET_ENABLE || FTP_ENABLE
     sys_timeout(STREAM_POLL_INTERVAL, lwIPHostTimerHandler, NULL);
 #endif
+
+    if(!network_status.ip_aquired) {
+        network_status.ip_aquired = On;
+        status_event_publish((network_flags_t){ .ip_aquired = On });
+    }
 }
 
 /** Event handler for Ethernet events */
@@ -216,13 +245,15 @@ static void eth_event_handler (void *arg, esp_event_base_t event_base, int32_t e
     switch (event_id) {
 
         case ETHERNET_EVENT_CONNECTED:
-            linkUp = true;
             esp_eth_ioctl(*(esp_eth_handle_t *)event_data, ETH_CMD_G_MAC_ADDR, mac_addr);
+            network_status.link_up = On;
+            status_event_publish((network_flags_t){ .link_up = On });
             break;
 
         case ETHERNET_EVENT_DISCONNECTED:
-            linkUp = false;
             ip_info = NULL;
+            network_status.link_up = Off;
+            status_event_publish((network_flags_t){ .link_up = On });
             break;
 /*
         case ETHERNET_EVENT_START:
@@ -237,7 +268,7 @@ static void eth_event_handler (void *arg, esp_event_base_t event_base, int32_t e
 }
 
 /** Event handler for IP_EVENT_ETH_GOT_IP */
-static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
+static void got_ip_event_handler (void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     static esp_netif_ip_info_t info;
 
@@ -338,6 +369,11 @@ bool enet_start (void)
     ESP_ERROR_CHECK(esp_netif_attach(eth_netif, esp_eth_new_netif_glue(eth_handle)));
     /* start Ethernet driver state machine */
     ESP_ERROR_CHECK(esp_eth_start(eth_handle));
+
+    netif_index_to_name(1, if_name);
+
+    network_status.interface_up = On;
+    status_event_publish((network_flags_t){ .interface_up = On });
 
     return true;
 }
@@ -544,10 +580,11 @@ bool enet_init (void)
 
         settings_register(&setting_details);
 
+        networking.get_info = get_info;
         allowed_services.mask = networking_get_services_list((char *)netservices).mask;
     }
 
     return true;
 }
 
-#endif
+#endif // ETHERNET_ENABLE
