@@ -1976,8 +1976,8 @@ static void spindlePulseOn (uint_fast16_t pulse_length)
 
 IRAM_ATTR inline static void spindle_off (spindle_ptrs_t *spindle)
 {
-    spindle->context.pwm->flags.enable_out = Off;
-#ifdef SPINDLE_DIRECTION_PIN
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+ #ifdef SPINDLE_DIRECTION_PIN
     if(spindle->context.pwm->flags.cloned) {
   #if SPINDLE_DIRECTION_PORT == EXPANDER_PORT
         EXPANDER_OUT(SPINDLE_DIRECTION_PIN, settings.pwm_spindle.invert.ccw);
@@ -1991,12 +1991,16 @@ IRAM_ATTR inline static void spindle_off (spindle_ptrs_t *spindle)
         DIGITAL_OUT(SPINDLE_ENABLE_PIN, settings.pwm_spindle.invert.on);
   #endif
     }
-#else
-  #if SPINDLE_ENABLE_PORT == EXPANDER_PORT
+ #elif SPINDLE_ENABLE_PORT == EXPANDER_PORT
     EXPANDER_OUT(SPINDLE_ENABLE_PIN, settings.pwm_spindle.invert.on);
-  #else
+ #else
     DIGITAL_OUT(SPINDLE_ENABLE_PIN, settings.pwm_spindle.invert.on);
-  #endif
+ #endif
+    spindle->context.pwm->flags.enable_out = Off;
+#elif SPINDLE_ENABLE_PORT == EXPANDER_PORT
+    EXPANDER_OUT(SPINDLE_ENABLE_PIN, settings.pwm_spindle.invert.on);
+#else
+    DIGITAL_OUT(SPINDLE_ENABLE_PIN, settings.pwm_spindle.invert.on);
 #endif
 }
 
@@ -2007,7 +2011,8 @@ IRAM_ATTR static void spindleOffBasic (spindle_ptrs_t *spindle)
 
 IRAM_ATTR inline static void spindle_on (spindle_ptrs_t *spindle)
 {
-#ifdef SPINDLE_DIRECTION_PIN
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+ #ifdef SPINDLE_DIRECTION_PIN
     if(spindle->context.pwm->flags.cloned) {
   #if SPINDLE_DIRECTION_PORT == EXPANDER_PORT
         EXPANDER_OUT(SPINDLE_DIRECTION_PIN, !settings.pwm_spindle.invert.ccw);
@@ -2019,16 +2024,19 @@ IRAM_ATTR inline static void spindle_on (spindle_ptrs_t *spindle)
         EXPANDER_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
   #else
         DIGITAL_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
- #endif
-    }
-#else
-  #if SPINDLE_ENABLE_PORT == EXPANDER_PORT
-    EXPANDER_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
-  #else
-    DIGITAL_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
   #endif
-#endif
+    }
+ #elif SPINDLE_ENABLE_PORT == EXPANDER_PORT
+    EXPANDER_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
+ #else
+    DIGITAL_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
+ #endif
     spindle->context.pwm->flags.enable_out = On;
+#elif SPINDLE_ENABLE_PORT == EXPANDER_PORT
+    EXPANDER_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
+#else
+    DIGITAL_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
+#endif
 }
 
 IRAM_ATTR inline static void spindle_dir (bool ccw)
@@ -2090,7 +2098,7 @@ static void spindleSetSpeed (spindle_ptrs_t *spindle, uint_fast16_t pwm_value)
          pwm_spindle.ramp.pwm_target = pwm_value;
          ledc_set_fade_step_and_start(pwm_spindle.channel.speed_mode, pwm_spindle.channel.channel, pwm_spindle.ramp.pwm_target, 1, 4, LEDC_FADE_NO_WAIT);
 #else
-         ledc_set_duty(pwm_spindle.channel.speed_mode, pwm_spindle.channel.channel, spindle->context.pwm->settings->invert.pwm ? pwm_spindle.pwm_max_value - pwm_value : pwm_value);
+         ledc_set_duty(pwm_spindle.channel.speed_mode, pwm_spindle.channel.channel, pwm_value);
          ledc_update_duty(pwm_spindle.channel.speed_mode, pwm_spindle.channel.channel);
 #endif
         if(!spindle->context.pwm->flags.enable_out && spindle->context.pwm->flags.rpm_controlled)
@@ -2181,7 +2189,9 @@ bool spindleConfig (spindle_ptrs_t *spindle)
 #endif
         }
     } else {
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
         if(spindle->context.pwm->flags.enable_out)
+#endif
             spindle->set_state(spindle, (spindle_state_t){0}, 0.0f);
         spindle->esp32_off = spindleOffBasic;
         spindle->set_state = spindleSetState;
@@ -3426,10 +3436,10 @@ static void wdt_tickler (sys_state_t state)
 }
 
 // Initialize HAL pointers, setup serial comms and enable EEPROM
-// NOTE: Grbl is not yet configured (from EEPROM data), driver_setup() will be called when done
+// NOTE: grblHAL is not yet configured (from EEPROM data), driver_setup() will be called when done
 bool driver_init (void)
 {
-    // Enable EEPROM and serial port here for Grbl to be able to configure itself and report any errors
+    // Enable EEPROM and serial port here for grblHAL to be able to configure itself and report any errors
     rtc_cpu_freq_config_t cpu;
 
     rtc_clk_cpu_freq_get_config(&cpu);
@@ -3439,7 +3449,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "250501";
+    hal.driver_version = "250514";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
