@@ -190,6 +190,7 @@
         "auto_square": 2,
         "usb_cdc": 0,
         "serial_ports": 2,
+        "digital_in": 1,
         "sdcard": 1,
         "estop": 0,
         "wifi": 1,
