@@ -100,15 +100,15 @@ static const DRAM_ATTR float FZERO = 0.0f;
 #endif
 #endif // WIFI_ENABLE
 
-// End configuration
-
 typedef struct {
     uint8_t action;
     uint_fast16_t address;
     void *params;
 } i2c_task_t;
 
-// End configuration
+#ifndef CONTROL_ENABLE
+#define CONTROL_ENABLE (CONTROL_HALT|CONTROL_FEED_HOLD|CONTROL_CYCLE_START)
+#endif
 
 #if (MODBUS_ENABLE & MODBUS_RTU_ENABLED) || TRINAMIC_UART_ENABLE==1 || MPG_ENABLE || (KEYPAD_ENABLE == 2 && MPG_ENABLE == 0)
 #define ADD_SERIAL1

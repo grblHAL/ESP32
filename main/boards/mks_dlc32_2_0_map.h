@@ -114,15 +114,16 @@
 #define COOLANT_MIST_PIN    I2SO(7)     // Beeper
 #endif
 
-// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-
-#if !I2C_ENABLE
-//#define FEED_HOLD_PIN       GPIO_NUM_0  // J2,3 (I2C_SDA)
-#define CYCLE_START_PIN     GPIO_NUM_4  // J2,4 (I2C_SCL)
-#endif
-
 #define AUXINPUT0_PIN       GPIO_NUM_33 // EXP_1,8 (LCD_RS)
 #define AUXINPUT1_PIN       GPIO_NUM_22
+#if !I2C_ENABLE
+#define AUXINPUT2_PIN       GPIO_NUM_4 // Cycle start  // J2,4 (I2C_SCL)
+#endif
+
+// Define user-control controls (cycle start, reset, feed hold) input pins.
+#if (CONTROL_ENABLE & CONTROL_CYCLE_START) && defined(AUXINPUT2_PIN)
+#define CYCLE_START_PIN         AUXINPUT2_PIN
+#endif
 
 // Define probe switch input pin.
 #if PROBE_ENABLE

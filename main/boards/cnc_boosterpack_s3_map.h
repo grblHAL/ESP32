@@ -84,27 +84,39 @@
 #define SPINDLE_ENABLE_PIN      IOEXPAND
 #endif
 
-#define AUXINPUT1_PIN           GPIO_NUM_34
-
 // Define flood and mist coolant enable output pins.
 #define COOLANT_FLOOD_PIN       IOEXPAND
 #define COOLANT_MIST_PIN        IOEXPAND
 
-// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-#define RESET_PIN               GPIO_NUM_35
-#define FEED_HOLD_PIN           GPIO_NUM_39
-#define CYCLE_START_PIN         GPIO_NUM_36
+#define AUXINPUT0_PIN           GPIO_NUM_33
+#define AUXINPUT1_PIN           GPIO_NUM_34
+#define AUXINPUT2_PIN           GPIO_NUM_13 // Probe
+#define AUXINPUT3_PIN           GPIO_NUM_35 // Reset/EStop
+#define AUXINPUT4_PIN           GPIO_NUM_39 // Feed hold
+#define AUXINPUT5_PIN           GPIO_NUM_36 // Cycle start
+
+// Define user-control controls (cycle start, reset, feed hold) input pins.
+#if CONTROL_ENABLE & CONTROL_HALT
+#define RESET_PIN               AUXINPUT3_PIN
+#endif
+#if CONTROL_ENABLE & CONTROL_FEED_HOLD
+#define FEED_HOLD_PIN           AUXINPUT4_PIN
+#endif
+#if CONTROL_ENABLE & CONTROL_CYCLE_START
+#define CYCLE_START_PIN         AUXINPUT5_PIN
+#endif
+
+// Define probe switch input pin.
+#if PROBE_ENABLE
+#define PROBE_PIN               AUXINPUT2_PIN
+#endif
+
 #if SAFETY_DOOR_ENABLE
 #define SAFETY_DOOR_PIN         AUXINPUT1_PIN
 #endif
 
-// Define probe switch input pin.
-#define PROBE_PIN               GPIO_NUM_13
-
 #if I2C_STROBE_ENABLE
-#define I2C_STROBE_PIN          GPIO_NUM_33
-#else
-#define AUXINPUT0_PIN           GPIO_NUM_33
+#define I2C_STROBE_PIN          AUXINPUT0_PIN
 #endif
 
 #ifdef ADD_SERIAL1

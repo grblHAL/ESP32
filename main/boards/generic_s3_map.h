@@ -80,15 +80,24 @@
 #define COOLANT_MIST_PIN        AUXOUTPUT4_PIN
 #endif
 
-// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-#if !SDCARD_ENABLE
-#define RESET_PIN               GPIO_NUM_38
-#define FEED_HOLD_PIN           GPIO_NUM_37
-#endif
-#define CYCLE_START_PIN         GPIO_NUM_36
-
 #define AUXINPUT0_PIN           GPIO_NUM_1
 #define AUXINPUT1_PIN           GPIO_NUM_2
+#if !SDCARD_ENABLE
+#define AUXINPUT2_PIN           GPIO_NUM_38 // Reset/EStop
+#define AUXINPUT3_PIN           GPIO_NUM_37 // Feed hold
+#endif
+#define AUXINPUT4_PIN           GPIO_NUM_36 // Cycle start
+
+// Define user-control controls (cycle start, reset, feed hold) input pins.
+#if (CONTROL_ENABLE & CONTROL_HALT) && defined(AUXINPUT2_PIN)
+#define RESET_PIN               AUXINPUT2_PIN
+#endif
+#if (CONTROL_ENABLE & CONTROL_FEED_HOLD) && defined(AUXINPUT3_PIN)
+#define FEED_HOLD_PIN           AUXINPUT3_PIN
+#endif
+#if CONTROL_ENABLE & CONTROL_CYCLE_START
+#define CYCLE_START_PIN         AUXINPUT4_PIN
+#endif
 
 #if RGB_LED_ENABLE
 #define LED_PIN                 GPIO_NUM_48 // for ESP32-S3-DevKit

@@ -79,13 +79,22 @@
 #endif
 #endif
 
-// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-#define RESET_PIN           GPIO_NUM_34
-#define FEED_HOLD_PIN       GPIO_NUM_36
-#define CYCLE_START_PIN     GPIO_NUM_39
-
 #define AUXINPUT0_PIN       GPIO_NUM_35
 #define AUXINPUT1_PIN       GPIO_NUM_32
+#define AUXINPUT2_PIN       GPIO_NUM_34 // Reset/EStop
+#define AUXINPUT3_PIN       GPIO_NUM_36 // Feed hold
+#define AUXINPUT4_PIN       GPIO_NUM_39 // Cycle start
+
+// Define user-control controls (cycle start, reset, feed hold) input pins.
+#if CONTROL_ENABLE & CONTROL_HALT
+#define RESET_PIN           AUXINPUT2_PIN
+#endif
+#if CONTROL_ENABLE & CONTROL_FEED_HOLD
+#define FEED_HOLD_PIN       AUXINPUT3_PIN
+#endif
+#if CONTROL_ENABLE & CONTROL_CYCLE_START
+#define CYCLE_START_PIN     AUXINPUT4_PIN
+#endif
 
 #if PROBE_ENABLE
 #define PROBE_PIN           AUXINPUT1_PIN

@@ -112,11 +112,18 @@
 #endif
 
 #define AUXINPUT0_PIN           GPIO_NUM_39 // TB
+#define AUXINPUT2_PIN           GPIO_NUM_36 // Feed hold
+#define AUXINPUT3_PIN           GPIO_NUM_34 // Cycle start
 
-// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-#define CYCLE_START_PIN         GPIO_NUM_36 // TH1
-#define FEED_HOLD_PIN           GPIO_NUM_34 // TH2
-//#define RESET_PIN             (use board hardware)
+// Define user-control controls (cycle start, reset, feed hold) input pins.
+
+// Reset/EStop is connected to MCU reset pin.
+#if CONTROL_ENABLE & CONTROL_FEED_HOLD
+#define FEED_HOLD_PIN           AUXINPUT2_PIN
+#endif
+#if CONTROL_ENABLE & CONTROL_CYCLE_START
+#define CYCLE_START_PIN         AUXINPUT3_PIN
+#endif
 
 // Define probe switch input pin.
 #if PROBE_ENABLE && defined(AUXINPUT1_PIN)

@@ -119,24 +119,14 @@
 #endif
 #endif
 
+#define AUXINPUT0_PIN       GPIO_NUM_2
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 #undef CONTROL_ENABLE
 #define CONTROL_ENABLE 0 // No control inputs
 
-//#define RESET_PIN           GPIO_NUM_34
-//#define FEED_HOLD_PIN       GPIO_NUM_36
-//#define CYCLE_START_PIN     GPIO_NUM_39
-
-//#define AUXINPUT0_PIN       GPIO_NUM_35
-//#define AUXINPUT1_PIN       GPIO_NUM_32
-
 #if PROBE_ENABLE
-#define PROBE_PIN           GPIO_NUM_2
-#endif
-
-#if SAFETY_DOOR_ENABLE
-#define SAFETY_DOOR_PIN     AUXINPUT0_PIN
+#define PROBE_PIN           AUXINPUT0_PIN
 #endif
 
 #if I2C_ENABLE

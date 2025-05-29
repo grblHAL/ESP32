@@ -37,6 +37,11 @@
 #define UART1_RX_PIN        GPIO_NUM_21
 #define UART1_TX_PIN        GPIO_NUM_22
 
+#if CONTROL_ENABLE & CONTROL_HALT
+#undef CONTROL_ENABLE
+#define CONTROL_ENABLE & CONTROL_HALT // Only input supported.
+#endif
+
 #if TRINAMIC_ENABLE != 2209
 #undef TRINAMIC_ENABLE
 #undef TRINAMIC_UART_ENABLE
@@ -96,10 +101,12 @@
 #endif
 
 #define AUXINPUT0_PIN       GPIO_NUM_39 // Probe
+#define AUXINPUT1_PIN       GPIO_NUM_36 // Reset/EStop
 
-// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-
-#define RESET_PIN           GPIO_NUM_36
+// Define user-control controls (cycle start, reset, feed hold) input pins.
+#if CONTROL_ENABLE & CONTROL_HALT
+#define RESET_PIN           AUXINPUT1_PIN
+#endif
 
 #if PROBE_ENABLE
 #define PROBE_PIN           AUXINPUT0_PIN

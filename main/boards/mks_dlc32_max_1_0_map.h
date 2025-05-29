@@ -106,14 +106,14 @@
 
 #endif // SDCARD_ENABLE
 
-// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-//#define RESET_PIN               GPIO_NUM_?
-//#define FEED_HOLD_PIN           GPIO_NUM_?
-
-#define CYCLE_START_PIN         GPIO_NUM_36 // Flame
-
 #define AUXINPUT0_PIN           GPIO_NUM_38 // Door
 #define AUXINPUT1_PIN           GPIO_NUM_37 // Probe
+#define AUXINPUT2_PIN           GPIO_NUM_36 // Cycle start -> Flame
+
+// Define user-control controls (cycle start, reset, feed hold) input pins.
+#if CONTROL_ENABLE & CONTROL_CYCLE_START
+#define CYCLE_START_PIN         AUXINPUT2_PIN
+#endif
 
 #if RGB_LED_ENABLE
 #define LED_PIN                 GPIO_NUM_48 // for ESP32-S3-DevKit

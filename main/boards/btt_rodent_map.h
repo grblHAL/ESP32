@@ -25,10 +25,15 @@
 #error "Axis configuration is not supported!"
 #endif
 
-#if N_ABC_MOTORS == 0
-#error "Axis configuration is not supported! The A motor must be enabled for proper Trinamic communication"
+// Force four motors in order to keep the TMC driver SPI chain intact
+#if N_ABC_MOTORS == 0 && N_GANGED == 0
+#undef N_ABC_MOTORS
+#undef N_GANGED
+#undef Y_GANGED
+#define N_ABC_MOTORS 1
+#define N_GANGED 1
+#define Y_GANGED 1
 #endif
-
 
 #if KEYPAD_ENABLE == 1
 #error No free pins for I2C keypad!
@@ -69,14 +74,12 @@
 #define Z_ENABLE_PIN            I2SO(8)
 #define Z_LIMIT_PIN             GPIO_NUM_33
 
-
 // Define ganged axis or A axis step pulse and step direction output pins.
 #define M3_AVAILABLE
 #define M3_STEP_PIN             I2SO(13)
 #define M3_DIRECTION_PIN        I2SO(12)
 #define M3_ENABLE_PIN           I2SO(15)
 #define M3_LIMIT_PIN            GPIO_NUM_32
-
 
 #define AUXOUTPUT0_PIN          GPIO_NUM_25 // Spindle enable
 #define AUXOUTPUT1_PIN          GPIO_NUM_13 // Spindle PWM

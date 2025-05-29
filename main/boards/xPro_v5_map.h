@@ -32,6 +32,11 @@
 #define BOARD_NAME "x-Pro v5"
 #define BOARD_URL "https://www.spark-concepts.com/cnc-xpro-v5/"
 
+#if CONTROL_ENABLE & CONTROL_HALT
+#undef CONTROL_ENABLE
+#define CONTROL_ENABLE & CONTROL_HALT // Only input supported.
+#endif
+
 #undef SPI_ENABLE
 #undef TRINAMIC_ENABLE
 #undef TRINAMIC_SPI_ENABLE
@@ -119,16 +124,18 @@
 
 #endif // ADD_SERIAL1
 
-// Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
-#define RESET_PIN           GPIO_NUM_16
-
 #define AUXINPUT0_PIN       GPIO_NUM_13
-//#define AUXINPUT1_PIN       GPIO_NUM_0
-#define AUXINPUT2_PIN       GPIO_NUM_22
+#define AUXINPUT1_PIN       GPIO_NUM_22
+#define AUXINPUT2_PIN       GPIO_NUM_16 // Reset/EStop
+
+// Define user-control controls (cycle start, reset, feed hold) input pins.
+#if CONTROL_ENABLE & CONTROL_HALT
+#define RESET_PIN           AUXINPUT2_PIN
+#endif
 
 // Define probe switch input pin.
 #if PROBE_ENABLE
-#define PROBE_PIN           AUXINPUT2_PIN
+#define PROBE_PIN           AUXINPUT1_PIN
 #endif
 
 // Pin mapping when using SPI mode.
