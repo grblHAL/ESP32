@@ -61,7 +61,8 @@
         "serial_ports": 1,
         "sdcard": 1,
         "wifi": 1,
-        "bluetooth": 1
+        "bluetooth": 1,
+		"control_inputs": 0
       },
       "symbols": {
         "DEFAULT_LIMIT_SIGNALS_INVERT_MASK": "N_AXIS",
@@ -87,7 +88,8 @@
         "i2c": 1,
         "sdcard": 1,
         "wifi": 1,
-        "bluetooth": 1
+        "bluetooth": 1,
+		"control_inputs": 0
       }
     },
     {
@@ -102,7 +104,8 @@
         "trinamic_spi_cs": 1,
         "trinamic_spi_chain": 1,
         "wifi": 1,
-        "bluetooth": 1
+        "bluetooth": 1,
+		"control_inputs": 0
       }
     },
     {
@@ -118,7 +121,8 @@
         "trinamic_spi_chain": 0,
         "sdcard": 1,
         "wifi": 1,
-        "bluetooth": 1
+        "bluetooth": 1,
+		"control_inputs": 0
       }
     },
     {
@@ -154,7 +158,8 @@
         "pwm_spindle_aux": 2,
         "sdcard": 1,
         "wifi": 1,
-        "bluetooth": 1
+        "bluetooth": 1,
+		"control_inputs": 1
       }
     },
     {
@@ -174,7 +179,8 @@
         "sdcard": 1,
         "wifi": 1,
         "bluetooth": 0,
-        "pio_board": "esp32-s3-devkitc-1"
+        "pio_board": "esp32-s3-devkitc-1",
+		"control_inputs": 1
       },
       "cmake_args": {
         "SDKCONFIG_DEFAULTS": "\"sdkconfig.defaults;sdkconfig_s3_8m\""
@@ -194,7 +200,8 @@
         "sdcard": 1,
         "estop": 0,
         "wifi": 1,
-        "bluetooth": 1
+        "bluetooth": 1,
+		"control_inputs": 2
       }
     },
     {
@@ -211,7 +218,8 @@
         "serial_ports": 1,
         "pwm_spindle_aux": 1,
         "wifi": 1,
-        "bluetooth": 1
+        "bluetooth": 1,
+		"control_inputs": 0
       }
     },
     {
@@ -227,7 +235,8 @@
         "estop": 0,
         "serial_ports": 1,
         "wifi": 1,
-        "bluetooth": 1
+        "bluetooth": 1,
+		"control_inputs": 0
       }
     },
     {
@@ -239,10 +248,11 @@
         "axes": 6,
         "usb_cdc": 0,
         "serial_ports": 2,
-        "i2c": 1,
-	"sdcard": 1,
+        "i2c": 1,	
+		"sdcard": 1,
         "wifi": 1,
-        "bluetooth": 1
+        "bluetooth": 1,
+		"control_inputs": 0
       }
     },
     {
@@ -273,7 +283,8 @@
         "i2c": 1,
         "serial_ports": 1,
         "wifi": 1,
-        "bluetooth": 1
+        "bluetooth": 1,
+		"control_inputs": 1
       }
     },
     {
@@ -290,7 +301,8 @@
         "trinamic": 5160,
         "trinamic_spi_chain": 1,
         "wifi": 1,
-        "bluetooth": 1
+        "bluetooth": 1,
+		"control_inputs": 1
       }
     },
     {
@@ -308,7 +320,8 @@
         "estop": 0,
         "sdcard": 1,
         "wifi": 1,
-        "bluetooth": 1
+        "bluetooth": 1,
+		"control_inputs": 0
       }
     },
     {
@@ -325,7 +338,8 @@
         "estop": 0,
         "sdcard": 1,
         "wifi": 1,
-        "bluetooth": 1
+        "bluetooth": 1,
+		"control_inputs": 0
       }
     },
     {
@@ -357,7 +371,8 @@
         "serial_ports": 2,
         "estop": 0,
         "pwm_spindle_aux": 2,
-        "safety_door": 1
+        "safety_door": 1,
+		"control_inputs": 0
       }
     },
     {
@@ -406,12 +421,13 @@
         "trinamic": 2209,
         "trinamic_uart_addr": 1,
         "wifi": 1,
-        "bluetooth": 1
+        "bluetooth": 1,
+		"control_inputs": 0
       }
     },
     {
       "name": "Generic map for ESP32-S3",
-      "symbol": "BOARD_MKS_DLC32_MAX_V1",
+      "symbol": "BOARD_GENERIC_S3",
       "notes": "Experimental!",
       "MAP": "main/boards/generic_s3_map.h",
       "caps": {
