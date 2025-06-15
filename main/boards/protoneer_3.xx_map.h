@@ -83,9 +83,9 @@
 
 #define AUXINPUT0_PIN       GPIO_NUM_39 // Probe, A5 (SCL)
 #define AUXINPUT1_PIN       GPIO_NUM_36 // Door, A4 (SDA)
-#define AUXINPUT2_PIN       GPIO_NUM_2  // Reset/EStop
+#define AUXINPUT2_PIN       GPIO_NUM_2  // Reset/EStop - connected to the "Abort" pin on the shield.
 #define AUXINPUT3_PIN       GPIO_NUM_4  // Feed hold
-#define AUXINPUT4_PIN       GPIO_NUM_35 // Cycle start
+#define AUXINPUT4_PIN       GPIO_NUM_35 // Cycle start - NOTE: an external pullup resistor might be required on this pin.
 
 // Define user-control controls (cycle start, reset, feed hold) input pins.
 #if CONTROL_ENABLE & CONTROL_HALT
