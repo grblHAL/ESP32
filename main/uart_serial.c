@@ -284,6 +284,15 @@ static void uartSetBaudRate (uart_t *uart, uint32_t baud_rate)
     UART_MUTEX_UNLOCK(uart);
 }
 
+static void uartSetFormat (uart_t *uart, serial_format_t format)
+{
+    UART_MUTEX_LOCK(uart);
+    uart_ll_set_parity(uart->dev, format.parity == Serial_ParityNone
+                                   ? UART_PARITY_DISABLE
+                                   : (format.parity == Serial_ParityEven ? UART_PARITY_EVEN : UART_PARITY_ODD));
+    UART_MUTEX_UNLOCK(uart);
+}
+
 static void uartConfig (uart_t *uart, uint32_t baud_rate)
 {
 #if !CONFIG_DISABLE_HAL_LOCKS
@@ -591,6 +600,13 @@ static bool serialSetBaudRate (uint32_t baud_rate)
     return true;
 }
 
+static bool serialSetFormat (serial_format_t format)
+{
+    uartSetFormat(&uart0, format);
+
+    return true;
+}
+
 static bool serialEnqueueRtCommand (char c)
 {
     return enqueue_realtime_command(c);
@@ -624,6 +640,7 @@ static const io_stream_t *serialInit (uint32_t baud_rate)
         .cancel_read_buffer = serialCancel,
         .suspend_read = serialSuspendInput,
         .set_baud_rate = serialSetBaudRate,
+        .set_format = serialSetFormat,
         .disable_rx = serialDisable,
         .set_enqueue_rt_handler = serialSetRtHandler
     };
@@ -818,6 +835,13 @@ static bool serial1SetBaudRate (uint32_t baud_rate)
     return true;
 }
 
+static bool serial1SetFormat (serial_format_t format)
+{
+    uartSetFormat(&uart1, format);
+
+    return true;
+}
+
 static bool serial1EnqueueRtCommand (char c)
 {
     return enqueue_realtime_command2(c);
@@ -852,6 +876,7 @@ static const io_stream_t *serial1Init (uint32_t baud_rate)
         .cancel_read_buffer = serial1Cancel,
         .suspend_read = serial1SuspendInput,
         .set_baud_rate = serial1SetBaudRate,
+        .set_format = serial1SetFormat,
         .disable_rx = serial1Disable,
         .set_enqueue_rt_handler = serial1SetRtHandler
     };
@@ -1052,6 +1077,13 @@ static bool serial2SetBaudRate (uint32_t baud_rate)
     return true;
 }
 
+static bool serial2SetFormat (serial_format_t format)
+{
+    uartSetFormat(&uart2, format);
+
+    return true;
+}
+
 static bool serial2EnqueueRtCommand (char c)
 {
     return enqueue_realtime_command3(c);
@@ -1086,6 +1118,7 @@ static const io_stream_t *serial2Init (uint32_t baud_rate)
         .cancel_read_buffer = serial2Cancel,
         .suspend_read = serial2SuspendInput,
         .set_baud_rate = serial2SetBaudRate,
+        .set_format = serial2SetFormat,
         .disable_rx = serial2Disable,
         .set_enqueue_rt_handler = serial2SetRtHandler
     };
