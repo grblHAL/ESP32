@@ -132,6 +132,7 @@
 
 #if I2C_ENABLE
 // Define I2C port/pins
+#define I2C_PORT            I2C_NUM_1
 #define I2C_SDA             GPIO_NUM_0
 #define I2C_SCL             GPIO_NUM_4
 #define I2C_CLOCK           100000
