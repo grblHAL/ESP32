@@ -32,9 +32,9 @@
 #define BOARD_NAME "x-Pro v5"
 #define BOARD_URL "https://www.spark-concepts.com/cnc-xpro-v5/"
 
-#if CONTROL_ENABLE & CONTROL_HALT
+#if CONTROL_ENABLE & ~CONTROL_HALT
 #undef CONTROL_ENABLE
-#define CONTROL_ENABLE & CONTROL_HALT // Only input supported.
+#define CONTROL_ENABLE CONTROL_HALT // Only input supported.
 #endif
 
 #undef SPI_ENABLE

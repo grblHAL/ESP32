@@ -37,9 +37,9 @@
 #define UART1_RX_PIN        GPIO_NUM_21
 #define UART1_TX_PIN        GPIO_NUM_22
 
-#if CONTROL_ENABLE & CONTROL_HALT
+#if CONTROL_ENABLE & ~CONTROL_HALT
 #undef CONTROL_ENABLE
-#define CONTROL_ENABLE & CONTROL_HALT // Only input supported.
+#define CONTROL_ENABLE CONTROL_HALT // Only input supported.
 #endif
 
 #if TRINAMIC_ENABLE != 2209
