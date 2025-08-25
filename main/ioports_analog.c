@@ -441,7 +441,6 @@ void ioports_init_analog (pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_ou
             }
         }
 
-
         if(analog.in.n_ports) {
             if((wait_on_input_digital = hal.port.wait_on_input) == NULL)
                 wait_on_input_digital = wait_on_input_dummy;
@@ -465,8 +464,6 @@ void ioports_init_analog (pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_ou
                 .max_value = 100.0f,
                 .invert = Off
             };
-
-            hal.port.analog_out = analog_out;
 
             for(i = 0; i < analog.out.n_ports; i++) {
                 if((pin = get_pin_info(Port_Output, i)))
