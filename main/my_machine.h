@@ -79,9 +79,13 @@
                                     // 2: Mode switching is by the CMD_MPG_ENABLE_TOGGLE (0x8B) command character.
 //#define KEYPAD_ENABLE           1 // 1: uses a I2C keypad for input.
                                     // 2: uses a serial stream for input. If MPG_ENABLE is set > 0 the serial stream is shared with the MPG.
+//#define DISPLAY_ENABLE          9 // Set to 9 for I2C display protocol, 17 for I2C LED protocol. Other options may be available via plugins.
+//#define MACROS_ENABLE           0 // Macros plugin. For macros that can be triggered by keypad plugin or auxiliary inputs.
+                                    // Set to 1 for aux input triggers, 2 for keypad triggers or 3 for both.
+//#define N_MACROS                3 // Number of macros to enable, max 8. If commented out default is 4 when triggered by aux inputs, 8 otherwise.
 //#define LASER_COOLANT_ENABLE    1 // Laser coolant plugin. To be completed.
 //#define LB_CLUSTERS_ENABLE      1 // LaserBurn cluster support.
-//#define LASER_OVD_ENABLE      1
+//#define LASER_OVD_ENABLE        1
 //#define OPENPNP_ENABLE          1 // OpenPNP plugin. To be completed.
 //#define FANS_ENABLE             1 // Enable fan control via M106/M107. Enables fans plugin.
 //#define EMBROIDERY_ENABLE       1 // Embroidery plugin. To be completed.
@@ -96,7 +100,7 @@
                                     // NOTE: if left commented out the default setting is determined from COMPATIBILITY_LEVEL.
 //#define RGB_LED_ENABLE          2 // Set to 1 to enable strip length settings $536 and $537, set to 2 to also enable M150 LED strip control.
 //#define PWM_SERVO_ENABLE        1 // Enable M280 PWM servo support, requires at least one PWM capable auxiliary output.
-//#define BLTOUCH_ENABLE          1 // Enable M401/M402 BLTouch support. Requires and claims one auxiliary PWM servo output.
+//#define BLTOUCH_ENABLE          1 // Enable M401/M402 BLTouch support. requires and claims one auxiliary PWM servo output.
 //#define EVENTOUT_ENABLE         1 // Enable binding events (triggers) to control auxiliary outputs.
 //#define ESP_AT_ENABLE           1 // Enable support for Telnet communication via UART connected ESP32 running ESP-AT.
 //#define FEED_OVERRIDE_ENABLE    1 // Enable M200 feed override control.
