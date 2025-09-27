@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2024 Terje Io
+  Copyright (c) 2018-2025 Terje Io
   Copyright (c) 2011-2015 Sungeun K. Jeon
   Copyright (c) 2009-2011 Simen Svale Skogsrud
 
@@ -233,9 +233,6 @@ extern SemaphoreHandle_t i2cBusy;
 #include "grbl/driver_opts2.h"
 
 #if MPG_ENABLE == 1
-  #ifndef MPG_ENABLE_PIN
-  #error "MPG_ENABLE_PIN must be defined when MPG mode is enabled!"
-  #endif
   #ifndef UART1_RX_PIN
   #error "UART1_RX_PIN must be defined when MPG mode is enabled!"
   #endif

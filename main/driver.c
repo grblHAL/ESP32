@@ -1702,12 +1702,12 @@ inline IRAM_ATTR static control_signals_t systemGetState (void)
 
 static void modeChange (void *data)
 {
-    stream_mpg_enable(!DIGITAL_IN(MPG_ENABLE_PIN));
+    stream_mpg_enable(!DIGITAL_IN(MPG_MODE_PIN ));
 }
 
 static void mpg_enable (void *data)
 {
-    if(sys.mpg_mode == DIGITAL_IN(MPG_ENABLE_PIN))
+    if(sys.mpg_mode == DIGITAL_IN(MPG_MODE_PIN ))
         stream_mpg_enable(true);
 }
 
@@ -3246,9 +3246,9 @@ static bool driver_setup (settings_t *settings)
      ************************/
 
     // Set as output low (until boot is complete)
-    gpioConfig.pin_bit_mask = (1ULL << MPG_ENABLE_PIN);
+    gpioConfig.pin_bit_mask = (1ULL << MPG_MODE_PIN );
     gpio_config(&gpioConfig);
-    DIGITAL_OUT(MPG_ENABLE_PIN, 0);
+    DIGITAL_OUT(MPG_MODE_PIN , 0);
 
 #endif
 

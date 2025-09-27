@@ -130,7 +130,7 @@
 
 #if MPG_ENABLE == 1
 #define UART1_RX_PIN            GPIO_NUM_33
-#define MPG_ENABLE_PIN          GPIO_NUM_25
+#define MPG_MODE_PIN            GPIO_NUM_25
 #endif
 
 // Define I2C port/pins

@@ -98,6 +98,8 @@
 #ifdef ADD_SERIAL1
 #define SERIAL1_PORT
 #define UART1_RX_PIN            GPIO_NUM_33
+#elif PWM_SERVO_ENABLE || BLTOUCH_ENABLE
+#define AUXOUTPUT0_PWM_PIN      GPIO_NUM_33
 #else
 #define AUXINPUT0_PIN           GPIO_NUM_33
 #endif
@@ -138,7 +140,7 @@
 
 #ifdef ADD_SERIAL1
 #if MPG_ENABLE == 1
-#define MPG_ENABLE_PIN          GPIO_NUM_25
+#define MPG_MODE_PIN            GPIO_NUM_25
 #else
 #define UART1_TX_PIN            GPIO_NUM_25
 #endif
