@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2023-2024 Terje Io
+  Copyright (c) 2023-2025 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@
 #ifndef UART1_RX_PIN
 #define UART1_RX_PIN 16
 #endif
-#ifndef UART1_TX_PIN
+#if !defined(UART1_TX_PIN) && !(MPG_SHARE_TX == 1)
 #define UART1_TX_PIN 17
 #endif
 #endif
@@ -525,6 +525,7 @@ static void serialWriteS (const char *data)
 //
 void static serialWrite (const char *s, uint16_t length)
 {
+
     char *ptr = (char *)s;
 
     while(length--)
@@ -699,7 +700,11 @@ uint16_t static serial1Available (void)
 
 uint16_t static serial1TxCount (void)
 {
+#ifdef UART1_TX_PIN
     return uart_ll_is_tx_idle(uart1.dev) ? 0 : (uint16_t)_uart_ll_get_txfifo_count(uart1.dev) + 1;
+#else
+    return 0;
+#endif
 }
 
 uint16_t static serial1RXFree (void)
@@ -709,8 +714,9 @@ uint16_t static serial1RXFree (void)
     return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
-bool static serial1PutC (const char c)
+static bool serial1PutC (const char c)
 {
+#ifdef UART1_TX_PIN
     UART_MUTEX_LOCK(&uart1);
 
     while(_uart_ll_get_txfifo_count(uart1.dev) == uart1.tx_len) {
@@ -721,16 +727,19 @@ bool static serial1PutC (const char c)
     _uart_ll_write_txfifo(uart1.dev, c);
 
     UART_MUTEX_UNLOCK(&uart1);
+#endif
 
     return true;
 }
 
 void static serial1WriteS (const char *data)
 {
+#ifdef UART1_TX_PIN
     char c, *ptr = (char *)data;
 
     while((c = *ptr++) != '\0')
         serial1PutC(c);
+#endif
 }
 
 //
@@ -738,10 +747,12 @@ void static serial1WriteS (const char *data)
 //
 void static serial1Write (const char *s, uint16_t length)
 {
+#ifdef UART1_TX_PIN
     char *ptr = (char *)s;
 
     while(length--)
         serial1PutC(*ptr++);
+#endif
 }
 
 int16_t static serial1Read (void)
@@ -778,11 +789,13 @@ IRAM_ATTR static void serial1Flush (void)
 
 IRAM_ATTR static void serial1TxFlush (void)
 {
+#ifdef UART1_TX_PIN
     UART_MUTEX_LOCK(&uart1);
 
     _uart_flush(&uart1, true);
 
     UART_MUTEX_UNLOCK(&uart1);
+#endif
 }
 
 IRAM_ATTR static void serial1Cancel (void)
@@ -814,6 +827,9 @@ IRAM_ATTR static bool serial1Disable (bool disable)
     UART_MUTEX_LOCK(&uart1);
 
     uart_ll_disable_intr_mask(uart1.dev, rx_int_flags);
+
+    serial1WriteS(uitoa(disable));
+    serial1WriteS(ASCII_EOL);
 
     if(!disable) {
         // Clear and enable interrupts
@@ -891,10 +907,10 @@ static const io_stream_t *serial1Init (uint32_t baud_rate)
     uartConfig(&uart1, baud_rate);
 
     serial1Flush();
-#ifdef UART1_TX_PIN
+
     uartEnableInterrupt(&uart1, _uart1_isr, true);
-#else
-    uartEnableInterrupt(&uart1, _uart1_isr, false);
+#ifndef UART1_TX_PIN
+    serial1Disable(true); // for MPG mode
 #endif
 
     return &stream;

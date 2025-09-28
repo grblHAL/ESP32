@@ -70,7 +70,7 @@
 #define Y_LIMIT_PIN             GPIO_NUM_16
 #define Z_LIMIT_PIN             GPIO_NUM_32
 
-#define AUXOUTPUT0_PIN          GPIO_NUM_17
+//#define AUXOUTPUT0_PIN          GPIO_NUM_17
 
 // Define driver spindle pins
 #if DRIVER_SPINDLE_ENABLE
@@ -140,7 +140,9 @@
 
 #ifdef ADD_SERIAL1
 #if MPG_ENABLE == 1
-#define MPG_MODE_PIN            GPIO_NUM_25
+#define MPG_SHARE_TX            1
+#define AUXINPUT6_PIN           GPIO_NUM_25
+#define MPG_MODE_PIN            AUXINPUT6_PIN
 #else
 #define UART1_TX_PIN            GPIO_NUM_25
 #endif

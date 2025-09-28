@@ -114,6 +114,11 @@
 #define AUXINPUT0_PIN           GPIO_NUM_39 // TB
 #define AUXINPUT2_PIN           GPIO_NUM_36 // Feed hold
 #define AUXINPUT3_PIN           GPIO_NUM_34 // Cycle start
+#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
+#define MODBUS_DIRECTION_PIN    GPIO_NUM_13 // EXP_1
+#else
+#define AUXINPUT4_PIN           GPIO_NUM_13 // EXP_1
+#endif
 
 // Define user-control controls (cycle start, reset, feed hold) input pins.
 
@@ -134,10 +139,8 @@
 #define SAFETY_DOOR_PIN         AUXINPUT0_PIN // TB
 #endif
 
-#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
-#define MODBUS_DIRECTION_PIN    GPIO_NUM_13 // EXP_1
-#elif MPG_ENABLE == 1
-#define MPG_MODE_PIN            GPIO_NUM_13 // EXP_1
+#if MPG_ENABLE == 1 && defined(AUXINPUT4_PIN)
+#define MPG_MODE_PIN            AUXINPUT4_PIN // EXP_1
 #endif
 
 #if SDCARD_ENABLE

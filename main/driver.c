@@ -93,6 +93,10 @@
 #include "eeprom/eeprom.h"
 #endif
 
+#ifndef MPG_SHARE_TX
+#define MPG_SHARE_TX 0
+#endif
+
 #if PWM_RAMPED
 
 #define SPINDLE_RAMP_STEP_INCR 20 // timer compare register change per ramp step
@@ -1700,7 +1704,7 @@ inline IRAM_ATTR static control_signals_t systemGetState (void)
 
 #if MPG_ENABLE == 1
 
-static void modeChange (void *data)
+static void mpg_select (void *data)
 {
     stream_mpg_enable(!DIGITAL_IN(MPG_MODE_PIN ));
 }
@@ -1864,8 +1868,9 @@ IRAM_ATTR static void aux_irq_handler (uint8_t port, bool state)
                     i2c_strobe.callback(0, DIGITAL_IN(I2C_STROBE_PIN) == 0);
                 break;
 #endif
-#ifdef MPG_MODE_PIN
+#if MPG_ENABLE == 1
             case Input_MPGSelect:
+                task_delete(mpg_select, NULL);
                 task_add_immediate(mpg_select, NULL);
                 break;
 #endif
@@ -3378,7 +3383,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "250706";
+    hal.driver_version = "250927";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3803,12 +3808,12 @@ bool driver_init (void)
 
 #if MPG_ENABLE == 1
     if(!hal.driver_cap.mpg_mode)
-        hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, "MPG"), false, NULL);
+        hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, "MPG"), MPG_SHARE_TX, NULL);
     if(hal.driver_cap.mpg_mode)
         task_run_on_startup(mpg_enable, NULL);
 #elif MPG_ENABLE == 2
     if(!hal.driver_cap.mpg_mode)
-        hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, "MPG"), false, stream_mpg_check_enable);
+        hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, "MPG"), MPG_SHARE_TX, stream_mpg_check_enable);
 #endif
 
     // no need to move version check before init - compiler will fail any mismatch for existing entries
@@ -3900,7 +3905,7 @@ IRAM_ATTR static void gpio_mpg_isr (void *signal)
 
     if(!mpg_mutex) {
         mpg_mutex = true;
-        task_add_immediate(modeChange, NULL);
+        task_add_immediate(mpg_select, NULL);
         mpg_mutex = false;
     }
 }

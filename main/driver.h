@@ -232,12 +232,6 @@ extern SemaphoreHandle_t i2cBusy;
 
 #include "grbl/driver_opts2.h"
 
-#if MPG_ENABLE == 1
-  #ifndef UART1_RX_PIN
-  #error "UART1_RX_PIN must be defined when MPG mode is enabled!"
-  #endif
-#endif
-
 #ifndef I2S_OUT_PIN_BASE
 #define I2S_OUT_PIN_BASE 64
 #endif
