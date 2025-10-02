@@ -70,7 +70,7 @@
 #define Y_LIMIT_PIN             GPIO_NUM_16
 #define Z_LIMIT_PIN             GPIO_NUM_32
 
-//#define AUXOUTPUT0_PIN          GPIO_NUM_17
+#define AUXOUTPUT0_PIN          GPIO_NUM_17
 
 // Define driver spindle pins
 #if DRIVER_SPINDLE_ENABLE
