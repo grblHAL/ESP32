@@ -137,3 +137,9 @@
 #define I2C_SCL             GPIO_NUM_4
 #define I2C_CLOCK           100000
 #endif
+
+#if MPG_ENABLE == 1
+// Use GPIO33 (EXP1) for MPG_MODE.
+// MPG UART is IO18/19 (EXP2).
+#define MPG_MODE_PIN            AUXINPUT0_PIN
+#endif
