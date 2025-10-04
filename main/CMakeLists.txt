@@ -47,6 +47,7 @@ set(SRCS
  grbl/state_machine.c
  grbl/stream.c
  grbl/stream_file.c
+ grbl/stream_json.c
  grbl/stepper.c
  grbl/stepper2.c
  grbl/strutils.c
@@ -60,6 +61,7 @@ set(SRCS
  grbl/regex.c
  grbl/ioports.c
  grbl/vfs.c
+ grbl/fs_device.c
  grbl/kinematics/corexy.c
  grbl/kinematics/wall_plotter.c
  grbl/kinematics/delta.c

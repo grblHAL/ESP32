@@ -1704,14 +1704,22 @@ inline IRAM_ATTR static control_signals_t systemGetState (void)
 
 #if MPG_ENABLE == 1
 
-static void mpg_select (void *data)
+static volatile bool mpg_event = false;
+
+static void mpg_select (void)
 {
-    stream_mpg_enable(!DIGITAL_IN(MPG_MODE_PIN ));
+    static volatile bool mux = false;
+
+    if(!mux) {
+        mux = true;
+        stream_mpg_enable(!DIGITAL_IN(MPG_MODE_PIN));
+        mux = false;
+    }
 }
 
 static void mpg_enable (void *data)
 {
-    if(sys.mpg_mode == DIGITAL_IN(MPG_MODE_PIN ))
+    if(sys.mpg_mode == DIGITAL_IN(MPG_MODE_PIN))
         stream_mpg_enable(true);
 }
 
@@ -1870,16 +1878,22 @@ IRAM_ATTR static void aux_irq_handler (uint8_t port, bool state)
 #endif
 #if MPG_ENABLE == 1
             case Input_MPGSelect:
-                task_delete(mpg_select, NULL);
-                task_add_immediate(mpg_select, NULL);
+                mpg_event = true;
                 break;
 #endif
             default:
                 break;
         }
         signals.mask |= pin->cap.mask;
-        if(!signals.probe_triggered && pin->irq_mode == IRQ_Mode_Change)
-            signals.deasserted = hal.port.wait_on_input(Port_Digital, pin->aux_port, WaitMode_Immediate, FZERO) == 0; // DIGITAL_IN(((input_signal_t *)pin->input)->pin)
+        if(!signals.probe_triggered && pin->irq_mode == IRQ_Mode_Change) {
+            uint_fast8_t idx = inputPinsCount;
+            do {
+                if(inputpin[--idx].pin == pin->pin) {
+                    signals.deasserted = DIGITAL_IN(pin->pin) ^ inputpin[idx].mode.inverted;
+                    break;
+                }
+            } while(idx);
+        }
     }
 
     if(signals.mask) {
@@ -3362,6 +3376,13 @@ static void wdt_tickler (sys_state_t state)
 {
     static uint32_t ms = 0;
 
+#if MPG_ENABLE == 1
+    if(mpg_event) {
+        mpg_event = false;
+        mpg_select();
+    }
+#endif
+
     if(xTaskGetTickCountFromISR() - ms > 250) {
         ms = xTaskGetTickCountFromISR();
         vTaskDelay(1);
@@ -3383,7 +3404,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "250927";
+    hal.driver_version = "251004";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3901,13 +3922,7 @@ IRAM_ATTR static void gpio_aux_isr (void *signal)
 
 IRAM_ATTR static void gpio_mpg_isr (void *signal)
 {
-    static bool mpg_mutex = false;
-
-    if(!mpg_mutex) {
-        mpg_mutex = true;
-        task_add_immediate(mpg_select, NULL);
-        mpg_mutex = false;
-    }
+    mpg_event = true;
 }
 
 #endif
