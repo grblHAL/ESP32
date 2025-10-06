@@ -151,6 +151,39 @@ static enqueue_realtime_command_ptr enqueue_realtime_command3 = protocol_enqueue
 static const io_stream_t *serial2Init (uint32_t baud_rate);
 #endif
 
+static const io_stream_status_t *get_uart_status (uint8_t instance);
+
+static io_stream_status_t stream_status[] = {
+    {
+        .baud_rate = 115200,
+        .format = {
+            .width = Serial_8bit,
+            .stopbits = Serial_StopBits1,
+            .parity = Serial_ParityNone,
+        }
+    },
+#ifdef SERIAL1_PORT
+    {
+        .baud_rate = 115200,
+        .format = {
+            .width = Serial_8bit,
+            .stopbits = Serial_StopBits1,
+            .parity = Serial_ParityNone,
+        }
+    },
+#endif
+#ifdef SERIAL2_PORT
+    {
+        .baud_rate = 115200,
+        .format = {
+            .width = Serial_8bit,
+            .stopbits = Serial_StopBits1,
+            .parity = Serial_ParityNone,
+        }
+    }
+#endif
+};
+
 static io_stream_properties_t serial[] = {
     {
       .type = StreamType_Serial,
@@ -159,7 +192,8 @@ static io_stream_properties_t serial[] = {
       .flags.claimed = Off,
       .flags.can_set_baud = On,
       .flags.modbus_ready = On,
-      .claim = serialInit
+      .claim = serialInit,
+      .get_status = get_uart_status
     },
 #ifdef SERIAL1_PORT
     {
@@ -173,7 +207,8 @@ static io_stream_properties_t serial[] = {
   #else
       .flags.rx_only = On,
   #endif
-      .claim = serial1Init
+      .claim = serial1Init,
+      .get_status = get_uart_status
     },
 #endif // SERIAL1_PORT
 #ifdef SERIAL2_PORT
@@ -188,7 +223,8 @@ static io_stream_properties_t serial[] = {
   #else
       .flags.rx_only = On,
   #endif
-      .claim = serial2Init
+      .claim = serial2Init,
+      .get_status = get_uart_status
     }
 #endif // SERIAL2_PORT
 };
@@ -204,16 +240,14 @@ void serialRegisterStreams (void)
         .function = Output_TX,
         .group = PinGroup_UART,
         .pin = UART_TX_PIN,
-        .mode = { .mask = PINMODE_OUTPUT },
-        .description = "Primary UART"
+        .mode = { .mask = PINMODE_OUTPUT }
     };
 
     static const periph_pin_t rx0 = {
         .function = Input_RX,
         .group = PinGroup_UART,
         .pin = UART_RX_PIN,
-        .mode = { .mask = PINMODE_NONE },
-        .description = "Primary UART"
+        .mode = { .mask = PINMODE_NONE }
     };
 
     hal.periph_port.register_pin(&rx0);
@@ -226,8 +260,7 @@ void serialRegisterStreams (void)
         .function = Output_TX,
         .group = PinGroup_UART2,
         .pin = UART1_TX_PIN,
-        .mode = { .mask = PINMODE_OUTPUT },
-        .description = "Secondary UART"
+        .mode = { .mask = PINMODE_OUTPUT }
     };
 
     hal.periph_port.register_pin(&tx1);
@@ -237,8 +270,7 @@ void serialRegisterStreams (void)
         .function = Input_RX,
         .group = PinGroup_UART2,
         .pin = UART1_RX_PIN,
-        .mode = { .mask = PINMODE_NONE },
-        .description = "Secondary UART"
+        .mode = { .mask = PINMODE_NONE }
     };
 
     hal.periph_port.register_pin(&rx1);
@@ -252,8 +284,7 @@ void serialRegisterStreams (void)
         .function = Output_TX,
         .group = PinGroup_UART3,
         .pin = UART2_TX_PIN,
-        .mode = { .mask = PINMODE_OUTPUT },
-        .description = "Tertiary UART"
+        .mode = { .mask = PINMODE_OUTPUT }
     };
 
     hal.periph_port.register_pin(&tx2);
@@ -263,8 +294,7 @@ void serialRegisterStreams (void)
         .function = Input_RX,
         .group = PinGroup_UART3,
         .pin = UART2_RX_PIN,
-        .mode = { .mask = PINMODE_NONE },
-        .description = "Tertiary UART"
+        .mode = { .mask = PINMODE_NONE }
     };
 
     hal.periph_port.register_pin(&rx2);
@@ -272,6 +302,13 @@ void serialRegisterStreams (void)
 #endif // SERIAL2_PORT
 
     stream_register_streams(&streams);
+}
+
+static const io_stream_status_t *get_uart_status (uint8_t instance)
+{
+    stream_status[instance].flags = serial[instance].flags;
+
+    return &stream_status[instance];
 }
 
 static void uartSetBaudRate (uart_t *uart, uint32_t baud_rate)
@@ -596,6 +633,8 @@ IRAM_ATTR static bool serialDisable (bool disable)
 
 static bool serialSetBaudRate (uint32_t baud_rate)
 {
+    stream_status[0].baud_rate = baud_rate;
+
     uartSetBaudRate(&uart0, baud_rate);
 
     return true;
@@ -603,6 +642,8 @@ static bool serialSetBaudRate (uint32_t baud_rate)
 
 static bool serialSetFormat (serial_format_t format)
 {
+    stream_status[0].format = format;
+
     uartSetFormat(&uart0, format);
 
     return true;
@@ -650,6 +691,7 @@ static const io_stream_t *serialInit (uint32_t baud_rate)
         return NULL;
 
     serial[0].flags.claimed = On;
+    stream_status[0].baud_rate = baud_rate;
 
     memcpy(&uart0, &_uart_bus_array[0], sizeof(uart_t)); // use UART 0
 
@@ -846,6 +888,8 @@ IRAM_ATTR static bool serial1Disable (bool disable)
 
 static bool serial1SetBaudRate (uint32_t baud_rate)
 {
+    stream_status[1].baud_rate = baud_rate;
+
     uartSetBaudRate(&uart1, baud_rate);
 
     return true;
@@ -853,6 +897,8 @@ static bool serial1SetBaudRate (uint32_t baud_rate)
 
 static bool serial1SetFormat (serial_format_t format)
 {
+    stream_status[1].format = format;
+
     uartSetFormat(&uart1, format);
 
     return true;
@@ -901,6 +947,7 @@ static const io_stream_t *serial1Init (uint32_t baud_rate)
         return NULL;
 
     serial[1].flags.claimed = On;
+    stream_status[1].baud_rate = baud_rate;
 
     memcpy(&uart1, &_uart_bus_array[1], sizeof(uart_t)); // use UART 1
 
@@ -1088,6 +1135,8 @@ IRAM_ATTR static bool serial2Disable (bool disable)
 
 static bool serial2SetBaudRate (uint32_t baud_rate)
 {
+    stream_status[2].baud_rate = baud_rate;
+
     uartSetBaudRate(&uart2, baud_rate);
 
     return true;
@@ -1095,6 +1144,8 @@ static bool serial2SetBaudRate (uint32_t baud_rate)
 
 static bool serial2SetFormat (serial_format_t format)
 {
+    stream_status[2].format = format;
+
     uartSetFormat(&uart2, format);
 
     return true;
@@ -1143,6 +1194,7 @@ static const io_stream_t *serial2Init (uint32_t baud_rate)
         return NULL;
 
     serial[2].flags.claimed = On;
+    stream_status[2].baud_rate = baud_rate;
 
     memcpy(&uart2, &_uart_bus_array[2], sizeof(uart_t)); // use UART 2
 
