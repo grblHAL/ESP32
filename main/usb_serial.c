@@ -189,7 +189,7 @@ static void usb_serialWriteS (const char *s)
 //
 static bool usb_serialPutC (const char c)
 {
-    static uint8_t s[2] = "";
+    static char s[2] = "";
 
     *s = c;
 

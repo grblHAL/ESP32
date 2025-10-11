@@ -212,10 +212,12 @@ set(MISC_PLUGINS_SOURCE
  plugins/feed_override_m220.c
  plugins/homing_pulloff.c
  plugins/mcp3221.c
+ plugins/mcp4725.c
  plugins/pca9654e.c
  plugins/pwm_servo_m280.c
  plugins/rgb_led_m150.c
  plugins/rgb_led_strips.c
+ plugins/tooltable.c
 )
 
 set(EMBROIDERY_SOURCE
