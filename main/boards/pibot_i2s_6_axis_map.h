@@ -66,7 +66,9 @@
 #define M3_STEP_PIN             I2SO(13)
 #define M3_DIRECTION_PIN        I2SO(12)
 #define M3_ENABLE_PIN           I2SO(15)
+#if M3_LIMIT_ENABLE
 #define M3_LIMIT_PIN            GPIO_NUM_36
+#endif
 //#define A_CS_PIN                I2SO(14)
 #endif
 
@@ -76,7 +78,9 @@
 #define M4_STEP_PIN             I2SO(18)
 #define M4_DIRECTION_PIN        I2SO(17)
 #define M4_ENABLE_PIN           I2SO(16)
+#if M4_LIMIT_ENABLE
 #define M4_LIMIT_PIN            GPIO_NUM_32
+#endif
 //#define B_CS_PIN                I2SO(19)
 #endif
 
@@ -87,28 +91,32 @@
 #define M5_DIRECTION_PIN        I2SO(20)
 #define M5_ENABLE_PIN           I2SO(23)
 //#define C_CS_PIN                I2SO(22)
+#if M5_LIMIT_ENABLE
 #define M5_LIMIT_PIN            GPIO_NUM_33
 #endif
+#endif
 
-#define AUXOUTPUT0_PIN          GPIO_NUM_26 // Relay
-#define AUXOUTPUT1_PIN          GPIO_NUM_13 // 10 V
-#define AUXOUTPUT2_PIN          I2SO(23)  // Spindle enable
-#define AUXOUTPUT3_PIN          GPIO_NUM_12  // Laser
+#define AUXOUTPUT0_PIN          GPIO_NUM_13 // 10 V
+#define AUXOUTPUT1_PIN          I2SO(23)  // Spindle enable
+#define AUXOUTPUT2_PIN          GPIO_NUM_12  // Laser
+#if !TOOLSETTER_ENABLE
+#define AUXOUTPUT3_PIN          GPIO_NUM_26 // Relay or toolsetter input
+#endif
 
 // Define driver spindle pins
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
 #define SPINDLE_PWM_PIN         GPIO_NUM_4
 #endif
-#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
-#define SPINDLE_DIRECTION_PIN   AUXOUTPUT0_PIN
+#if defined(AUXOUTPUT3_PIN) && (DRIVER_SPINDLE_ENABLE & SPINDLE_DIR)
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT3_PIN
 #endif
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
-#define SPINDLE_ENABLE_PIN  AUXOUTPUT2_PIN   
+#define SPINDLE_ENABLE_PIN      AUXOUTPUT1_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
 #if COOLANT_ENABLE & COOLANT_MIST
-#define COOLANT_MIST_PIN       AUXOUTPUT3_PIN
+#define COOLANT_MIST_PIN       AUXOUTPUT2_PIN
 #endif
 #if COOLANT_ENABLE & COOLANT_FLOOD
 #undef COOLANT_ENABLE
@@ -119,14 +127,27 @@
 #endif
 #endif
 
-#define AUXINPUT0_PIN       GPIO_NUM_2
+#define AUXINPUT0_PIN           GPIO_NUM_2
+#if !M5_LIMIT_ENABLE
+#define AUXINPUT1_PIN           GPIO_NUM_33
+#endif
+#if !M4_LIMIT_ENABLE
+#define AUXINPUT2_PIN           GPIO_NUM_32
+#endif
+#if !M3_LIMIT_ENABLE
+#define AUXINPUT3_PIN           GPIO_NUM_36
+#endif
+#if TOOLSETTER_ENABLE
+#define AUXINPUT4_PIN           GPIO_NUM_26 // Relay or toolsetter input
+#define TOOLSETTER_PIN          AUXINPUT4_PIN
+#endif
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 #undef CONTROL_ENABLE
 #define CONTROL_ENABLE 0 // No control inputs
 
 #if PROBE_ENABLE
-#define PROBE_PIN           AUXINPUT0_PIN
+#define PROBE_PIN               AUXINPUT0_PIN
 #endif
 
 #if I2C_ENABLE
@@ -136,7 +157,6 @@
 #define I2C_CLOCK               100000
 #endif
 
-
 #ifdef ADD_SERIAL1
 #define SERIAL1_PORT
 #define UART1_RX_PIN            GPIO_NUM_15
@@ -145,6 +165,3 @@
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_14
 #endif
 #endif
-
-
-
