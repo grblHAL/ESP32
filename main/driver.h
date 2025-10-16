@@ -223,7 +223,7 @@ extern SemaphoreHandle_t i2cBusy;
 #error "I2C port not available!"
 #endif
 
-#if SDCARD_ENABLE && defined(SDCARD_SDIO) && SPI_ENABLE && !TRINAMIC_SPI_ENABLE
+#if SDCARD_ENABLE && SDCARD_SDIO && SPI_ENABLE && !TRINAMIC_SPI_ENABLE
 #undef SPI_ENABLE
 #define SPI_ENABLE 0
 #endif
@@ -249,8 +249,7 @@ extern SemaphoreHandle_t i2cBusy;
 #define MODBUS_DIR_AUX 0
 #endif
 
-typedef enum
-{
+typedef enum {
     Pin_GPIO = 0,
     Pin_RMT,
     Pin_IoExpand,

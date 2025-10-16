@@ -38,6 +38,7 @@ set(SRCS
  grbl/motion_control.c
  grbl/nuts_bolts.c
  grbl/override.c
+ grbl/probe.c
  grbl/planner.c
  grbl/protocol.c
  grbl/report.c
