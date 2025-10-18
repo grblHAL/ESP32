@@ -95,7 +95,7 @@
 
 #if SDCARD_ENABLE
 
-#define SDCARD_SDIO
+#define SDCARD_SDIO         1
 #define SD_CLK_PIN          GPIO_NUM_13  //SD card clock
 #define SD_CMD_PIN          GPIO_NUM_14  //SD card command
 #define SD_DETECT_PIN       GPIO_NUM_10  //SD card detect

@@ -29,11 +29,11 @@
 #if SDCARD_ENABLE //  || TRINAMIC_SPI_ENABLE 
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
-#define PIN_NUM_MISO            19
-#define PIN_NUM_MOSI            23
-#define PIN_NUM_CLK             18
+#define SPI_MISO_PIN            19
+#define SPI_MOSI_PIN            23
+#define SPI_SCK_PIN             18
 #if SDCARD_ENABLE
-#define PIN_NUM_CS              5
+#define SD_CS_PIN               5
 #endif // SDCARD_ENABLE
 #endif // SDCARD_ENABLE || TRINAMIC_SPI_ENABLE
 

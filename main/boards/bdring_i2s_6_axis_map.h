@@ -33,12 +33,12 @@
 
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
-#define PIN_NUM_MISO            19
-#define PIN_NUM_MOSI            23
-#define PIN_NUM_CLK             18
+#define SPI_MISO_PIN            19
+#define SPI_MOSI_PIN            23
+#define SPI_SCK_PIN             18
 #if SDCARD_ENABLE
 // Note that a pull-up on CS line is required in SD mode.
-#define PIN_NUM_CS              5
+#define SD_CS_PIN              5
 #endif // SDCARD_ENABLE
 #endif // SDCARD_ENABLE || TRINAMIC_SPI_ENABLE
 
@@ -128,7 +128,10 @@
 #endif
 
 #if TRINAMIC_SPI_ENABLE
-#define MOTOR_CS_PIN            I2SO(3)
+#define MOTOR_CSX_PIN I2SO(3)
+#define MOTOR_CSY_PIN I2SO(6)
+#define MOTOR_CSZ_PIN I2SO(11)
+//#define MOTOR_CS_PIN            I2SO(3)
 #endif
 
 #ifdef ADD_SERIAL1

@@ -118,11 +118,11 @@
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
 // Note that a pull-up on CS line is required in SD mode.
-#define PIN_NUM_MISO        GPIO_NUM_19
-#define PIN_NUM_MOSI        GPIO_NUM_23
-#define PIN_NUM_CLK         GPIO_NUM_18
+#define SPI_MISO_PIN        GPIO_NUM_19
+#define SPI_MOSI_PIN        GPIO_NUM_23
+#define SPI_SCK_PIN         GPIO_NUM_18
 #if SDCARD_ENABLE
-#define PIN_NUM_CS          GPIO_NUM_5
+#define SD_CS_PIN           GPIO_NUM_5
 #endif
 
 #ifdef ADD_SERIAL1

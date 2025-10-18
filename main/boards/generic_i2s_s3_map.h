@@ -37,12 +37,12 @@
 
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
-#define PIN_NUM_MISO            GPIO_NUM_13
-#define PIN_NUM_MOSI            GPIO_NUM_11
-#define PIN_NUM_CLK             GPIO_NUM_12
+#define SPI_MISO_PIN            GPIO_NUM_13
+#define SPI_MOSI_PIN            GPIO_NUM_11
+#define SPI_SCK_PIN             GPIO_NUM_12
 #if SDCARD_ENABLE
 // Note that a pull-up on CS line is required in SD mode.
-#define PIN_NUM_CS              GPIO_NUM_10
+#define SD_CS_PIN              GPIO_NUM_10
 #endif // SDCARD_ENABLE
 #endif // SDCARD_ENABLE || TRINAMIC_SPI_ENABLE
 

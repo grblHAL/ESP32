@@ -144,8 +144,8 @@
 #endif
 
 #if SDCARD_ENABLE
-#define PIN_NUM_MISO            GPIO_NUM_19
-#define PIN_NUM_MOSI            GPIO_NUM_23
-#define PIN_NUM_CLK             GPIO_NUM_18
-#define PIN_NUM_CS              GPIO_NUM_5
+#define SPI_MISO_PIN            GPIO_NUM_19
+#define SPI_MOSI_PIN            GPIO_NUM_23
+#define SPI_SCK_PIN             GPIO_NUM_18
+#define SD_CS_PIN               GPIO_NUM_5
 #endif

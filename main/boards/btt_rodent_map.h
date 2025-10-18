@@ -123,12 +123,12 @@
 #define I2C_CLOCK               100000
 
 // Define SPI port/pins
-#define PIN_NUM_MISO            GPIO_NUM_19
-#define PIN_NUM_MOSI            GPIO_NUM_23
-#define PIN_NUM_CLK             GPIO_NUM_18
+#define SPI_MISO_PIN            GPIO_NUM_19
+#define SPI_MOSI_PIN            GPIO_NUM_23
+#define SPI_SCK_PIN             GPIO_NUM_18
 #define MOTOR_CS_PIN            GPIO_NUM_5
 #if SDCARD_ENABLE
-#define PIN_NUM_CS              GPIO_NUM_0
+#define SD_CS_PIN               GPIO_NUM_0
 #endif
 
 //#define TMC_ONE_SPI

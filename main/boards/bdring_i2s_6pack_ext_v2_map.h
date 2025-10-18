@@ -25,15 +25,24 @@
 
 #define BOARD_NAME "BDRING 6-Pack External drives V2.0"
 
+#if TRINAMIC_SPI_ENABLE
+#define MOTOR_CSX_PIN I2SO(3)
+#define MOTOR_CSY_PIN I2SO(6)
+#define MOTOR_CSZ_PIN I2SO(11)
+#define SPI_MISO_PIN 19
+#define SPI_MOSI_PIN 23
+#define SPI_SCK_PIN 18
+#endif
+
 #if SDCARD_ENABLE
 
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
 // Note that a pull-up on CS line is required in SD mode.
-#define PIN_NUM_MISO            19
-#define PIN_NUM_MOSI            23
-#define PIN_NUM_CLK             18
-#define PIN_NUM_CS              5
+#define SPI_MISO_PIN            19
+#define SPI_MOSI_PIN            23
+#define SPI_SCK_PIN             18
+#define SD_CS_PIN              5
 
 #endif // SDCARD_ENABLE
 

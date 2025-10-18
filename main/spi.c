@@ -33,21 +33,21 @@ bool spi_bus_init (spi_host_device_t *host)
     static const periph_pin_t sck = {
         .function = Output_SPICLK,
         .group = PinGroup_SPI,
-        .pin = PIN_NUM_CLK,
+        .pin = SPI_SCK_PIN,
         .mode = { .mask = PINMODE_OUTPUT }
     };
 
     static const periph_pin_t sdo = {
         .function = Output_MOSI,
         .group = PinGroup_SPI,
-        .pin = PIN_NUM_MOSI,
+        .pin = SPI_MOSI_PIN,
         .mode = { .mask = PINMODE_NONE }
     };
 
     static const periph_pin_t sdi = {
         .function = Input_MISO,
         .group = PinGroup_SPI,
-        .pin = PIN_NUM_MISO,
+        .pin = SPI_MISO_PIN,
         .mode = { .mask = PINMODE_NONE }
     };
 
@@ -57,9 +57,9 @@ bool spi_bus_init (spi_host_device_t *host)
 
 		spi_common_dma_t dma_ch;
         spi_bus_config_t bus_config = {
-            .mosi_io_num     = PIN_NUM_MOSI,
-            .miso_io_num     = PIN_NUM_MISO,
-            .sclk_io_num     = PIN_NUM_CLK,
+            .mosi_io_num     = SPI_MOSI_PIN,
+            .miso_io_num     = SPI_MISO_PIN,
+            .sclk_io_num     = SPI_SCK_PIN,
             .quadwp_io_num   = -1,
             .quadhd_io_num   = -1,
             .flags           = SPICOMMON_BUSFLAG_MASTER,
@@ -71,9 +71,9 @@ bool spi_bus_init (spi_host_device_t *host)
         host_id = SDSPI_DEFAULT_HOST;
 #else
 		dma_ch = SPI_DMA_CH1;
-  #if PIN_NUM_CLK == GPIO_NUM_14
+  #if SPI_SCK_PIN == GPIO_NUM_14
         host_id = SPI2_HOST;
-  #elif PIN_NUM_CLK == GPIO_NUM_18
+  #elif SPI_SCK_PIN == GPIO_NUM_18
         host_id = SPI3_HOST;
   #else
         host_id = SDSPI_DEFAULT_HOST;

@@ -392,8 +392,8 @@ static output_signal_t outputpin[] = {
 #ifdef MOTOR_CSM5_PIN
     { .id = Output_MotorChipSelectM5, .pin = MOTOR_CSM5_PIN,    .group = PinGroup_MotorChipSelect },
 #endif
-#ifdef PIN_NUM_CS
-    { .id = Output_SdCardCS,          .pin = PIN_NUM_CS,        .group = PinGroup_SdCard },
+#ifdef SD_CS_PIN
+    { .id = Output_SdCardCS,          .pin = SD_CS_PIN,        .group = PinGroup_SdCard },
 #endif
 #ifdef MODBUS_DIRECTION_PIN
     { .id = Output_Aux0,           .pin = MODBUS_DIRECTION_PIN,  .group = PinGroup_AuxOutput },
@@ -2870,7 +2870,7 @@ static char *sdcard_mount (FATFS **fs)
 
         sdspi_dev_handle_t dh;
 
-        slot_config.gpio_cs = PIN_NUM_CS;
+        slot_config.gpio_cs = SD_CS_PIN;
         slot_config.host_id = spi_host;
         sdspi_host_init_device(&slot_config, &dh);
 
@@ -2879,7 +2879,7 @@ static char *sdcard_mount (FATFS **fs)
         host.max_freq_khz = SDMMC_FREQ_KHZ;
 #endif
 
-        gpio_set_drive_capability(PIN_NUM_CS, GPIO_DRIVE_CAP_3);
+        gpio_set_drive_capability(SD_CS_PIN, GPIO_DRIVE_CAP_3);
 
         if((ret = esp_vfs_fat_sdspi_mount("/sdcard", &host, &slot_config, &mount_config, &card)) != ESP_OK)
             report_warning(ret == ESP_FAIL ? "Failed to mount filesystem" : "Failed to initialize SD card");
