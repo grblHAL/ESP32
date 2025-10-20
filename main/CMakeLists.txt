@@ -133,6 +133,7 @@ set(SPINDLE_SOURCE
  spindle/vfd/huanyang.c
  spindle/vfd/huanyang2.c
  spindle/vfd/modvfd.c
+ spindle/vfd/nowforever.c
  spindle/vfd/spindle.c
  spindle/vfd/yl620.c
 )

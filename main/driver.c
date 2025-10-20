@@ -1808,13 +1808,13 @@ static bool aux_claim_explicit (aux_ctrl_t *aux_ctrl)
 #endif
 #if PROBE2_ENABLE
             case Input_Probe2:
-                hal.driver_cap.probe2 = probe_add(Probe_2, aux_ctrl->aux_port, pin->cap.irq_mode, aux_ctrl->input, probeGetState);
+                hal.driver_cap.probe2 = probe_add(Probe_2, aux_ctrl->port, pin->cap.irq_mode, aux_ctrl->input, probeGetState);
                 break;
 
 #endif
 #if TOOLSETTER_ENABLE
             case Input_Toolsetter:
-                hal.driver_cap.toolsetter = probe_add(Probe_Toolsetter, aux_ctrl->aux_port, pin->cap.irq_mode, aux_ctrl->input, probeGetState);
+                hal.driver_cap.toolsetter = probe_add(Probe_Toolsetter, aux_ctrl->port, pin->cap.irq_mode, aux_ctrl->input, probeGetState);
                 break;
 #endif
 #if SAFETY_DOOR_ENABLE
@@ -3274,7 +3274,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "251015";
+    hal.driver_version = "251019";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
