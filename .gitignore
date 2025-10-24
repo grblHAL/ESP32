@@ -1,3 +1,16 @@
+# Local only files
+platformio_override.ini
+cheat_sheet.txt
+
+# Other vscode stuff
+sdkconfig
+sdkconfig.old
+sdkconfig.*
+.pio/
+.vscode/
+.clangd/
+.ipynb_checkpoints/
+
 # Windows thumbnail cache files
 Thumbs.db
 ehthumbs.db
