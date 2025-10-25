@@ -15,6 +15,7 @@ OPTION(AddMyPlugin "Add my_plugin.c" OFF)
 
 set(SRCS
  main.c
+#  wrap_gpio.c  # Wrapper for GPIO debugging
  driver.c
  nvs.c
  timers.c
