@@ -4,7 +4,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2024 Terje Io
+  Copyright (c) 2024-2025 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -117,22 +117,28 @@ bool timerCfg (hal_timer_t timer, timer_cfg_t *cfg)
 
 bool timerStart (hal_timer_t timer, uint32_t period)
 {
-	dtimer_t *dtimer = (dtimer_t *)timer;
+    dtimer_t *dtimer = (dtimer_t *)timer;
 
-    timer_set_counter_value(dtimer->group, dtimer->index, 0x00000000ULL);
-    timer_set_alarm_value(dtimer->group, dtimer->index, (uint64_t)period);
-    timer_start(dtimer->group, dtimer->index);
-#if CONFIG_IDF_TARGET_ESP32S3
-    TIMERG0.hw_timer[dtimer->index].config.tn_alarm_en = TIMER_ALARM_EN;
-#else
-    TIMERG0.hw_timer[dtimer->index].config.alarm_en = TIMER_ALARM_EN;
-#endif
+    if(dtimer->cfg.single_shot || period != dtimer->cfg.period) {
+
+        ((dtimer_t *)timer)->cfg.period = period;
+
+        timer_set_counter_value(dtimer->group, dtimer->index, 0x00000000ULL);
+        timer_set_alarm_value(dtimer->group, dtimer->index, (uint64_t)period);
+        timer_start(dtimer->group, dtimer->index);
+    #if CONFIG_IDF_TARGET_ESP32S3
+        TIMERG0.hw_timer[dtimer->index].config.tn_alarm_en = TIMER_ALARM_EN;
+    #else
+        TIMERG0.hw_timer[dtimer->index].config.alarm_en = TIMER_ALARM_EN;
+    #endif
+    }
 
     return true;
 }
 
 bool timerStop (hal_timer_t timer)
 {
+    ((dtimer_t *)timer)->cfg.period = 0;
 	timer_pause(((dtimer_t *)timer)->group, ((dtimer_t *)timer)->index);
 
     return true;

@@ -103,8 +103,6 @@ typedef struct {
     uint32_t tx_len;
 } uart_t;
 
-static int16_t serialRead (void);
-
 #if CONFIG_DISABLE_HAL_LOCKS
 
 #define UART_MUTEX_LOCK(u)
@@ -134,23 +132,24 @@ static const DRAM_ATTR uint32_t rx_int_flags = UART_INTR_RXFIFO_FULL|UART_INTR_R
 
 static uart_t uart0;
 static stream_rx_buffer_t rxbuffer = {0};
-static enqueue_realtime_command_ptr enqueue_realtime_command = protocol_enqueue_realtime_command;
+static enqueue_realtime_command_ptr enqueue_realtime_command;
 static const io_stream_t *serialInit (uint32_t baud_rate);
 
 #ifdef SERIAL1_PORT
 static uart_t uart1;
 static stream_rx_buffer_t rxbuffer1 = {0};
-static enqueue_realtime_command_ptr enqueue_realtime_command2 = protocol_enqueue_realtime_command;
+static enqueue_realtime_command_ptr enqueue_realtime_command2;
 static const io_stream_t *serial1Init (uint32_t baud_rate);
 #endif
 
 #ifdef SERIAL2_PORT
 static uart_t uart2;
 static stream_rx_buffer_t rxbuffer2 = {0};
-static enqueue_realtime_command_ptr enqueue_realtime_command3 = protocol_enqueue_realtime_command;
+static enqueue_realtime_command_ptr enqueue_realtime_command3;
 static const io_stream_t *serial2Init (uint32_t baud_rate);
 #endif
 
+static bool uart_release (uint8_t instance);
 static const io_stream_status_t *get_uart_status (uint8_t instance);
 
 static io_stream_status_t stream_status[] = {
@@ -193,6 +192,7 @@ static io_stream_properties_t serial[] = {
       .flags.can_set_baud = On,
       .flags.modbus_ready = On,
       .claim = serialInit,
+      .release = uart_release,
       .get_status = get_uart_status
     },
 #ifdef SERIAL1_PORT
@@ -208,6 +208,7 @@ static io_stream_properties_t serial[] = {
       .flags.rx_only = On,
   #endif
       .claim = serial1Init,
+      .release = uart_release,
       .get_status = get_uart_status
     },
 #endif // SERIAL1_PORT
@@ -224,6 +225,7 @@ static io_stream_properties_t serial[] = {
       .flags.rx_only = On,
   #endif
       .claim = serial2Init,
+      .release = uart_release,
       .get_status = get_uart_status
     }
 #endif // SERIAL2_PORT
@@ -309,6 +311,16 @@ static const io_stream_status_t *get_uart_status (uint8_t instance)
     stream_status[instance].flags = serial[instance].flags;
 
     return &stream_status[instance];
+}
+
+static bool uart_release (uint8_t instance)
+{
+    bool ok;
+
+    if((ok = serial[instance].flags.claimed))
+        serial[instance].flags.claimed = Off;
+
+    return ok;
 }
 
 static void uartSetBaudRate (uart_t *uart, uint32_t baud_rate)
@@ -523,21 +535,20 @@ static uint16_t serialRXFree (void)
     return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
-static int16_t serialRead (void)
+static int32_t serialRead (void)
 {
-    int16_t data;
     uint16_t bptr = rxbuffer.tail;
 
     if(bptr == rxbuffer.head)
         return -1; // no data available else EOF
 
-    data = rxbuffer.data[bptr++];                 // Get next character, increment tmp pointer
-    rxbuffer.tail = bptr & (RX_BUFFER_SIZE - 1);  // and update pointer
+    int32_t data = (int32_t)rxbuffer.data[bptr++];  // Get next character, increment tmp pointer
+    rxbuffer.tail = bptr & (RX_BUFFER_SIZE - 1);    // and update pointer
 
     return data;
 }
 
-static bool serialPutC (const char c)
+static bool serialPutC (const uint8_t c)
 {
     while(_uart_ll_get_txfifo_count(uart0.dev) == uart0.tx_len) {
         if(!hal.stream_blocking_callback())
@@ -554,16 +565,16 @@ static void serialWriteS (const char *data)
     char c, *ptr = (char *)data;
 
     while((c = *ptr++) != '\0')
-       serialPutC(c);
+       serialPutC((uint8_t)c);
 }
 
 //
 // Writes a number of characters from a buffer to the serial output stream, blocks if buffer full
 //
-void static serialWrite (const char *s, uint16_t length)
+void static serialWrite (const uint8_t *s, uint16_t length)
 {
 
-    char *ptr = (char *)s;
+    uint8_t *ptr = (uint8_t *)s;
 
     while(length--)
         serialPutC(*ptr++);
@@ -649,7 +660,7 @@ static bool serialSetFormat (serial_format_t format)
     return true;
 }
 
-static bool serialEnqueueRtCommand (char c)
+static bool serialEnqueueRtCommand (uint8_t c)
 {
     return enqueue_realtime_command(c);
 }
@@ -691,14 +702,18 @@ static const io_stream_t *serialInit (uint32_t baud_rate)
         return NULL;
 
     serial[0].flags.claimed = On;
-    stream_status[0].baud_rate = baud_rate;
 
-    memcpy(&uart0, &_uart_bus_array[0], sizeof(uart_t)); // use UART 0
+    if(!serial[0].flags.init_ok) {
 
-    uartConfig(&uart0, baud_rate);
+        memcpy(&uart0, &_uart_bus_array[0], sizeof(uart_t)); // use UART 0
 
-    serialFlush();
-    uartEnableInterrupt(&uart0, _uart0_isr, true);
+        uartConfig(&uart0, baud_rate);
+        uartEnableInterrupt(&uart0, _uart0_isr, true);
+
+        serial[0].flags.init_ok = On;
+    }
+
+    stream_set_defaults(&stream, baud_rate);
 
     return &stream;
 }
@@ -756,7 +771,7 @@ uint16_t static serial1RXFree (void)
     return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
-static bool serial1PutC (const char c)
+static bool serial1PutC (const uint8_t c)
 {
 #ifdef UART1_TX_PIN
     UART_MUTEX_LOCK(&uart1);
@@ -780,28 +795,27 @@ void static serial1WriteS (const char *data)
     char c, *ptr = (char *)data;
 
     while((c = *ptr++) != '\0')
-        serial1PutC(c);
+        serial1PutC((uint8_t)c);
 #endif
 }
 
 //
 // Writes a number of characters from a buffer to the serial output stream, blocks if buffer full
 //
-void static serial1Write (const char *s, uint16_t length)
+void static serial1Write (const uint8_t *s, uint16_t length)
 {
 #ifdef UART1_TX_PIN
-    char *ptr = (char *)s;
+    uint8_t *ptr = (uint8_t *)s;
 
     while(length--)
         serial1PutC(*ptr++);
 #endif
 }
 
-int16_t static serial1Read (void)
+int32_t static serial1Read (void)
 {
     UART_MUTEX_LOCK(&uart1);
 
-    int16_t data;
     uint16_t bptr = rxbuffer1.tail;
 
     if(bptr == rxbuffer1.head) {
@@ -809,7 +823,7 @@ int16_t static serial1Read (void)
         return -1; // no data available else EOF
     }
 
-    data = rxbuffer1.data[bptr++];                 // Get next character, increment tmp pointer
+    int32_t data = (int32_t)rxbuffer1.data[bptr++];                 // Get next character, increment tmp pointer
     rxbuffer1.tail = bptr & (RX_BUFFER_SIZE - 1);  // and update pointer
 
     UART_MUTEX_UNLOCK(&uart1);
@@ -904,7 +918,7 @@ static bool serial1SetFormat (serial_format_t format)
     return true;
 }
 
-static bool serial1EnqueueRtCommand (char c)
+static bool serial1EnqueueRtCommand (uint8_t c)
 {
     return enqueue_realtime_command2(c);
 }
@@ -947,18 +961,18 @@ static const io_stream_t *serial1Init (uint32_t baud_rate)
         return NULL;
 
     serial[1].flags.claimed = On;
-    stream_status[1].baud_rate = baud_rate;
 
-    memcpy(&uart1, &_uart_bus_array[1], sizeof(uart_t)); // use UART 1
+    if(!serial[1].flags.init_ok) {
 
-    uartConfig(&uart1, baud_rate);
+        memcpy(&uart1, &_uart_bus_array[1], sizeof(uart_t)); // use UART 1
 
-    serial1Flush();
+        uartConfig(&uart1, baud_rate);
+        uartEnableInterrupt(&uart1, _uart1_isr, true);
 
-    uartEnableInterrupt(&uart1, _uart1_isr, true);
-#ifndef UART1_TX_PIN
-    serial1Disable(true); // for MPG mode
-#endif
+        serial[1].flags.init_ok = On;
+    }
+
+    stream_set_defaults(&stream, baud_rate);
 
     return &stream;
 }
@@ -1014,7 +1028,7 @@ uint16_t static serial2RXFree (void)
     return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
-bool static serial2PutC (const char c)
+bool static serial2PutC (const uint8_t c)
 {
     UART_MUTEX_LOCK(&uart2);
     serialPutC(c);
@@ -1035,25 +1049,24 @@ void static serial2WriteS (const char *data)
     char c, *ptr = (char *)data;
 
     while((c = *ptr++) != '\0')
-        serial2PutC(c);
+        serial2PutC((uint8_t)c);
 }
 
 //
 // Writes a number of characters from a buffer to the serial output stream, blocks if buffer full
 //
-void static serial2Write (const char *s, uint16_t length)
+void static serial2Write (const uint8_t *s, uint16_t length)
 {
-    char *ptr = (char *)s;
+    char *uint8_t = (uint8_t *)s;
 
     while(length--)
         serial2PutC(*ptr++);
 }
 
-int16_t static serial2Read (void)
+int32_t static serial2Read (void)
 {
     UART_MUTEX_LOCK(&uart2);
 
-    int16_t data;
     uint16_t bptr = rxbuffer2.tail;
 
     if(bptr == rxbuffer2.head) {
@@ -1061,8 +1074,8 @@ int16_t static serial2Read (void)
         return -1; // no data available else EOF
     }
 
-    data = rxbuffer2.data[bptr++];                 // Get next character, increment tmp pointer
-    rxbuffer2.tail = bptr & (RX_BUFFER_SIZE - 1);  // and update pointer
+    int32_tdata = (int32_t)rxbuffer2.data[bptr++];  // Get next character, increment tmp pointer
+    rxbuffer2.tail = bptr & (RX_BUFFER_SIZE - 1);   // and update pointer
 
     UART_MUTEX_UNLOCK(&uart2);
 
@@ -1151,7 +1164,7 @@ static bool serial2SetFormat (serial_format_t format)
     return true;
 }
 
-static bool serial2EnqueueRtCommand (char c)
+static bool serial2EnqueueRtCommand (uint8_t c)
 {
     return enqueue_realtime_command3(c);
 }
@@ -1194,18 +1207,22 @@ static const io_stream_t *serial2Init (uint32_t baud_rate)
         return NULL;
 
     serial[2].flags.claimed = On;
-    stream_status[2].baud_rate = baud_rate;
 
-    memcpy(&uart2, &_uart_bus_array[2], sizeof(uart_t)); // use UART 2
+    if(!serial[2].flags.init_ok) {
 
-    uartConfig(&uart2, baud_rate);
+        memcpy(&uart2, &_uart_bus_array[2], sizeof(uart_t)); // use UART 2
 
-    serial2Flush();
+        uartConfig(&uart2, baud_rate);
 #ifdef UART2_TX_PIN
-    uartEnableInterrupt(&uart2, _uart2_isr, true);
+        uartEnableInterrupt(&uart2, _uart2_isr, true);
 #else
-    uartEnableInterrupt(&uart2, _uart2_isr, false);
+        uartEnableInterrupt(&uart2, _uart2_isr, false);
 #endif
+
+        serial[2].flags.init_ok = On;
+    }
+
+    stream_set_defaults(&stream, baud_rate);
 
     return &stream;
 }

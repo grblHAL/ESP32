@@ -59,7 +59,7 @@
 #define USE_BT_MUTEX 0
 
 #if USE_BT_MUTEX
-#define BT_MUTEX_LOCK()   do {} while (xSemaphoreTake(lock, portMAX_DELAY) != pdPASS)
+#define BT_MUTEX_LOCK() do {} while (xSemaphoreTake(lock, portMAX_DELAY) != pdPASS)
 #define BT_MUTEX_UNLOCK() xSemaphoreGive(lock)
 static SemaphoreHandle_t lock = NULL;
 #else
@@ -71,7 +71,7 @@ static SemaphoreHandle_t lock = NULL;
 
 typedef struct {
     volatile uint16_t head;
-    char data[BT_TX_BUFFER_SIZE];
+    uint8_t data[BT_TX_BUFFER_SIZE];
 } bt_tx_buffer_t;
 
 typedef struct {
@@ -134,11 +134,10 @@ uint16_t BTStreamRXFree (void)
     return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
-int16_t BTStreamGetC (void)
+int32_t BTStreamGetC (void)
 {
     BT_MUTEX_LOCK();
 
-    int16_t data;
     uint16_t bptr = rxbuffer.tail;
 
     if(bptr == rxbuffer.head) {
@@ -146,8 +145,8 @@ int16_t BTStreamGetC (void)
         return -1; // no data available else EOF
     }
 
-    data = rxbuffer.data[bptr++];                 // Get next character, increment tmp pointer
-    rxbuffer.tail = bptr & (RX_BUFFER_SIZE - 1);  // and update pointer
+    int32_t data = (int32_t)rxbuffer.data[bptr++];  // Get next character, increment tmp pointer
+    rxbuffer.tail = bptr & (RX_BUFFER_SIZE - 1);    // and update pointer
 
     BT_MUTEX_UNLOCK();
 
@@ -171,13 +170,13 @@ static inline bool enqueue_tx_chunk (uint16_t length, uint8_t *data)
 }
 
 // Since grblHAL always sends cr/lf terminated strings we can send complete strings to improve throughput
-bool BTStreamPutC (const char c)
+bool BTStreamPutC (const uint8_t c)
 {
     if(txbuffer.head < BT_TX_BUFFER_SIZE)
         txbuffer.data[txbuffer.head++] = c;
 
     if(c == ASCII_LF) {
-        enqueue_tx_chunk(txbuffer.head, (uint8_t *)txbuffer.data);
+        enqueue_tx_chunk(txbuffer.head, txbuffer.data);
         txbuffer.head = 0;
     }
 
@@ -186,7 +185,7 @@ bool BTStreamPutC (const char c)
 
 void BTStreamWriteS (const char *data)
 {
-    char c, *ptr = (char *)data;
+    uint8_t c, *ptr = (uint8_t *)data;
 
     while((c = *ptr++) != '\0')
         BTStreamPutC(c);
@@ -343,12 +342,11 @@ static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
             break;
 
         case ESP_SPP_DATA_IND_EVT:;
-            char c;
             uint16_t len = param->data_ind.len;
-            uint8_t *data = param->data_ind.data;
+            uint8_t c, *data = param->data_ind.data;
 
             while(len--) {
-                c = (char)*data++;
+                c = *data++;
                 // discard input if MPG has taken over...
                 if(hal.stream.type != StreamType_MPG) {
                     if(!enqueue_realtime_command(c)) {
@@ -703,4 +701,4 @@ bool bluetooth_init_local (void)
     return nvs_address != 0;
 }
 
-#endif
+#endif // BLUETOOTH_ENABLE

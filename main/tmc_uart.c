@@ -54,7 +54,7 @@ TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read
     vTaskSuspendAll();
 
     tmc_uart.reset_write_buffer();
-    tmc_uart.write_n((char *)dgr->data, sizeof(TMC_uart_read_datagram_t));
+    tmc_uart.write_n(dgr->data, sizeof(TMC_uart_read_datagram_t));
 
     while(tmc_uart.get_tx_buffer_count());
 
@@ -115,7 +115,7 @@ void tmc_uart_write (trinamic_motor_t driver, TMC_uart_write_datagram_t *dgr)
 #endif // BOARD_JACKPOT
 
     tmc_uart.reset_read_buffer();
-    tmc_uart.write_n((char *)dgr->data, sizeof(TMC_uart_write_datagram_t));
+    tmc_uart.write_n(dgr->data, sizeof(TMC_uart_write_datagram_t));
 
     while(tmc_uart.get_tx_buffer_count());
 }
