@@ -22,9 +22,15 @@
 
 #include "driver.h"
 
+#include "hal/timer_hal.h"
+
+#define TIMER_ENTER_CRITICAL(mux)      portENTER_CRITICAL_SAFE(mux);
+#define TIMER_EXIT_CRITICAL(mux)       portEXIT_CRITICAL_SAFE(mux);
+
 typedef struct {
+    timer_hal_context_t hal;
 	uint32_t group;
-	uint32_t index;
+	portMUX_TYPE mux;
     timer_resolution_t resolution;
     bool claimed;
     timer_cfg_t cfg;
@@ -36,38 +42,35 @@ typedef struct {
 
 IRAM_ATTR static void timer01_isr (void *arg)
 {
-#if CONFIG_IDF_TARGET_ESP32S3
-    TIMERG0.int_clr_timers.t1_int_clr = 1;
-#else
-    TIMERG0.int_clr_timers.t1 = 1;
-#endif
+    timer_ll_clear_intr_status(&TIMERG0, TIMER_1);
+    if(!((dtimer_t *)arg)->cfg.single_shot)
+        timer_ll_set_alarm_enable(&TIMERG0, TIMER_1, true);
+
     ((dtimer_t *)arg)->cfg.timeout_callback(((dtimer_t *)arg)->cfg.context);
 }
 
 IRAM_ATTR static void timer10_isr (void *arg)
 {
-#if CONFIG_IDF_TARGET_ESP32S3
-    TIMERG1.int_clr_timers.t0_int_clr = 1;
-#else
-    TIMERG1.int_clr_timers.t0 = 1;
-#endif
+    timer_ll_clear_intr_status(&TIMERG1, TIMER_0);
+    if(!((dtimer_t *)arg)->cfg.single_shot)
+        timer_ll_set_alarm_enable(&TIMERG1, TIMER_0, true);
+
     ((dtimer_t *)arg)->cfg.timeout_callback(((dtimer_t *)arg)->cfg.context);
 }
 
 IRAM_ATTR static void timer11_isr (void *arg)
 {
-#if CONFIG_IDF_TARGET_ESP32S3
-    TIMERG1.int_clr_timers.t1_int_clr = 1;
-#else
-    TIMERG1.int_clr_timers.t1 = 1;
-#endif
+    timer_ll_clear_intr_status(&TIMERG1, TIMER_1);
+    if(!((dtimer_t *)arg)->cfg.single_shot)
+        timer_ll_set_alarm_enable(&TIMERG1, TIMER_1, true);
+
     ((dtimer_t *)arg)->cfg.timeout_callback(((dtimer_t *)arg)->cfg.context);
 }
 
 static dtimer_t timers[] = {
-	{ .group = 0, .index = 1, .freq_hz = 80000000, .isr = timer01_isr },
-	{ .group = 1, .index = 0, .freq_hz = 80000000, .isr = timer10_isr },
-	{ .group = 1, .index = 1, .freq_hz = 80000000, .isr = timer11_isr }
+	{ .hal.dev = &TIMERG0, .hal.idx = 1, .group = 0, .freq_hz = 80000000, .isr = timer01_isr, .mux = portMUX_INITIALIZER_UNLOCKED },
+	{ .hal.dev = &TIMERG1, .hal.idx = 0, .group = 1, .freq_hz = 80000000, .isr = timer10_isr, .mux = portMUX_INITIALIZER_UNLOCKED },
+	{ .hal.dev = &TIMERG1, .hal.idx = 1, .group = 1, .freq_hz = 80000000, .isr = timer11_isr, .mux = portMUX_INITIALIZER_UNLOCKED }
 };
 
 hal_timer_t timerClaim (timer_cap_t cap, uint32_t timebase)
@@ -106,10 +109,10 @@ bool timerCfg (hal_timer_t timer, timer_cfg_t *cfg)
         timerConfig.auto_reload = !cfg->single_shot;
         timerConfig.divider = ((dtimer->freq_hz / 1000) * dtimer->timebase) / 1000000;
 
-        timer_init(dtimer->group, dtimer->index, &timerConfig);
-        timer_set_counter_value(dtimer->group, dtimer->index, 0ULL);
-        timer_isr_register(dtimer->group, dtimer->index, dtimer->isr, timer, ESP_INTR_FLAG_IRAM, NULL);
-        timer_enable_intr(dtimer->group, dtimer->index);
+        timer_init(dtimer->group, dtimer->hal.idx, &timerConfig);
+        timer_set_counter_value(dtimer->group, dtimer->hal.idx, 0ULL);
+        timer_isr_register(dtimer->group, dtimer->hal.idx, dtimer->isr, timer, ESP_INTR_FLAG_IRAM, NULL);
+        timer_enable_intr(dtimer->group, dtimer->hal.idx);
     }
 
     return ok;
@@ -121,16 +124,13 @@ bool timerStart (hal_timer_t timer, uint32_t period)
 
     if(dtimer->cfg.single_shot || period != dtimer->cfg.period) {
 
+        TIMER_ENTER_CRITICAL(&dtimer->mux);
         ((dtimer_t *)timer)->cfg.period = period;
-
-        timer_set_counter_value(dtimer->group, dtimer->index, 0x00000000ULL);
-        timer_set_alarm_value(dtimer->group, dtimer->index, (uint64_t)period);
-        timer_start(dtimer->group, dtimer->index);
-    #if CONFIG_IDF_TARGET_ESP32S3
-        TIMERG0.hw_timer[dtimer->index].config.tn_alarm_en = TIMER_ALARM_EN;
-    #else
-        TIMERG0.hw_timer[dtimer->index].config.alarm_en = TIMER_ALARM_EN;
-    #endif
+        timer_ll_set_counter_value(dtimer->hal.dev, dtimer->hal.idx, 0);
+        timer_ll_set_alarm_value(dtimer->hal.dev, dtimer->hal.idx, (uint64_t)period);
+        timer_ll_set_counter_enable(dtimer->hal.dev, dtimer->hal.idx, true);
+        timer_ll_set_alarm_enable(dtimer->hal.dev, dtimer->hal.idx, true);
+        TIMER_EXIT_CRITICAL(&dtimer->mux);
     }
 
     return true;
@@ -139,7 +139,7 @@ bool timerStart (hal_timer_t timer, uint32_t period)
 bool timerStop (hal_timer_t timer)
 {
     ((dtimer_t *)timer)->cfg.period = 0;
-	timer_pause(((dtimer_t *)timer)->group, ((dtimer_t *)timer)->index);
+    timer_ll_set_counter_enable(((dtimer_t *)timer)->hal.dev, ((dtimer_t *)timer)->hal.idx, false);
 
     return true;
 }

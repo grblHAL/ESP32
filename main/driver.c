@@ -1208,11 +1208,11 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out)
                     rmt_ll_tx_start(&RMT, Y2_MOTOR);
 #endif
                     break;
-#if Z_GANGED && defined(Z_STEP_PIN)
+#if defined(Z_STEP_PIN)
                 case Z_AXIS:
 					rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
 					rmt_ll_tx_start(&RMT, Z_AXIS);
-  #ifdef Z2_STEP_PIN
+  #if Z_GANGED && defined(Z2_STEP_PIN)
 					rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR);
 					rmt_ll_tx_start(&RMT, Z2_MOTOR);
   #endif
@@ -3274,7 +3274,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "251019";
+    hal.driver_version = "251112";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
