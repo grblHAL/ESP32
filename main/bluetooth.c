@@ -80,61 +80,76 @@ typedef struct {
 } tx_chunk_t;
 
 static const io_stream_t *claim_stream (uint32_t baud_rate);
-static enqueue_realtime_command_ptr BTSetRtHandler (enqueue_realtime_command_ptr handler);
+static const io_stream_status_t *get_status (uint8_t instance);
 
-static uint32_t connection = 0;
-static bool is_second_attempt = false, is_up = false, client_connected = false;
+static bool is_second_attempt = false, is_up = false;
 static bluetooth_settings_t bluetooth;
 static SemaphoreHandle_t tx_busy = NULL;
 static EventGroupHandle_t event_group = NULL;
 static TaskHandle_t polltask = NULL;
 static xQueueHandle tx_queue = NULL;
 static portMUX_TYPE tx_flush_mux = portMUX_INITIALIZER_UNLOCKED;
-static char client_mac[18];
 
 static bt_tx_buffer_t txbuffer;
 static stream_rx_buffer_t rxbuffer = {0};
 static nvs_address_t nvs_address;
-static const io_stream_t *bt_stream = NULL;
-static io_stream_properties_t bt_streams[] = {
-    {
-      .type = StreamType_Bluetooth,
-      .instance = 20,
-      .flags.claimable = On,
-      .flags.claimed = Off,
-      .flags.can_set_baud = On,
-      .flags.modbus_ready = Off,
-      .claim = claim_stream
+static struct {
+	uint32_t connection;
+    serial_linestate_t linestate;
+    const io_stream_t *stream;
+    char client_mac[18];
+} session = {0};
+
+static io_stream_properties_t bt_stream = {
+  .type = StreamType_Bluetooth,
+  .instance = 20,
+  .flags.claimable = On,
+  .flags.claimed = Off,
+  .flags.can_set_baud = On,
+  .flags.modbus_ready = Off,
+  .claim = claim_stream,
+  .get_status = get_status
+};
+
+static io_stream_status_t stream_status = {
+    .baud_rate = 115200,
+    .format = {
+        .width = Serial_8bit,
+        .stopbits = Serial_StopBits1,
+        .parity = Serial_ParityNone,
     }
 };
+
 static on_report_options_ptr on_report_options;
 static enqueue_realtime_command_ptr enqueue_realtime_command = protocol_enqueue_realtime_command;
 
-static enqueue_realtime_command_ptr BTSetRtHandler (enqueue_realtime_command_ptr handler)
+static const io_stream_status_t *get_status (uint8_t instance)
 {
-    enqueue_realtime_command_ptr prev = enqueue_realtime_command;
+    stream_status.flags = bt_stream.flags;
 
-    if(handler)
-        enqueue_realtime_command = handler;
-
-    return prev;
+    return &stream_status;
 }
 
-uint32_t BTStreamAvailable (void)
+static bool is_connected (void)
+{
+    return session.linestate.dtr;
+}
+
+uint32_t btStreamAvailable (void)
 {
     uint16_t head = rxbuffer.head, tail = rxbuffer.tail;
 
     return BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
-uint16_t BTStreamRXFree (void)
+uint16_t btStreamRXFree (void)
 {
     uint16_t head = rxbuffer.head, tail = rxbuffer.tail;
 
     return (RX_BUFFER_SIZE - 1) - BUFCOUNT(head, tail, RX_BUFFER_SIZE);
 }
 
-int32_t BTStreamGetC (void)
+int32_t btStreamGetC (void)
 {
     BT_MUTEX_LOCK();
 
@@ -160,7 +175,7 @@ static inline bool enqueue_tx_chunk (uint16_t length, uint8_t *data)
     if((chunk = malloc(sizeof(tx_chunk_t) + length))) {
         chunk->length = length;
         memcpy(&chunk->data, data, length);
-        if (xQueueSendToBack(tx_queue, &chunk, portMAX_DELAY) != pdPASS) {
+        if(xQueueSendToBack(tx_queue, &chunk, portMAX_DELAY) != pdPASS) {
             free(chunk);
             chunk = NULL;
         }
@@ -169,11 +184,16 @@ static inline bool enqueue_tx_chunk (uint16_t length, uint8_t *data)
     return chunk != NULL;
 }
 
-// Since grblHAL always sends cr/lf terminated strings we can send complete strings to improve throughput
-bool BTStreamPutC (const uint8_t c)
+// Since grblHAL always sends cr/lf terminated strings we can send
+// complete strings to improve throughput.
+bool btStreamPutC (const uint8_t c)
 {
-    if(txbuffer.head < BT_TX_BUFFER_SIZE)
-        txbuffer.data[txbuffer.head++] = c;
+	if(txbuffer.head == BT_TX_BUFFER_SIZE) {
+        enqueue_tx_chunk(txbuffer.head, txbuffer.data);
+        txbuffer.head = 0;
+    }
+
+    txbuffer.data[txbuffer.head++] = c;
 
     if(c == ASCII_LF) {
         enqueue_tx_chunk(txbuffer.head, txbuffer.data);
@@ -183,15 +203,23 @@ bool BTStreamPutC (const uint8_t c)
     return true;
 }
 
-void BTStreamWriteS (const char *data)
+void btStreamWriteS (const char *data)
 {
     uint8_t c, *ptr = (uint8_t *)data;
 
     while((c = *ptr++) != '\0')
-        BTStreamPutC(c);
+        btStreamPutC(c);
 }
 
-void BTStreamFlush (void)
+static void btStreamWrite (const uint8_t *s, uint16_t length)
+{
+    uint8_t *ptr = (uint8_t *)s;
+
+    while(length--)
+        btStreamPutC(*ptr++);
+}
+
+void btStreamFlush (void)
 {
     BT_MUTEX_LOCK();
 
@@ -200,7 +228,7 @@ void BTStreamFlush (void)
     BT_MUTEX_UNLOCK();
 }
 
-IRAM_ATTR void BTStreamCancel (void)
+IRAM_ATTR void btStreamCancel (void)
 {
     BT_MUTEX_LOCK();
 
@@ -209,6 +237,56 @@ IRAM_ATTR void BTStreamCancel (void)
     rxbuffer.head = (rxbuffer.tail + 1) & (RX_BUFFER_SIZE - 1);
 
     BT_MUTEX_UNLOCK();
+}
+
+static bool btRxDisable (bool disable)
+{
+    session.linestate.dsr = !disable;
+
+    return true;
+}
+
+static bool btStreamSetBaudRate (uint32_t baud_rate)
+{
+    stream_status.baud_rate = baud_rate;
+
+    return true;
+}
+
+static enqueue_realtime_command_ptr btSetRtHandler (enqueue_realtime_command_ptr handler)
+{
+    enqueue_realtime_command_ptr prev = enqueue_realtime_command;
+
+    if(handler)
+        enqueue_realtime_command = handler;
+
+    return prev;
+}
+
+static const io_stream_t *claim_stream (uint32_t baud_rate)
+{
+    static const io_stream_t stream = {
+        .type = StreamType_Bluetooth,
+        .is_connected = is_connected,
+        .read = btStreamGetC,
+        .write = btStreamWriteS,
+        .write_n = btStreamWrite,
+        .write_char = btStreamPutC,
+        .get_rx_buffer_free = btStreamRXFree,
+        .reset_read_buffer = btStreamFlush,
+        .cancel_read_buffer = btStreamCancel,
+        .disable_rx = btRxDisable,
+        .set_baud_rate = btStreamSetBaudRate,
+        .set_enqueue_rt_handler = btSetRtHandler
+    };
+
+    if(bt_stream.flags.claimed)
+        return NULL;
+
+    if(baud_rate != 0)
+        bt_stream.flags.claimed = On;
+
+    return (session.stream = &stream);
 }
 
 char *bluetooth_get_device_mac (void)
@@ -226,7 +304,7 @@ char *bluetooth_get_device_mac (void)
 
 char *bluetooth_get_client_mac (void)
 {
-    return client_mac[0] == '\0' ? NULL : client_mac;
+    return *session.client_mac == '\0' ? NULL : session.client_mac;
 }
 
 static void report_bt_MAC (bool newopt)
@@ -267,39 +345,11 @@ static void flush_tx_queue (void)
     }
 }
 
-static bool is_connected (void)
-{
-    return client_connected;
-}
-
-static const io_stream_t *claim_stream (uint32_t baud_rate)
-{
-    static const io_stream_t stream = {
-        .type = StreamType_Bluetooth,
-        .is_connected = is_connected,
-        .read = BTStreamGetC,
-        .write = BTStreamWriteS,
-        .write_char = BTStreamPutC,
-        .get_rx_buffer_free = BTStreamRXFree,
-        .reset_read_buffer = BTStreamFlush,
-        .cancel_read_buffer = BTStreamCancel,
-        .set_enqueue_rt_handler = BTSetRtHandler
-    };
-
-    if(bt_streams[0].flags.claimed)
-        return NULL;
-
-    if(baud_rate != 0)
-        bt_streams[0].flags.claimed = On;
-
-    bt_stream = &stream;
-
-    return &stream;
-}
-
 static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 {
-    switch (event) {
+    static const io_stream_t *stream = NULL;
+
+    switch(event) {
 
         case ESP_SPP_INIT_EVT:
             esp_bt_dev_set_device_name(bluetooth.device_name);
@@ -308,17 +358,25 @@ static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
             break;
 
         case ESP_SPP_SRV_OPEN_EVT:
-            if(connection == 0) {
-                connection = param->open.handle;
-                txbuffer.head = 0;
-                uint8_t *mac = param->srv_open.rem_bda;
-                sprintf(client_mac, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-                client_connected = stream_connect(claim_stream(0));
+            if(!session.linestate.dtr) {
 
-                if(eTaskGetState(polltask) == eSuspended)
-                    vTaskResume(polltask);
+				rxbuffer.tail = rxbuffer.head;  // Flush rx & tx
+				txbuffer.head = 0;  			// buffers.
 
-                hal.stream.write_all("[MSG:BT OK]" ASCII_EOL);
+				if(!bt_stream.flags.claimed && stream_connect(claim_stream(0)))
+					stream = session.stream;
+
+				session.linestate.dtr = On;
+				session.linestate.dsr = hal.stream.type != StreamType_MPG;
+				session.connection = param->open.handle;
+
+				uint8_t *mac = param->srv_open.rem_bda;
+				sprintf(session.client_mac, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+				if(eTaskGetState(polltask) == eSuspended)
+					vTaskResume(polltask);
+
+				hal.stream.write_all("[MSG:BT OK]" ASCII_EOL);
             } else {
                 is_second_attempt = true;
                 esp_spp_disconnect(param->open.handle);
@@ -331,13 +389,16 @@ static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
                 is_second_attempt = false;
 
             else { // flush TX queue and reenable default stream
-                connection = 0;
-                client_mac[0] = '\0';
+            	session.connection = 0;
+                *session.client_mac = '\0';
+                session.linestate.dtr = session.linestate.dsr = Off;
                 flush_tx_queue();
-                client_connected = false;
-                if(bt_stream)
-                    stream_disconnect(bt_stream);
-                bt_stream = NULL;
+                if(stream) {
+                    stream_disconnect(stream);
+                    stream = session.stream = NULL;
+                    bt_stream.flags.claimed = Off;
+				} else if(hal.stream.type == StreamType_MPG && hal.stream.read == session.stream->read)
+                    stream_mpg_enable(false);
             }
             break;
 
@@ -345,22 +406,19 @@ static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
             uint16_t len = param->data_ind.len;
             uint8_t c, *data = param->data_ind.data;
 
-            while(len--) {
+            if(session.linestate.dsr) while(len--) {
                 c = *data++;
-                // discard input if MPG has taken over...
-                if(hal.stream.type != StreamType_MPG) {
-                    if(!enqueue_realtime_command(c)) {
+				if(!enqueue_realtime_command(c)) {
 
-                        uint32_t bptr = (rxbuffer.head + 1) & (RX_BUFFER_SIZE - 1);  // Get next head pointer
+					uint32_t bptr = (rxbuffer.head + 1) & (RX_BUFFER_SIZE - 1);  // Get next head pointer
 
-                        if(bptr == rxbuffer.tail)               // If buffer full
-                            rxbuffer.overflow = 1;              // flag overflow,
-                        else {
-                            rxbuffer.data[rxbuffer.head] = c;   // else add data to buffer
-                            rxbuffer.head = bptr;               // and update pointer
-                        }
-                    }
-                }
+					if(bptr == rxbuffer.tail)               // If buffer full
+						rxbuffer.overflow = 1;              // flag overflow,
+					else {
+						rxbuffer.data[rxbuffer.head] = c;   // else add data to buffer
+						rxbuffer.head = bptr;               // and update pointer
+					}
+				}
             }
             break;
 
@@ -383,9 +441,9 @@ static void esp_spp_cb (esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     }
 }
 
-void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
+void esp_bt_gap_cb (esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
 {
-    switch (event) {
+    switch(event) {
 
         case ESP_BT_GAP_AUTH_CMPL_EVT:
             if (param->auth_cmpl.stat == ESP_BT_STATUS_SUCCESS)
@@ -424,7 +482,7 @@ void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
     }
 }
 
-static void pollTX (void * arg)
+static void pollTX (void *arg)
 {
     tx_chunk_t *chunk = NULL;
     bool data_sent = false;
@@ -433,7 +491,7 @@ static void pollTX (void * arg)
 
     while(true) {
 
-        if(connection &&
+        if(session.connection &&
             xEventGroupWaitBits(event_group, SPP_CONGESTED, pdFALSE, pdTRUE, 0) &&
              uxQueueMessagesWaiting(tx_queue) &&
               xSemaphoreTake(tx_busy, (TickType_t)0)) {
@@ -446,7 +504,7 @@ static void pollTX (void * arg)
                 ptr = buffer;
 
                 if(chunk->length >= remaining) {
-                    data_sent = esp_spp_write(connection, chunk->length, chunk->data) == ESP_OK;
+                    data_sent = esp_spp_write(session.connection, chunk->length, chunk->data) == ESP_OK;
                     free(chunk);
                     chunk = NULL;
                 } else while(chunk && chunk->length < remaining) {
@@ -461,15 +519,15 @@ static void pollTX (void * arg)
                 }
 
                 if(remaining != sizeof(buffer))
-                    data_sent = esp_spp_write(connection, sizeof(buffer) - remaining, buffer) == ESP_OK;
+                    data_sent = esp_spp_write(session.connection, sizeof(buffer) - remaining, buffer) == ESP_OK;
             }
 
             if(!data_sent)
                xSemaphoreGive(tx_busy);
         }
 
-        if(connection)
-            vTaskDelay(pdMS_TO_TICKS(10));
+        if(session.connection)
+            vTaskDelay(pdMS_TO_TICKS(5));
         else
             vTaskSuspend(NULL);
     }
@@ -478,11 +536,9 @@ static void pollTX (void * arg)
 bool bluetooth_start_local (void)
 {
     static io_stream_details_t streams = {
-        .n_streams = sizeof(bt_streams) / sizeof(io_stream_properties_t),
-        .streams = bt_streams,
+        .n_streams = 1,
+        .streams = &bt_stream,
     };
-
-    client_mac[0] = '\0';
 
     if(bluetooth.device_name[0] == '\0' || !(event_group || (event_group = xEventGroupCreate())))
         return false;
@@ -519,37 +575,37 @@ bool bluetooth_start_local (void)
 
         esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
 
-        if ((ret = esp_bt_controller_init(&bt_cfg)) != ESP_OK) {
+        if((ret = esp_bt_controller_init(&bt_cfg)) != ESP_OK) {
             ESP_LOGE(SPP_TAG, "%s initialize controller failed: %s\n", __func__, esp_err_to_name(ret));
             return false;
         }
 
-        if ((ret = esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT)) != ESP_OK) {
+        if((ret = esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT)) != ESP_OK) {
             ESP_LOGE(SPP_TAG, "%s enable controller failed: %s\n", __func__, esp_err_to_name(ret));
             return false;
         }
 
-        if ((ret = esp_bluedroid_init()) != ESP_OK) {
+        if((ret = esp_bluedroid_init()) != ESP_OK) {
             ESP_LOGE(SPP_TAG, "%s initialize bluedroid failed: %s\n", __func__, esp_err_to_name(ret));
             return false;
         }
 
-        if ((ret = esp_bluedroid_enable()) != ESP_OK) {
+        if((ret = esp_bluedroid_enable()) != ESP_OK) {
             ESP_LOGE(SPP_TAG, "%s enable bluedroid failed: %s\n", __func__, esp_err_to_name(ret));
             return false;
         }
 
-        if ((ret = esp_bt_gap_register_callback(esp_bt_gap_cb)) != ESP_OK) {
+        if((ret = esp_bt_gap_register_callback(esp_bt_gap_cb)) != ESP_OK) {
             ESP_LOGE(SPP_TAG, "%s gap register failed: %s\n", __func__, esp_err_to_name(ret));
             return false;
         }
 
-        if ((ret = esp_spp_register_callback(esp_spp_cb)) != ESP_OK) {
+        if((ret = esp_spp_register_callback(esp_spp_cb)) != ESP_OK) {
             ESP_LOGE(SPP_TAG, "%s spp register failed: %s\n", __func__, esp_err_to_name(ret));
             return false;
         }
 
-        if ((ret = esp_spp_init(ESP_SPP_MODE_CB)) != ESP_OK) {
+        if((ret = esp_spp_init(ESP_SPP_MODE_CB)) != ESP_OK) {
             ESP_LOGE(SPP_TAG, "%s spp init failed: %s\n", __func__, esp_err_to_name(ret));
             return false;
         }
@@ -568,7 +624,7 @@ bool bluetooth_start_local (void)
             .minor = 0b000100,
             .service = 0b00000010110
         };
-        if (esp_bt_gap_set_cod(cod, ESP_BT_INIT_COD) != ESP_OK)
+        if(esp_bt_gap_set_cod(cod, ESP_BT_INIT_COD) != ESP_OK)
             return false;
 
         stream_register_streams(&streams);
@@ -583,14 +639,14 @@ bool bluetooth_disable_local (void)
 {
     if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED) {
 
-        if(connection)
-            esp_spp_disconnect(connection);
+        if(session.connection)
+            esp_spp_disconnect(session.connection);
 
         esp_spp_deinit();
         esp_bluedroid_disable();
         esp_bluedroid_deinit();
 
-        if (esp_bt_controller_disable() != ESP_OK)
+        if(esp_bt_controller_disable() != ESP_OK)
             return false;
 
         while(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED);

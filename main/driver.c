@@ -2542,7 +2542,10 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
         static bool bluetooth_ok = false;
         if(!bluetooth_ok)
             bluetooth_ok = bluetooth_start_local();
-        // else report error?
+  #if MPG_ENABLE == 2 && MPG_STREAM == 20
+		if(bluetooth_ok && !hal.driver_cap.mpg_mode)
+			hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, stream_mpg_check_enable);
+  #endif
 #endif
 
 #if WIFI_ENABLE
@@ -3274,7 +3277,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "251112";
+    hal.driver_version = "251128";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;

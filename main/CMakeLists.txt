@@ -61,6 +61,7 @@ set(SRCS
  grbl/ngc_flowctrl.c
  grbl/regex.c
  grbl/ioports.c
+ grbl/utf8.c
  grbl/vfs.c
  grbl/fs_device.c
  grbl/kinematics/corexy.c
