@@ -110,6 +110,21 @@
       }
     },
     {
+      "name": "FluidNC v1 6-Pack",
+      "symbol": "BOARD_BDRING_6X_V1",
+      "URL": "https://github.com/bdring/6-Pack_CNC_Controller",
+      "MAP": "main/boards/bdring_i2s_6x_v1_map.h",
+      "caps": {
+        "axes": 6,
+        "usb_cdc": 0,
+        "serial_ports": 2,
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 1,
+		"control_inputs": 0
+      }
+    },
+    {
       "name": "FluidNC v3 6-Pack",
       "symbol": "BOARD_BDRING_6X_V3",
       "URL": "http://wiki.fluidnc.com/en/hardware/official/6_Pack_Integrated_ESP32",
