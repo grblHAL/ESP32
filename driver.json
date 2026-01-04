@@ -110,7 +110,7 @@
       }
     },
     {
-      "name": "FluidNC v1 6-Pack",
+      "name": "BDRING v1 6-Pack",
       "symbol": "BOARD_BDRING_6X_V1",
       "URL": "https://github.com/bdring/6-Pack_CNC_Controller",
       "MAP": "main/boards/bdring_i2s_6x_v1_map.h",
