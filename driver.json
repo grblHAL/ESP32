@@ -269,7 +269,8 @@
         "sdcard": 1,
         "wifi": 1,
         "bluetooth": 1,
-		    "control_inputs": 0
+        "control_inputs": 0,
+        "modbus_rtu_dir": 1
       }
     },
     {

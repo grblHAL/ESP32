@@ -26,7 +26,7 @@
 
 #include "use_i2s_out.h"
 
-#if SDCARD_ENABLE //  || TRINAMIC_SPI_ENABLE 
+#if SDCARD_ENABLE  || TRINAMIC_SPI_ENABLE
 // Pin mapping when using SPI mode.
 // With this mapping, SD card can be used both in SPI and 1-line SD mode.
 #define SPI_MISO_PIN            19
@@ -45,20 +45,20 @@
 #define X_DIRECTION_PIN         I2SO(1)
 #define X_ENABLE_PIN            I2SO(0)
 #define X_LIMIT_PIN             GPIO_NUM_35
-//#define X_CS_PIN                I2SO(3)
+#define MOTOR_CSX_PIN           I2SO(3)
 
 #define Y_STEP_PIN              I2SO(5)
 #define Y_DIRECTION_PIN         I2SO(4)
 #define Y_ENABLE_PIN            I2SO(7)
 #define Y_LIMIT_PIN             GPIO_NUM_34
-//#define Y_CS_PIN                I2SO(6)
+#define MOTOR_CSY_PIN           I2SO(6)
 
 
 #define Z_STEP_PIN              I2SO(10)
 #define Z_DIRECTION_PIN         I2SO(9)
 #define Z_ENABLE_PIN            I2SO(8)
 #define Z_LIMIT_PIN             GPIO_NUM_39
-//#define Z_CS_PIN                I2SO(11)
+#define MOTOR_CSZ_PIN           I2SO(11)
 
 // Define ganged axis or A axis step pulse and step direction output pins.
 #if N_ABC_MOTORS >= 1
@@ -69,7 +69,7 @@
 #if M3_LIMIT_ENABLE
 #define M3_LIMIT_PIN            GPIO_NUM_36
 #endif
-//#define A_CS_PIN                I2SO(14)
+#define MOTOR_CSM3_PIN          I2SO(14)
 #endif
 
 // Define ganged axis or B axis step pulse and step direction output pins.
@@ -81,7 +81,7 @@
 #if M4_LIMIT_ENABLE
 #define M4_LIMIT_PIN            GPIO_NUM_32
 #endif
-//#define B_CS_PIN                I2SO(19)
+#define MOTOR_CSM4_PIN          I2SO(19)
 #endif
 
 // Define ganged axis or B axis step pulse and step direction output pins.
@@ -90,15 +90,18 @@
 #define M5_STEP_PIN             I2SO(21)
 #define M5_DIRECTION_PIN        I2SO(20)
 #define M5_ENABLE_PIN           I2SO(23)
-//#define C_CS_PIN                I2SO(22)
+#define MOTOR_CSM5_PIN          I2SO(22)
 #if M5_LIMIT_ENABLE
 #define M5_LIMIT_PIN            GPIO_NUM_33
 #endif
 #endif
 
-#define AUXOUTPUT0_PIN          GPIO_NUM_13 // 10 V
-#define AUXOUTPUT1_PIN          I2SO(23)  // Spindle enable
-#define AUXOUTPUT2_PIN          GPIO_NUM_12  // Laser
+#define AUXOUTPUT0_PIN          GPIO_NUM_13 // Spindle PWM/10 V
+#define AUXOUTPUT2_PIN          GPIO_NUM_12 // Laser
+#if !MODBUS_ENABLE
+#define AUXOUTPUT1_PIN          GPIO_NUM_15 // Spindle enable
+#define AUXOUTPUT4_PIN          GPIO_NUM_14 // Spindle direction
+#endif
 #if !TOOLSETTER_ENABLE
 #define AUXOUTPUT3_PIN          GPIO_NUM_26 // Relay or toolsetter input
 #endif
@@ -107,24 +110,11 @@
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
 #define SPINDLE_PWM_PIN         GPIO_NUM_4
 #endif
-#if defined(AUXOUTPUT3_PIN) && (DRIVER_SPINDLE_ENABLE & SPINDLE_DIR)
-#define SPINDLE_DIRECTION_PIN   AUXOUTPUT3_PIN
-#endif
-#if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
+#if defined(AUXOUTPUT1_PIN) && (DRIVER_SPINDLE_ENABLE & SPINDLE_ENA)
 #define SPINDLE_ENABLE_PIN      AUXOUTPUT1_PIN
 #endif
-
-// Define flood and mist coolant enable output pins.
-#if COOLANT_ENABLE & COOLANT_MIST
-#define COOLANT_MIST_PIN       AUXOUTPUT2_PIN
-#endif
-#if COOLANT_ENABLE & COOLANT_FLOOD
-#undef COOLANT_ENABLE
-#ifdef COOLANT_MIST_PIN
-#define COOLANT_ENABLE COOLANT_MIST
-#else
-#define COOLANT_ENABLE 0
-#endif
+#if defined(AUXOUTPUT4_PIN) && (DRIVER_SPINDLE_ENABLE & SPINDLE_DIR)
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT3_PIN
 #endif
 
 #define AUXINPUT0_PIN           GPIO_NUM_2
@@ -159,8 +149,8 @@
 
 #ifdef ADD_SERIAL1
 #define SERIAL1_PORT
-#define UART1_RX_PIN            GPIO_NUM_15
-#define UART1_TX_PIN            GPIO_NUM_16
+#define UART1_RX_PIN            GPIO_NUM_16
+#define UART1_TX_PIN            GPIO_NUM_15
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_14
 #endif
