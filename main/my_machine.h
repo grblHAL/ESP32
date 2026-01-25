@@ -24,26 +24,27 @@
 //#define BOARD_BDRING_I2S6A            //
 //#define BOARD_BDRING_6X               //
 //#define BOARD_BDRING_I2S_6PACK_EXT_V2 //
-//#define BOARD_BDRING_6X_V3
-//#define BOARD_ESPDUINO32              //
-//#define BOARD_SOURCERABBIT_4AXIS      //
-//#define BOARD_PROTONEER_3XX           //
-//#define BOARD_FYSETC_E4               //
-//#define BOARD_XPRO_V5                 //
-//#define BOARD_MKS_DLC32_V2P0          //
-//#define BOARD_MKS_DLC32_MAX_V1        // Has a ESP32-S3 MCU
-//#define BOARD_MKS_TINYBEE_V1          //
-//#define BOARD_CNC3040                 //
+//#define BOARD_BDRING_6X_V3            //
 //#define BOARD_BLACKBOX_X32            // NOTE: Enable in CMakeLists.txt to set board specific defaults for the core!
+//#define BOARD_BTT_RODENT              // Uses TMC2160 drivers, untested!
+//#define BOARD_CORGI                   // 6-axis, external drivers
+//#define BOARD_CNC_BOOSTERPACK         //
+//#define BOARD_CNC3040                 //
+//#define BOARD_ESPDUINO32              //
+//#define BOARD_FYSETC_E4               //
+//#define BOARD_JACKPOT                 // Uses TMC2209 drivers, untested!
+//#define BOARD_MKS_DLC32_MAX_V1        // Has a ESP32-S3 MCU
+//#define BOARD_MKS_DLC32_V2P0          //
+//#define BOARD_MKS_TINYBEE_V1          //
+//#define BOARD_PIBOT_I2S_6_AXIS        // PiBot 6-axis I2S board
+//#define BOARD_PROTONEER_3XX           //
+//#define BOARD_ROOTCNC_PRO             //
 //#define BOARD_ROOTCNC_V2              //
 //#define BOARD_ROOTCNC_V3              //
-//#define BOARD_ROOTCNC_PRO             //
-//#define BOARD_JACKPOT                 // Uses TMC2209 drivers, untested!
-//#define BOARD_BTT_RODENT              // Uses TMC2160 drivers, untested!
-//#define BOARD_CNC_BOOSTERPACK         //
+//#define BOARD_SOURCERABBIT_4AXIS      //
+//#define BOARD_XPRO_V5                 //
 //#define BOARD_GENERIC_S3              // Generic map for ESP32-S3, untested - WIP!
 //#define BOARD_GENERIC_I2S_S3          // Generic map for ESP32-S3 with I2S shift registers for I/O expansion, untested - WIP!
-//#define BOARD_PIBOT_I2S_6_AXIS        // PiBot 6-axis I2S board
 //#define BOARD_MY_MACHINE              // Add my_machine_map.h in the boards directory before enabling this!
 
 // Configuration
@@ -89,9 +90,13 @@
 //#define OPENPNP_ENABLE          1 // OpenPNP plugin. To be completed.
 //#define FANS_ENABLE             1 // Enable fan control via M106/M107. Enables fans plugin.
 //#define EMBROIDERY_ENABLE       1 // Embroidery plugin. To be completed.
-//#define TRINAMIC_ENABLE      2130 // Trinamic TMC2130 stepper driver support. NOTE: work in progress.
-//#define TRINAMIC_ENABLE      2209 // Trinamic TMC2209 stepper driver support. NOTE: work in progress.
-//#define TRINAMIC_ENABLE      5160 // Trinamic TMC5160 stepper driver support. NOTE: work in progress.
+//#define OPENPNP_ENABLE          1 // OpenPNP plugin. To be completed.
+//#define TRINAMIC_ENABLE      2130 // Trinamic TMC2130 stepper driver support.
+//#define TRINAMIC_ENABLE      5160 // Trinamic TMC5160 stepper driver support.
+//#define TRINAMIC_ENABLE      2209 // Trinamic TMC2209 stepper driver support.
+//#define TRINAMIC_R_SENSE      110 // R sense resistance in milliohms, 2130 and 2209 default is 110, 5160 is 75.
+//#define TRINAMIC_ENABLE      2240 // Trinamic TMC2240 stepper driver support.
+//#define TRINAMIC_R_REF         12 // R ref resistance in kiloohms, used for 2240 - default value is 12.
 //#define TRINAMIC_I2C            1 // Trinamic I2C - SPI bridge interface.
 //#define TRINAMIC_DEV            1 // Development mode, adds a few M-codes to aid debugging. Do not enable in production code.
 //#define EEPROM_ENABLE          16 // I2C EEPROM/FRAM support. Set to 16 for 2K, 32 for 4K, 64 for 8K, 128 for 16K and 256 for 16K capacity.
@@ -105,11 +110,12 @@
 //#define ESP_AT_ENABLE           1 // Enable support for Telnet communication via UART connected ESP32 running ESP-AT.
 //#define FEED_OVERRIDE_ENABLE    1 // Enable M200 feed override control.
 //#define HOMING_PULLOFF_ENABLE   1 // Enable per axis homing pulloff distance settings.
+//#define TOOLTABLE_ENABLE        1 // Enable file based tool table.
 
-// IO expanders:
-//
+// --- IO expanders: ---
 //#define MCP3221_ENABLE          1 // MCP3221 I2C ADC input, default address is 0x9A (MCP3221_ADDRESS).
 //#define PCA9654E_ENABLE         1 // PCA9654E I2C digital I/O, default address is 0x40 (PCA9654E_ADDRESS).
+//#define FNC_EXPANDER_ENABLE     1 // FluidNC STM32F103 based I/O expander (Airedale)
 
 // Optional control signals:
 // These will be assigned to aux input pins. Use the $pins command to check which pins are assigned.

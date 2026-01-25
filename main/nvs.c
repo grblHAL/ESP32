@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2024 Terje Io
+  Copyright (c) 2018-2025 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ static const esp_partition_t *grblNVS = NULL;
 
 
 // Strip top bit set characters, control characters except CR and LF and question mark
-static IRAM_ATTR bool nvs_enqueue_realtime_command (char c)
+static IRAM_ATTR bool nvs_enqueue_realtime_command (uint8_t c)
 {
     return (c < ESP_SPACE_CHAR && !(c == ESP_CR || c == ESP_LF)) || c == ESP_QUESTION_MARK || c >= ESP_DEL_CHAR;
 }

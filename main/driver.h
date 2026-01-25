@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2025 Terje Io
+  Copyright (c) 2018-2026 Terje Io
   Copyright (c) 2011-2015 Sungeun K. Jeon
   Copyright (c) 2009-2011 Simen Svale Skogsrud
 
@@ -128,8 +128,10 @@ typedef struct {
   #include "boards/bdring_i2s_6x_v3_map.h"
 #elif defined(BOARD_BDRING_I2S_6PACK_EXT_V2)
   #include "boards/bdring_i2s_6pack_ext_v2_map.h"
-#elif defined(BOARD_ESPDUINO32)
-  #include "boards/espduino-32_wemos_d1_r32_uno_map.h"
+#elif defined(BOARD_CNC3040)
+  #include "boards/cnc3040_map.h"
+#elif defined(BOARD_CORGI)
+  #include "boards/corgi_map.h"
 #elif defined(BOARD_SOURCERABBIT_4AXIS) || defined(BOARD_SOURCERABBIT_4AXIS_12)
   #include "boards/sourcerabbit_4axis.h"
 #elif defined(BOARD_PROTONEER_3XX)
