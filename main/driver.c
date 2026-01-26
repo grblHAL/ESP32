@@ -1102,19 +1102,19 @@ void initRMT (settings_t *settings)
                 break;
 #endif
 #ifdef X2_STEP_PIN
-            case X2_MOTOR:
+            case X2_MOTOR_IDX:
                 rmtConfig.tx_config.idle_level = settings->steppers.step_invert.x;
                 rmtConfig.gpio_num = X2_STEP_PIN;
                 break;
 #endif
 #ifdef Y2_STEP_PIN
-            case Y2_MOTOR:
+            case Y2_MOTOR_IDX:
                 rmtConfig.tx_config.idle_level = settings->steppers.step_invert.y;
                 rmtConfig.gpio_num = Y2_STEP_PIN;
                 break;
 #endif
 #ifdef Z2_STEP_PIN
-            case Z2_MOTOR:
+            case Z2_MOTOR_IDX:
                 rmtConfig.tx_config.idle_level = settings->steppers.step_invert.z;
                 rmtConfig.gpio_num = Z2_STEP_PIN;
                 break;
@@ -1156,20 +1156,20 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out1)
                 if(step_out2.bits & mask) switch(idx) {
 #if X_GANGED
                     case X_AXIS:
-                        rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR);
-                        rmt_ll_tx_start(&RMT, X2_MOTOR);
+                        rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR_IDX);
+                        rmt_ll_tx_start(&RMT, X2_MOTOR_IDX);
                         break;
 #endif
 #if Y_GANGED
                     case Y_AXIS:
-                        rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR);
-                        rmt_ll_tx_start(&RMT, Y2_MOTOR);
+                        rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR_IDX);
+                        rmt_ll_tx_start(&RMT, Y2_MOTOR_IDX);
                         break;
 #endif
 #if Z_GANGED && defined(Z2_STEP_PIN)
                     case Z_AXIS:
-    					rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR);
-    					rmt_ll_tx_start(&RMT, Z2_MOTOR);
+    					rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR_IDX);
+    					rmt_ll_tx_start(&RMT, Z2_MOTOR_IDX);
                         break;
 #endif
                 }
@@ -1241,8 +1241,8 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out1)
     }
 #ifdef X2_STEP_PIN
     if(step_out2.x) {
-        rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR);
-        rmt_ll_tx_start(&RMT, X2_MOTOR);
+        rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR_IDX);
+        rmt_ll_tx_start(&RMT, X2_MOTOR_IDX);
     }
 #endif
 
@@ -1252,8 +1252,8 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out1)
     }
 #ifdef Y2_STEP_PIN
     if(step_out2.y) {
-        rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR);
-        rmt_ll_tx_start(&RMT, Y2_MOTOR);
+        rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR_IDX);
+        rmt_ll_tx_start(&RMT, Y2_MOTOR_IDX);
     }
 #endif
 
@@ -1264,8 +1264,8 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out1)
     }
   #ifdef Z2_STEP_PIN
     if(step_out2.z) {
-        rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR);
-        rmt_ll_tx_start(&RMT, Z2_MOTOR);
+        rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR_IDX);
+        rmt_ll_tx_start(&RMT, Z2_MOTOR_IDX);
     }
   #endif
 #endif // Z_STEP_PIN
@@ -1347,8 +1347,8 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out)
                     rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
                     rmt_ll_tx_start(&RMT, X_AXIS);
 #if X_GANGED
-                    rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR);
-                    rmt_ll_tx_start(&RMT, X2_MOTOR);
+                    rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR_IDX);
+                    rmt_ll_tx_start(&RMT, X2_MOTOR_IDX);
 #endif
                     break;
 
@@ -1356,8 +1356,8 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out)
                     rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
                     rmt_ll_tx_start(&RMT, Y_AXIS);
 #if Y_GANGED
-                    rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR);
-                    rmt_ll_tx_start(&RMT, Y2_MOTOR);
+                    rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR_IDX);
+                    rmt_ll_tx_start(&RMT, Y2_MOTOR_IDX);
 #endif
                     break;
 #if defined(Z_STEP_PIN)
@@ -1365,8 +1365,8 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out)
 					rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
 					rmt_ll_tx_start(&RMT, Z_AXIS);
   #if Z_GANGED && defined(Z2_STEP_PIN)
-					rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR);
-					rmt_ll_tx_start(&RMT, Z2_MOTOR);
+					rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR_IDX);
+					rmt_ll_tx_start(&RMT, Z2_MOTOR_IDX);
   #endif
                     break;
 #endif
@@ -1417,8 +1417,8 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out)
         rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
         rmt_ll_tx_start(&RMT, X_AXIS);
 #if X_GANGED
-        rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR);
-        rmt_ll_tx_start(&RMT, X2_MOTOR);
+        rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR_IDX);
+        rmt_ll_tx_start(&RMT, X2_MOTOR_IDX);
 #endif
     }
 
@@ -1426,8 +1426,8 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out)
         rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
         rmt_ll_tx_start(&RMT, Y_AXIS);
 #if Y_GANGED
-        rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR);
-        rmt_ll_tx_start(&RMT, Y2_MOTOR);
+        rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR_IDX);
+        rmt_ll_tx_start(&RMT, Y2_MOTOR_IDX);
 #endif
     }
 
@@ -1436,8 +1436,8 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out)
         rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
         rmt_ll_tx_start(&RMT, Z_AXIS);
   #if Z_GANGED
-        rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR);
-        rmt_ll_tx_start(&RMT, Z2_MOTOR);
+        rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR_IDX);
+        rmt_ll_tx_start(&RMT, Z2_MOTOR_IDX);
   #endif
     }
 #endif
@@ -1525,8 +1525,8 @@ void stepperOutputStep (axes_signals_t step_out, axes_signals_t dir_out)
 			            rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
 			            rmt_ll_tx_start(&RMT, X_AXIS);
 #if X_GANGED
-			            rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR);
-			            rmt_ll_tx_start(&RMT, X2_MOTOR);
+			            rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR_IDX);
+			            rmt_ll_tx_start(&RMT, X2_MOTOR_IDX);
 #endif
 						break;
 
@@ -1538,8 +1538,8 @@ void stepperOutputStep (axes_signals_t step_out, axes_signals_t dir_out)
 			            rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
 			            rmt_ll_tx_start(&RMT, Y_AXIS);
 #if Y_GANGED
-			            rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR);
-			            rmt_ll_tx_start(&RMT, Y2_MOTOR);
+			            rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR_IDX);
+			            rmt_ll_tx_start(&RMT, Y2_MOTOR_IDX);
 #endif
 						break;
 
@@ -1552,8 +1552,8 @@ void stepperOutputStep (axes_signals_t step_out, axes_signals_t dir_out)
 						rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
 						rmt_ll_tx_start(&RMT, Z_AXIS);
   #if Z_GANGED
-						rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR);
-						rmt_ll_tx_start(&RMT, Z2_MOTOR);
+						rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR_IDX);
+						rmt_ll_tx_start(&RMT, Z2_MOTOR_IDX);
   #endif
 						break;
 #endif
@@ -3527,7 +3527,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "260122";
+    hal.driver_version = "260126";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
