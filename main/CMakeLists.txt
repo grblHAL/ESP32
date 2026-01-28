@@ -118,9 +118,15 @@ set(WEBUI_SOURCE
  esp_webui/fs_embedded.c
 )
 
+if("${target}" STREQUAL "esp32s3")
+set(BLUETOOTH_SOURCE
+ bluetooth_le.c
+)
+else()
 set(BLUETOOTH_SOURCE
  bluetooth.c
 )
+endif()
 
 set(SPINDLE_SOURCE
  spindle/select.c
@@ -173,7 +179,7 @@ set(NETWORKING_SOURCE
  networking/multipartparser.c
  networking/networking.c
  networking/fs_ram.c
- networking/fs_stream.c
+ networking/etag.c
  networking/webdav.c
  networking/ssdp.c
  networking/ftpd.c
