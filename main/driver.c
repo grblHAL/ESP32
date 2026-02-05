@@ -126,6 +126,13 @@ typedef struct {
 
 #if DRIVER_SPINDLE_ENABLE
 
+#if SPINDLE_ENABLE_PIN == SPINDLE_ENABLE_DUMMY_PIN
+static bool dmy_spindle_ena;
+#endif
+#if SPINDLE_DIRECTION_PIN == SPINDLE_DIRECTION_DUMMY_PIN
+static bool dmy_spindle_dir;
+#endif
+
 static spindle_id_t spindle_id = -1;
 
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
@@ -2111,24 +2118,32 @@ IRAM_ATTR inline static void spindle_off (spindle_ptrs_t *spindle)
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
  #ifdef SPINDLE_DIRECTION_PIN
     if(spindle->context.pwm->flags.cloned) {
-  #if SPINDLE_DIRECTION_PORT == EXPANDER_PORT
+  #if SPINDLE_DIRECTION_PIN == SPINDLE_DIRECTION_DUMMY_PIN
+      dmy_spindle_dir = settings.pwm_spindle.invert.ccw;
+  #elif SPINDLE_DIRECTION_PORT == EXPANDER_PORT
         EXPANDER_OUT(SPINDLE_DIRECTION_PIN, settings.pwm_spindle.invert.ccw);
   #else
         DIGITAL_OUT(SPINDLE_DIRECTION_PIN, settings.pwm_spindle.invert.ccw);
   #endif
     } else {
-  #if SPINDLE_ENABLE_PORT == EXPANDER_PORT
+  #if SPINDLE_ENABLE_PIN == SPINDLE_ENABLE_DUMMY_PIN
+        dmy_spindle_ena = settings.pwm_spindle.invert.on;
+  #elif SPINDLE_ENABLE_PORT == EXPANDER_PORT
         EXPANDER_OUT(SPINDLE_ENABLE_PIN, settings.pwm_spindle.invert.on);
   #else
         DIGITAL_OUT(SPINDLE_ENABLE_PIN, settings.pwm_spindle.invert.on);
   #endif
     }
+ #elif SPINDLE_ENABLE_PIN == SPINDLE_ENABLE_DUMMY_PIN
+    dmy_spindle_ena = settings.pwm_spindle.invert.on;
  #elif SPINDLE_ENABLE_PORT == EXPANDER_PORT
     EXPANDER_OUT(SPINDLE_ENABLE_PIN, settings.pwm_spindle.invert.on);
  #else
     DIGITAL_OUT(SPINDLE_ENABLE_PIN, settings.pwm_spindle.invert.on);
  #endif
     spindle->context.pwm->flags.enable_out = Off;
+#elif SPINDLE_ENABLE_PIN == SPINDLE_ENABLE_DUMMY_PIN
+      dmy_spindle_ena = settings.pwm_spindle.invert.on;
 #elif SPINDLE_ENABLE_PORT == EXPANDER_PORT
     EXPANDER_OUT(SPINDLE_ENABLE_PIN, settings.pwm_spindle.invert.on);
 #else
@@ -2146,24 +2161,32 @@ IRAM_ATTR inline static void spindle_on (spindle_ptrs_t *spindle)
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
  #ifdef SPINDLE_DIRECTION_PIN
     if(spindle->context.pwm->flags.cloned) {
-  #if SPINDLE_DIRECTION_PORT == EXPANDER_PORT
+  #if SPINDLE_DIRECTION_PIN == SPINDLE_DIRECTION_DUMMY_PIN
+        dmy_spindle_dir = !settings.pwm_spindle.invert.ccw;
+  #elif SPINDLE_DIRECTION_PORT == EXPANDER_PORT
         EXPANDER_OUT(SPINDLE_DIRECTION_PIN, !settings.pwm_spindle.invert.ccw);
   #else
         DIGITAL_OUT(SPINDLE_DIRECTION_PIN, !settings.pwm_spindle.invert.ccw);
   #endif
     } else {
-  #if SPINDLE_ENABLE_PORT == EXPANDER_PORT
+  #if SPINDLE_ENABLE_PIN == SPINDLE_ENABLE_DUMMY_PIN
+      dmy_spindle_ena = !settings.pwm_spindle.invert.on;
+  #elif SPINDLE_ENABLE_PORT == EXPANDER_PORT
         EXPANDER_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
   #else
         DIGITAL_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
   #endif
     }
+ #elif SPINDLE_ENABLE_PIN == SPINDLE_ENABLE_DUMMY_PIN
+    dmy_spindle_ena = !settings.pwm_spindle.invert.on;
  #elif SPINDLE_ENABLE_PORT == EXPANDER_PORT
     EXPANDER_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
  #else
     DIGITAL_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
  #endif
     spindle->context.pwm->flags.enable_out = On;
+#elif SPINDLE_ENABLE_PIN == SPINDLE_ENABLE_DUMMY_PIN
+      dmy_spindle_ena = !settings.pwm_spindle.invert.on;
 #elif SPINDLE_ENABLE_PORT == EXPANDER_PORT
     EXPANDER_OUT(SPINDLE_ENABLE_PIN, !settings.pwm_spindle.invert.on);
 #else
@@ -2174,7 +2197,9 @@ IRAM_ATTR inline static void spindle_on (spindle_ptrs_t *spindle)
 IRAM_ATTR inline static void spindle_dir (bool ccw)
 {
 #if defined(SPINDLE_DIRECTION_PIN)
-  #if SPINDLE_DIRECTION_PORT == EXPANDER_PORT
+  #if SPINDLE_DIRECTION_PIN == SPINDLE_DIRECTION_DUMMY_PIN
+    dmy_spindle_dir = ccw ^ settings.pwm_spindle.invert.ccw;
+  #elif SPINDLE_DIRECTION_PORT == EXPANDER_PORT
     EXPANDER_OUT(SPINDLE_DIRECTION_PIN, (ccw ^ settings.pwm_spindle.invert.ccw));
   #else
     DIGITAL_OUT(SPINDLE_DIRECTION_PIN, (ccw ^ settings.pwm_spindle.invert.ccw) ? 1 : 0);
@@ -2335,7 +2360,6 @@ bool spindleConfig (spindle_ptrs_t *spindle)
     if(spindle->id == spindle_get_default())
         i2s_set_streaming_mode(!(laser_mode = spindle->cap.laser));
 #endif
-
     return true;
 }
 
@@ -2348,14 +2372,18 @@ static spindle_state_t spindleGetState (spindle_ptrs_t *spindle)
 
     UNUSED(spindle);
 
-#if SPINDLE_ENABLE_PORT == EXPANDER_PORT
+#if SPINDLE_ENABLE_PIN == SPINDLE_ENABLE_DUMMY_PIN
+    state.on = dmy_spindle_ena;
+#elif SPINDLE_ENABLE_PORT == EXPANDER_PORT
     state.on = EXPANDER_IN(SPINDLE_ENABLE_PIN);
 #else
     state.on = DIGITAL_IN(SPINDLE_ENABLE_PIN) != 0;
 #endif
 
 #if defined(SPINDLE_DIRECTION_PIN)
-  #if SPINDLE_DIRECTION_PORT == EXPANDER_PORT
+  #if SPINDLE_DIRECTION_PIN == SPINDLE_DIRECTION_DUMMY_PIN
+    state.ccw = dmy_spindle_dir;
+  #elif SPINDLE_DIRECTION_PORT == EXPANDER_PORT
     state.ccw = EXPANDER_IN(SPINDLE_DIRECTION_PIN);
   #else
     state.ccw = DIGITAL_IN(SPINDLE_DIRECTION_PIN) != 0;
@@ -3527,7 +3555,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "260126";
+    hal.driver_version = "260204";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;

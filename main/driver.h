@@ -106,6 +106,13 @@ typedef struct {
     void *params;
 } i2c_task_t;
 
+#ifndef I2S_OUT_PIN_BASE
+#define I2S_OUT_PIN_BASE 64
+#endif
+
+#define SPINDLE_ENABLE_DUMMY_PIN    (I2S_OUT_PIN_BASE - 2)
+#define SPINDLE_DIRECTION_DUMMY_PIN (I2S_OUT_PIN_BASE - 1)
+
 #ifndef CONTROL_ENABLE
 #define CONTROL_ENABLE (CONTROL_HALT|CONTROL_FEED_HOLD|CONTROL_CYCLE_START)
 #endif
@@ -233,10 +240,6 @@ extern SemaphoreHandle_t i2cBusy;
 // NOTE: #define SERIAL_PORT in map file if USB_SERIAL_CDC is enabled and the primary UART is not connected to a USB <> UART chip
 
 #include "grbl/driver_opts2.h"
-
-#ifndef I2S_OUT_PIN_BASE
-#define I2S_OUT_PIN_BASE 64
-#endif
 
 #ifndef USE_I2S_OUT
 #define USE_I2S_OUT 0
