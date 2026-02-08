@@ -36,7 +36,7 @@
   },
   "symbols": {
     "OVERRIDE_MY_MACHINE": 1,
-	"TMC_STEALTHCHOP": 0
+  "TMC_STEALTHCHOP": 0
   },
   "symbols_networking": {
     "LWIP_HTTPD_CUSTOM_FILES": 0,
@@ -62,7 +62,7 @@
         "sdcard": 1,
         "wifi": 1,
         "bluetooth": 1,
-		"control_inputs": 0
+        "control_inputs": 0
       },
       "symbols": {
         "DEFAULT_LIMIT_SIGNALS_INVERT_MASK": "N_AXIS",
@@ -89,8 +89,8 @@
         "sdcard": 1,
         "wifi": 1,
         "bluetooth": 1,
-		"control_inputs": 0,
-		"modbus_rtu_dir": 1
+        "control_inputs": 0,
+        "modbus_rtu_dir": 1
       }
     },
     {
@@ -106,7 +106,7 @@
         "trinamic_spi_chain": 1,
         "wifi": 1,
         "bluetooth": 1,
-		"control_inputs": 0
+        "control_inputs": 0
       }
     },
     {
@@ -121,7 +121,24 @@
         "sdcard": 1,
         "wifi": 1,
         "bluetooth": 1,
-		"control_inputs": 0
+        "control_inputs": 0
+      }
+    },
+    {
+      "name": "Corgi",
+      "symbol": "BOARD_CORGI",
+      "notes": "Not tested!",
+      "URL": "http://wiki.fluidnc.com/en/hardware/official/corgi",
+      "MAP": "main/boards/corgi_map.h",
+      "caps": {
+        "axes": 6,
+        "usb_cdc": 0,
+        "serial_ports": 3,
+        "trinamic_spi_cs": 1,
+        "trinamic_spi_chain": 1,
+        "wifi": 1,
+        "bluetooth": 1,
+        "control_inputs": 0
       }
     },
     {
@@ -133,12 +150,10 @@
         "axes": 6,
         "usb_cdc": 0,
         "serial_ports": 2,
-        "trinamic_spi_cs": 1,
-        "trinamic_spi_chain": 0,
         "sdcard": 1,
         "wifi": 1,
         "bluetooth": 1,
-		"control_inputs": 0
+        "control_inputs": 0
       }
     },
     {
@@ -175,7 +190,7 @@
         "sdcard": 1,
         "wifi": 1,
         "bluetooth": 1,
-		"control_inputs": 1
+        "control_inputs": 1
       }
     },
     {
@@ -196,7 +211,7 @@
         "wifi": 1,
         "bluetooth": 0,
         "pio_board": "esp32-s3-devkitc-1",
-		"control_inputs": 1
+        "control_inputs": 1
       },
       "cmake_args": {
         "SDKCONFIG_DEFAULTS": "\"sdkconfig.defaults;sdkconfig_s3_8m\""
@@ -217,7 +232,7 @@
         "estop": 0,
         "wifi": 1,
         "bluetooth": 1,
-		"control_inputs": 2
+        "control_inputs": 2
       }
     },
     {
@@ -235,7 +250,7 @@
         "pwm_spindle_aux": 1,
         "wifi": 1,
         "bluetooth": 1,
-		"control_inputs": 0
+        "control_inputs": 0
       }
     },
     {
@@ -252,7 +267,7 @@
         "serial_ports": 1,
         "wifi": 1,
         "bluetooth": 1,
-		"control_inputs": 0
+        "control_inputs": 0
       }
     },
     {
@@ -265,7 +280,7 @@
         "usb_cdc": 0,
         "serial_ports": 2,
         "digital_in": 1,
-        "i2c": 1,	
+        "i2c": 1, 
         "sdcard": 1,
         "wifi": 1,
         "bluetooth": 1,
@@ -302,7 +317,7 @@
         "serial_ports": 1,
         "wifi": 1,
         "bluetooth": 1,
-		"control_inputs": 1
+        "control_inputs": 1
       }
     },
     {
@@ -320,7 +335,7 @@
         "trinamic_spi_chain": 1,
         "wifi": 1,
         "bluetooth": 1,
-		"control_inputs": 1
+        "control_inputs": 1
       }
     },
     {
@@ -339,8 +354,8 @@
         "sdcard": 1,
         "wifi": 1,
         "bluetooth": 1,
-		"control_inputs": 0,
-		"modbus_rtu_dir": 1
+        "control_inputs": 0,
+        "modbus_rtu_dir": 1
       }
     },
     {
@@ -358,8 +373,8 @@
         "sdcard": 1,
         "wifi": 1,
         "bluetooth": 1,
-		"control_inputs": 0,
-		"modbus_rtu_dir": 1
+    "control_inputs": 0,
+    "modbus_rtu_dir": 1
       }
     },
     {
@@ -377,7 +392,7 @@
         "sdcard": 1,
         "wifi": 1,
         "bluetooth": 1,
-		"modbus_rtu_dir": 1
+    "modbus_rtu_dir": 1
       }
     },
     {
@@ -393,7 +408,7 @@
         "estop": 0,
         "pwm_spindle_aux": 2,
         "safety_door": 1,
-		"control_inputs": 0
+    "control_inputs": 0
       }
     },
     {
@@ -443,7 +458,7 @@
         "trinamic_uart_addr": 1,
         "wifi": 1,
         "bluetooth": 1,
-		"control_inputs": 0
+    "control_inputs": 0
       }
     },
     {
