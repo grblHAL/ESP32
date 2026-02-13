@@ -5,35 +5,30 @@
 
   Part of grblHAL
 
-  Copyright (c) 2022-2023 Terje Io
+  Copyright (c) 2022-2026 Terje Io
 
   File data is extracted from files Copyright (c) 2021 Luc Lebosse
   https://github.com/luc-github/ESP3D-webui
 
-  Grbl is free software: you can redistribute it and/or modify
+  grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  grblHAL is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
-
-#ifdef ARDUINO
-#include "../driver.h"
-#else
-#include "driver.h"
-#endif
 
 #include <stdlib.h>
 #include <string.h>
 
-#include "../grbl/vfs.h"
+#include "driver.h"
+#include "grbl/vfs.h"
 
 typedef struct {
     const char *name;
@@ -58,8 +53,15 @@ static esp_embedded_file_t ap_login_html = {
     .name = "ap_login.html",
 };
 
+static const esp_embedded_file_t ok_txt = {
+    .name = "ok.txt",
+    .size = 2,
+    .data = (const unsigned char *)"ok"
+};
+
 // Array of pointers to files, NULL terminated
 static const esp_embedded_file_t *ro_files[] = {
+    &ok_txt,
     &favicon_ico,
     &index_html_gz,
     &ap_login_html,
