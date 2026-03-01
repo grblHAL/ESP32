@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2023 Terje Io
+  Copyright (c) 2023-2026 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -79,19 +79,22 @@
 #define M5_UART_CS              I2SO(22)
 #endif
 
-#define AUXOUTPUT0_PIN          GPIO_NUM_27
-#define AUXOUTPUT1_PIN          GPIO_NUM_26 // Spindle PWM
-#define AUXOUTPUT2_PIN          GPIO_NUM_4  // Spindle enable
-#define AUXOUTPUT3_PIN          GPIO_NUM_16 // Spindle direction
-#define AUXOUTPUT4_PIN          GPIO_NUM_2  // Coolant flood
-#define AUXOUTPUT5_PIN          GPIO_NUM_16 // Coolant mist
+#define AUXOUTPUT0_PIN          GPIO_NUM_27 // Spindle PWM
+#define AUXOUTPUT1_PIN          GPIO_NUM_26 // Spindle direction
+#define AUXOUTPUT2_PIN          GPIO_NUM_13 // Spindle enable (expansion connector 2)
+#define AUXOUTPUT3_PIN          GPIO_NUM_2  // Coolant flood
+#define AUXOUTPUT4_PIN          GPIO_NUM_16 // Coolant mist
+#if !MODBUS_ENABLE
+#define AUXOUTPUT5_PIN          GPIO_NUM_14 // Expansion connector 1
+#define AUXOUTPUT6_PIN          GPIO_NUM_15 // Expansion connector 3
+#endif
 
 // Define driver spindle pins
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
-#define SPINDLE_PWM_PIN         AUXOUTPUT1_PIN
+#define SPINDLE_PWM_PIN         AUXOUTPUT0_PIN
 #endif
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
-#define SPINDLE_DIRECTION_PIN   AUXOUTPUT3_PIN
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT1_PIN
 #endif
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
 #define SPINDLE_ENABLE_PIN      AUXOUTPUT2_PIN
@@ -99,17 +102,18 @@
 
 // Define flood and mist coolant enable output pins.
 #if COOLANT_ENABLE & COOLANT_FLOOD
-#define COOLANT_FLOOD_PIN       AUXOUTPUT4_PIN
+#define COOLANT_FLOOD_PIN       AUXOUTPUT3_PIN
 #endif
 #if COOLANT_ENABLE & COOLANT_MIST
-#define COOLANT_MIST_PIN        AUXOUTPUT5_PIN
+#define COOLANT_MIST_PIN        AUXOUTPUT4_PIN
 #endif
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 #undef CONTROL_ENABLE
 #define CONTROL_ENABLE 0 // No control inputs
 
-#define AUXINPUT0_PIN       GPIO_NUM_36
+#define AUXINPUT0_PIN       GPIO_NUM_36 // Probe
+#define AUXINPUT2_PIN       GPIO_NUM_12 // Expansion connector 4
 
 #if PROBE_ENABLE
 #define PROBE_PIN           AUXINPUT0_PIN
@@ -129,4 +133,14 @@
 #define SERIAL1_PORT
 #define UART1_RX_PIN        GPIO_NUM_4
 #define UART1_TX_PIN        GPIO_NUM_0
+#endif
+
+#if MODBUS_ENABLE
+#define SERIAL2_PORT
+#define MODBUS_RTU_STREAM   2
+#define UART2_RX_PIN        GPIO_NUM_15
+#define UART2_TX_PIN        GPIO_NUM_14
+#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
+#define MODBUS_DIR_AUX      AUXOUTPUT2_PIN
+#endif
 #endif

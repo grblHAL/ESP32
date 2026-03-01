@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2024 Terje Io
+  Copyright (c) 2020-2026 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,6 +27,35 @@
 
 static io_stream_t tmc_uart = {0};
 
+#if defined(BOARD_JACKPOT) && defined(M3_UART_CS)
+
+static uint8_t driver_id = 255;
+
+static inline void select_driver (uint8_t id)
+{
+    if(driver_id != id) {
+
+        driver_id = id;
+
+        DIGITAL_OUT(M3_UART_CS, id == 3);
+#if defined(M4_UART_CS)
+        DIGITAL_OUT(M4_UART_CS, id == 4);
+#endif
+#if defined(M5_UART_CS)
+        DIGITAL_OUT(M5_UART_CS, id == 5);
+#endif
+        hal.delay_ms(2, NULL);
+    }
+}
+
+static void driver_preinit (motor_map_t motor, trinamic_driver_config_t *config)
+{
+    if(motor.id > 3)
+        config->address = 3;
+}
+
+#endif // BOARD_JACKPOT
+
 TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read_datagram_t *dgr)
 {
     static TMC_uart_write_datagram_t wdgr = {0};
@@ -36,20 +65,8 @@ TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read
         return &wdgr;
 
 #if defined(BOARD_JACKPOT) && defined(M3_UART_CS)
-
-    if(driver.id >= 3) {
-        DIGITAL_OUT(M3_UART_CS, driver.id == 3);
-#if defined(M4_UART_CS)
-        DIGITAL_OUT(M4_UART_CS, driver.id == 4);
+    select_driver(driver.id);
 #endif
-#if defined(M5_UART_CS)
-        DIGITAL_OUT(M5_UART_CS, driver.id == 5);
-#endif
-    }
-
-//    add delay?
-
-#endif // BOARD_JACKPOT
 
     vTaskSuspendAll();
 
@@ -99,36 +116,14 @@ void tmc_uart_write (trinamic_motor_t driver, TMC_uart_write_datagram_t *dgr)
         return;
 
 #if defined(BOARD_JACKPOT) && defined(M3_UART_CS)
-
-    if(driver.id >= 3) {
-        DIGITAL_OUT(M3_UART_CS, driver.id == 3);
-#if defined(M4_UART_CS)
-        DIGITAL_OUT(M4_UART_CS, driver.id == 4);
+    select_driver(driver.id);
 #endif
-#if defined(M5_UART_CS)
-        DIGITAL_OUT(M5_UART_CS, driver.id == 5);
-#endif
-    }
-
-//    add delay?
-
-#endif // BOARD_JACKPOT
 
     tmc_uart.reset_read_buffer();
     tmc_uart.write_n(dgr->data, sizeof(TMC_uart_write_datagram_t));
 
     while(tmc_uart.get_tx_buffer_count());
 }
-
-#if defined(BOARD_JACKPOT) && defined(M3_UART_CS)
-
-static void driver_preinit (motor_map_t motor, trinamic_driver_config_t *config)
-{
-    if(motor.id > 3)
-        config->address = 3;
-}
-
-#endif // BOARD_JACKPOT
 
 void tmc_uart_init (void)
 {

@@ -224,7 +224,6 @@
       "MAP": "main/boards/mks_tinybee_1_0_map.h",
       "caps": {
         "axes": 5,
-        "auto_square": 2,
         "usb_cdc": 0,
         "serial_ports": 2,
         "digital_in": 1,
@@ -346,7 +345,6 @@
       "MAP": "main/boards/root_cnc_v2_map.h",
       "caps": {
         "axes": 6,
-        "auto_square": 3,
         "digital_in": 1,
         "usb_cdc": 0,
         "serial_ports": 2,
@@ -365,7 +363,6 @@
       "MAP": "main/boards/root_cnc_v3_map.h",
       "caps": {
         "axes": 6,
-        "auto_square": 3,
         "digital_in": 1,
         "usb_cdc": 0,
         "serial_ports": 2,
@@ -373,8 +370,8 @@
         "sdcard": 1,
         "wifi": 1,
         "bluetooth": 1,
-    "control_inputs": 0,
-    "modbus_rtu_dir": 1
+        "control_inputs": 0,
+        "modbus_rtu_dir": 1
       }
     },
     {
@@ -408,7 +405,7 @@
         "estop": 0,
         "pwm_spindle_aux": 2,
         "safety_door": 1,
-    "control_inputs": 0
+        "control_inputs": 0
       }
     },
     {
@@ -458,7 +455,7 @@
         "trinamic_uart_addr": 1,
         "wifi": 1,
         "bluetooth": 1,
-    "control_inputs": 0
+      "control_inputs": 0
       }
     },
     {
