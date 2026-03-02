@@ -139,6 +139,8 @@ typedef struct {
   #include "boards/cnc3040_map.h"
 #elif defined(BOARD_CORGI)
   #include "boards/corgi_map.h"
+#elif defined(BOARD_SOURCERABBIT_RABBITBOARD_4_AXIS)
+  #include "sourcerabbit_rabbit_board_4-axis.h"
 #elif defined(BOARD_SOURCERABBIT_4AXIS) || defined(BOARD_SOURCERABBIT_4AXIS_12)
   #include "boards/sourcerabbit_4axis.h"
 #elif defined(BOARD_PROTONEER_3XX)
