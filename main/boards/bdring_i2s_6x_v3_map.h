@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2025 Terje Io
+  Copyright (c) 2020-2026 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,6 +20,9 @@
   You should have received a copy of the GNU General Public License
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
+
+// Limits X, Y, Z, M3   -> Module 1
+// Probe, limits M4, M5 -> Module 2
 
 #define BOARD_NAME "BDRING 6-axis I2S v3"
 #define BOARD_URL "http://wiki.fluidnc.com/en/hardware/official/6_Pack_Integrated_ESP32"
@@ -76,9 +79,9 @@
 
 // Slot #1
 
-#define X_LIMIT_PIN             GPIO_NUM_33 // 1
-#define Y_LIMIT_PIN             GPIO_NUM_32 // 2
-#define Z_LIMIT_PIN             GPIO_NUM_35 // 3
+#define X_LIMIT_PIN             GPIO_NUM_33 // 1.1
+#define Y_LIMIT_PIN             GPIO_NUM_32 // 1.2
+#define Z_LIMIT_PIN             GPIO_NUM_35 // 1.3
 
 // Define ganged axis or A axis step pulse and step direction output pins.
 #if N_ABC_MOTORS >= 1
@@ -86,7 +89,11 @@
 #define M3_STEP_PIN             I2SO(13)
 #define M3_DIRECTION_PIN        I2SO(12)
 #define M3_ENABLE_PIN           I2SO(15)
-#define M3_LIMIT_PIN            GPIO_NUM_34 // 4
+#if N_AUTO_SQUARED
+#define M3_LIMIT_PIN            GPIO_NUM_34 // 1.4
+#else
+#define M3_LIMIT_PIN            GPIO_NUM_36 // 2.4
+#endif
 #if TRINAMIC_SPI_ENABLE
 #define MOTOR_CSM3_PIN          I2SO(14)
 #endif
@@ -98,7 +105,11 @@
 #define M4_STEP_PIN             I2SO(18)
 #define M4_DIRECTION_PIN        I2SO(17)
 #define M4_ENABLE_PIN           I2SO(16)
-//#define M4_LIMIT_PIN            GPIO_NUM_32
+#if N_AUTO_SQUARED
+#define M4_LIMIT_PIN            GPIO_NUM_36 // 2.4
+#else
+#define M4_LIMIT_PIN            GPIO_NUM_34 // 1.4
+#endif
 #if TRINAMIC_SPI_ENABLE
 #define MOTOR_CSM4_PIN          I2SO(19)
 #endif
@@ -110,7 +121,7 @@
 #define M5_STEP_PIN             I2SO(21)
 #define M5_DIRECTION_PIN        I2SO(20)
 #define M5_ENABLE_PIN           I2SO(23)
-//#define M5_LIMIT_PIN            GPIO_NUM_33
+#define M5_LIMIT_PIN            GPIO_NUM_39
 #if TRINAMIC_SPI_ENABLE
 #define MOTOR_CSM5_PIN          I2SO(22)
 #endif
@@ -118,10 +129,10 @@
 
 // Slot #3
 
-#define AUXOUTPUT0_PIN          GPIO_NUM_26 // 1 - Spindle PWM
-#define AUXOUTPUT1_PIN          GPIO_NUM_4  // 2 - Spindle enable
-#define AUXOUTPUT2_PIN          GPIO_NUM_16 // 3 - Spindle direction
-#define AUXOUTPUT3_PIN          GPIO_NUM_27 // 4 - Coolant mist
+#define AUXOUTPUT0_PIN          GPIO_NUM_26 // 3.1 - Spindle PWM
+#define AUXOUTPUT1_PIN          GPIO_NUM_4  // 3.2 - Spindle enable
+#define AUXOUTPUT2_PIN          GPIO_NUM_16 // 3.3 - Spindle direction
+#define AUXOUTPUT3_PIN          GPIO_NUM_27 // 3.4 - Coolant mist
 
 // Define driver spindle pins, on 10V Spindle module
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
@@ -149,14 +160,22 @@
 
 // Define user-control CONTROLs (cycle start, reset, feed hold) input pins.
 #undef CONTROL_ENABLE
-#define CONTROL_ENABLE 0 // No control inputs
+#define CONTROL_ENABLE          0 // No control inputs
 
 // Slot #2
 
-#define AUXINPUT0_PIN           GPIO_NUM_2  // 1
-#define AUXINPUT1_PIN           GPIO_NUM_25 // 2
-#define AUXINPUT2_PIN           GPIO_NUM_39 // 3
-#define AUXINPUT3_PIN           GPIO_NUM_36 // 4
+#define AUXINPUT0_PIN           GPIO_NUM_2  // 2.1
+#define AUXINPUT1_PIN           GPIO_NUM_25 // 2.2
+#ifndef M5_LIMIT_PIN
+#define AUXINPUT2_PIN           GPIO_NUM_39 // 2.3
+#endif
+#ifndef M4_LIMIT_PIN
+#if N_AUTO_SQUARED
+#define AUXINPUT3_PIN           GPIO_NUM_36 // 2.4
+#else
+#define AUXINPUT3_PIN           GPIO_NUM_34 // 1.4
+#endif
+#endif
 
 #if PROBE_ENABLE
 #define PROBE_PIN               AUXINPUT0_PIN
@@ -168,10 +187,10 @@
 
 #ifdef ADD_SERIAL1
 #define SERIAL1_PORT
-#define UART1_RX_PIN            GPIO_NUM_15 // 3
-#define UART1_TX_PIN            GPIO_NUM_14 // 1
+#define UART1_RX_PIN            GPIO_NUM_15 // 4.3
+#define UART1_TX_PIN            GPIO_NUM_14 // 4.1
 #if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
-#define MODBUS_DIRECTION_PIN    GPIO_NUM_13 // 2
+#define MODBUS_DIRECTION_PIN    GPIO_NUM_13 // 4.2
 #endif
 #else
 #define AUXOUTPUT5_PIN          GPIO_NUM_14 // 1 or 5
