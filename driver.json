@@ -235,7 +235,7 @@
       }
     },
     {
-      "name": "SourceRabbit 4-axis CNC",
+      "name": "SourceRabbit 4-axis CNC Motherboard",
       "symbol": "BOARD_SOURCERABBIT_4AXIS",
       "URL": "https://www.sourcerabbit.com/",
       "MAP": "main/boards/sourcerabbit_4axis.h",
@@ -253,9 +253,9 @@
       }
     },
     {
-      "name": "SourceRabbit 4-axis CNC v1.2",
+      "name": "SourceRabbit 4-axis CNC Motherboard v1.2",
       "symbol": "BOARD_SOURCERABBIT_4AXIS_12",
-      "URL": "https://www.sourcerabbit.com/",
+      "URL": "https://www.sourcerabbit.com/Shop/pr-i-86-t-4-axis-cnc-motherboard.htm",
       "MAP": "main/boards/sourcerabbit_4axis.h",
       "caps": {
         "axes": 4,
@@ -269,6 +269,24 @@
         "control_inputs": 0
       }
     },
+	{
+	  "name": "SourceRabbit Rabbit Board 4-Axis",
+	  "symbol": "BOARD_SOURCERABBIT_RABBITBOARD_4_AXIS",
+	  "URL": "https://www.sourcerabbit.com/Shop/pr-i-106-t-rabbit-board-4-axis.htm",
+	  "MAP": "main/boards/sourcerabbit_rabbit_board_4-axis.h",
+	  "caps": {
+		"axes": 4,
+		"auto_square": 0,
+		"usb_cdc": 0,
+		"safety_door": 0,
+		"estop": 0,
+		"serial_ports": 1,
+		"pwm_spindle_aux": 1,
+		"wifi": 1,
+		"bluetooth": 1,
+		"control_inputs": 0
+	  }
+	},
     {
       "name": "PiBot 6-axis I2S",
       "symbol": "BOARD_PIBOT_I2S_6_AXIS",
