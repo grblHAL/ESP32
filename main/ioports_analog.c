@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2024-2025 Terje Io
+  Copyright (c) 2024-2026 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -295,12 +295,9 @@ static bool init_pwm1 (xbar_t *pin, pwm_config_t *config, bool persistent)
 
 #if AUX_ANALOG_IN
 
-static int32_t wait_on_input (io_port_type_t type, uint8_t port, wait_mode_t wait_mode, float timeout)
+static int32_t wait_on_input (uint8_t port, wait_mode_t wait_mode, float timeout)
 {
-    if(port < analog.in.n_ports && aux_in_analog[port].adc)
-        value = adc1_get_raw(aux_in_analog[port].adc->ch);
-
-    return value;
+    return port < analog.in.n_ports && aux_in_analog[port].adc ? (int32_t)adc1_get_raw(aux_in_analog[port].adc->ch) : -1;
 }
 
 #endif
@@ -439,12 +436,6 @@ void ioports_init_analog (pin_group_pins_t *aux_inputs, pin_group_pins_t *aux_ou
                 if(!ok)
                     analog.in.n_ports--; // TODO: claim port?
             }
-        }
-
-        if(analog.in.n_ports) {
-            if((wait_on_input_digital = hal.port.wait_on_input) == NULL)
-                wait_on_input_digital = wait_on_input_dummy;
-            hal.port.wait_on_input = wait_on_input;
         }
 
 #endif
