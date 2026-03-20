@@ -584,7 +584,7 @@ IRAM_ATTR static void serialFlush (void)
 {
     UART_MUTEX_LOCK(&uart0);
 
-    _uart_flush(&uart0, false);
+    uart_ll_rxfifo_rst(uart0.dev);
 
     rxbuffer.tail = rxbuffer.head;
     rxbuffer.overflow = Off;
@@ -835,7 +835,7 @@ IRAM_ATTR static void serial1Flush (void)
 {
     UART_MUTEX_LOCK(&uart1);
 
-    _uart_flush(&uart1, false);
+    uart_ll_rxfifo_rst(uart1.dev);
 
     rxbuffer1.tail = rxbuffer1.head;
     rxbuffer1.overflow = Off;
@@ -1083,7 +1083,7 @@ IRAM_ATTR static void serial2Flush (void)
 {
     UART_MUTEX_LOCK(&uart2);
 
-    _uart_flush(&uart2, false);
+    uart_ll_rxfifo_rst(uart2.dev);
 
     rxbuffer2.tail = rxbuffer2.head;
     rxbuffer2.overflow = Off;
