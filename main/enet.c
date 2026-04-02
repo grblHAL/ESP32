@@ -81,11 +81,22 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ip4addr_aton(cp, addr) ipaddr_aton(cp, addr)
 #endif
 
+#ifndef INPUT_GPIO_INTERRUPT
 #define INPUT_GPIO_INTERRUPT 35
+#endif
+#ifndef INPUT_GPIO_MISO
 #define INPUT_GPIO_MISO 19
+#endif
+#ifndef INPUT_GPIO_MOSI
 #define INPUT_GPIO_MOSI 23
+#endif
+#ifndef INPUT_GPIO_CS
 #define INPUT_GPIO_CS 5
+#endif
+#ifndef INPUT_GPIO_SCLK
 #define INPUT_GPIO_SCLK 18
+#endif
+
 
 //
 
