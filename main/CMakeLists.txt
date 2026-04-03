@@ -24,6 +24,7 @@ set(SRCS
  i2c.c
  spi.c
  boards/BlackBoxX32.c
+ boards/ooznest_cnc.c
  grbl/grbllib.c
  grbl/canbus.c
  grbl/coolant_control.c

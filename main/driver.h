@@ -177,6 +177,8 @@ typedef struct {
   #include "boards/generic_s3_map.h"
 #elif defined(BOARD_GENERIC_I2S_S3)
   #include "boards/generic_i2s_s3_map.h"
+#elif defined(BOARD_OOZNEST_CNC)
+  #include "boards/ooznest_cnc_map.h"
 #else // default board - NOTE: NOT FINAL VERSION!
  #ifndef WEB_BUILD
   #warning "Compiling for generic board!"
