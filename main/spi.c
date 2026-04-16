@@ -1,9 +1,9 @@
 /*
-  spi.c - SPI support for SD card & Trinamic plugins
+  spi.c - SPI interface
 
   Part of grblHAL driver for ESP32
 
-  Copyright (c) 2020-2025 Terje Io
+  Copyright (c) 2020-2026 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -93,53 +93,51 @@ bool spi_bus_init (spi_host_device_t *host)
     return host_id != (spi_host_device_t)99;
 }
 
-void spi_init (void)
+spi_cap_t spi_start (spi_slave_t *device)
 {
     static bool init = false;
+    static spi_host_device_t host;
 
-    if(!init) {
+    spi_cap_t spi = {0};
 
-    	spi_host_device_t host;
+    if(!init)
+    	init = spi_bus_init(&host);
 
-    	if((init = spi_bus_init(&host))) {
+    if(init) {
 
-            spi_device_interface_config_t devcfg = {
-                .clock_speed_hz = 1000000,
-                .mode = 0,          //SPI mode 0
-                .spics_io_num = -1,
-                .queue_size = 1,
-            //    .flags = SPI_DEVICE_POSITIVE_CS,
-            //   .pre_cb = cs_high,
-            //   .post_cb = cs_low,
-                .input_delay_ns = 0  //the EEPROM output the data half a SPI clock behind.
-            };
+        spi_device_interface_config_t devcfg = {
+            .clock_speed_hz = device->f_clock,
+            .mode = 0,
+            .spics_io_num = -1,
+            .queue_size = 1,
+            .input_delay_ns = 0
+        };
 
-            spi_bus_add_device(SPI2_HOST, &devcfg, &handle);
-        }
+        spi.started = spi_bus_add_device(host, &devcfg, (spi_device_handle_t *)&device->handle) == ESP_OK;
     }
+
+    return spi;
 }
 
-// set the SSI speed to the max setting
-void spi_set_max_speed (void)
+bool spi_select (spi_slave_t *device)
 {
+    bool ok;
 
+    handle = (spi_device_handle_t)device->handle;
+
+    if((ok = spi_device_acquire_bus(handle, portMAX_DELAY) == ESP_OK))
+        DIGITAL_OUT(device->cs_pin, 0);
+
+    return ok;
 }
 
-uint32_t spi_set_speed (uint32_t prescaler)
+bool spi_deselect (spi_slave_t *device)
 {
-    uint32_t cur = 0;
+    DIGITAL_OUT(device->cs_pin, 1);
 
-    return cur;
-}
+    spi_device_release_bus((spi_device_handle_t)device->handle);
 
-esp_err_t spi_bus (bool aquire)
-{
-    if(aquire)
-        return spi_device_acquire_bus(handle, portMAX_DELAY);
-    else
-        spi_device_release_bus(handle);
-
-    return ESP_OK;
+    return true;
 }
 
 uint8_t spi_get_byte (void)
@@ -156,15 +154,10 @@ uint8_t spi_get_byte (void)
 
 uint8_t spi_put_byte (uint8_t byte)
 { 
-//    esp_err_t err;
-
-//    err = spi_device_acquire_bus(handle, portMAX_DELAY);
-//    if (err != ESP_OK) return err;
-
     spi_transaction_t t = {
         .cmd = 0,
         .length = 8,
-        .flags = SPI_TRANS_USE_TXDATA, // |SPI_TRANS_MODE_OCT, fails on earlier version of the IDF
+        .flags = SPI_TRANS_USE_TXDATA,
         .tx_data[0] = byte,
         .user = NULL,
     };
@@ -172,4 +165,15 @@ uint8_t spi_put_byte (uint8_t byte)
     return spi_device_polling_transmit(handle, &t) == ESP_OK ? 0 : 0xFF;
 }
 
-#endif
+bool spi_write (uint8_t *data, uint16_t size)
+{
+    spi_transaction_t t = {
+        .cmd = 0,
+        .length = size * 8,
+        .tx_buffer = data
+    };
+
+    return spi_device_polling_transmit(handle, &t) == ESP_OK;
+}
+
+#endif // SPI_ENABLE

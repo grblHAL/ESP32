@@ -222,6 +222,7 @@ set(MISC_PLUGINS_SOURCE
  plugins/eventout.c
  plugins/feed_override_m220.c
  plugins/fnc_expander.c
+ plugins/hc595.c
  plugins/homing_pulloff.c
  plugins/mcp3221.c
  plugins/mcp4725.c

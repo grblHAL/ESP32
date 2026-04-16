@@ -8,7 +8,7 @@
     NOTE: SR register bit31 (or bit15) cannot be used.
 
     Copyright (c) 2020 - Michiyasu Odaki
-    Copyright (c) 2024 - Terje Io
+    Copyright (c) 2024 - 2026 Terje Io
 
     Grbl_ESP32 is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -929,7 +929,7 @@ bool IRAM_ATTR i2s_out_init2 (i2s_out_init_t init_param)
     gdma_ll_tx_reset_channel(&GDMA, i2s_sr.dma.channel);
     gdma_ll_tx_enable_interrupt(&GDMA, i2s_sr.dma.channel, GDMA_LL_TX_EVENT_MASK, false);
     gdma_ll_tx_clear_interrupt_status(&GDMA, i2s_sr.dma.channel, GDMA_LL_TX_EVENT_MASK);
-    gdma_ll_tx_connect_to_periph(&GDMA, i2s_sr.dma.channel, GDMA_TRIG_PERIPH_I2S, SOC_GDMA_TRIG_PERIPH_I2S0);
+    gdma_ll_tx_connect_to_periph(&GDMA, i2s_sr.dma.channel, SOC_GDMA_TRIG_PERIPH_I2S0);
     gdma_ll_tx_set_eof_mode(&GDMA, i2s_sr.dma.channel, 0); // Not needed?
 
 #if I2S_OUT_NUM_BITS == 16

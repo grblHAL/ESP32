@@ -122,6 +122,7 @@ typedef struct {
 #endif
 
 #ifdef BOARD_CNC_BOOSTERPACK
+  #define PCA9654E_ENABLE 1
   #include "boards/cnc_boosterpack_map.h"
 #elif defined(BOARD_BDRING_V4)
   #include "boards/bdring_v4_map.h"
@@ -173,6 +174,8 @@ typedef struct {
   #include "boards/btt_rodent_map.h"
 #elif defined(BOARD_MY_MACHINE)
   #include "boards/my_machine_map.h"
+#elif defined(BOARD_BLOX)
+  #include "boards/blox_map.h"
 #elif defined(BOARD_GENERIC_S3)
   #include "boards/generic_s3_map.h"
 #elif defined(BOARD_GENERIC_I2S_S3)

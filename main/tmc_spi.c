@@ -3,7 +3,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2020-2025 Terje Io
+  Copyright (c) 2020-2026 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -40,11 +40,11 @@ static inline void delay (uint32_t delay)
     while(--dly);
 }
 
-#if TRINAMIC_SPI_ENABLE & TRINAMIC_SPI_CS_SINGLE
+static spi_slave_t dev = {
+    .f_clock = SPI_MASTER_FREQ_10M
+};
 
-static struct {
-    uint32_t pin;
-} cs;
+#if TRINAMIC_SPI_ENABLE & TRINAMIC_SPI_CS_SINGLE
 
 static uint_fast8_t n_motors;
 static TMC_spi_datagram_t datagram[TMC_N_MOTORS_MAX];
@@ -55,12 +55,11 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *reg)
 
     uint8_t res;
     uint_fast8_t idx = n_motors;
-    uint32_t f_spi = spi_set_speed(SPI_MASTER_FREQ_10M);
 
     datagram[driver.seq].addr.value = reg->addr.value;
     datagram[driver.seq].addr.write = 0;
 
-    DIGITAL_OUT(cs.pin, 0);
+    spi_select(&dev);
 
     do {
         spi_put_byte(datagram[--idx].addr.value);
@@ -71,9 +70,9 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *reg)
     } while(idx);
 
     delay(100);
-    DIGITAL_OUT(cs.pin, 1);
+    spi_deselect(&dev);
     delay(50);
-    DIGITAL_OUT(cs.pin, 0);
+    spi_select(&dev);
 
     idx = n_motors;
     do {
@@ -94,10 +93,8 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *reg)
     } while(idx);
 
     delay(100);
-    DIGITAL_OUT(cs.pin, 1);
+    spi_deselect(&dev);
     delay(50);
-
-    spi_set_speed(f_spi);
 
     return status;
 }
@@ -108,12 +105,11 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *reg
 
     uint8_t res;
     uint_fast8_t idx = n_motors;
-    uint32_t f_spi = spi_set_speed(SPI_MASTER_FREQ_10M);
 
     memcpy(&datagram[driver.seq], reg, sizeof(TMC_spi_datagram_t));
     datagram[driver.seq].addr.write = 1;
 
-    DIGITAL_OUT(cs.pin, 0);
+    spi_select(&dev);
 
     do {
         res = spi_put_byte(datagram[--idx].addr.value);
@@ -130,10 +126,8 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *reg
     } while(idx);
 
     delay(100);
-    DIGITAL_OUT(cs.pin, 1);
+    spi_deselect(&dev);
     delay(50);
-
-    spi_set_speed(f_spi);
 
     return status;
 }
@@ -141,7 +135,7 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *reg
 static void add_cs_pin (xbar_t *gpio, void *data)
 {
     if(gpio->function == Output_MotorChipSelect)
-        cs.pin = gpio->pin + (gpio->port ? I2S_OUT_PIN_BASE : 0);
+        dev.cs_pin = gpio->pin + (gpio->port ? I2S_OUT_PIN_BASE : 0);
 }
 
 static void if_init (uint8_t motors, axes_signals_t axisflags)
@@ -157,7 +151,7 @@ void tmc_spi_init (void)
         .on_drivers_init = if_init
     };
 
-    spi_init();
+    spi_start(&dev);
 
     uint_fast8_t idx = TMC_N_MOTORS_MAX;
     do {
@@ -176,12 +170,9 @@ static struct {
 TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *datagram)
 {
     TMC_spi_status_t status;
-    uint32_t f_spi = spi_set_speed(SPI_MASTER_FREQ_10M);
 
-    DIGITAL_OUT(cs[driver.id].pin, 0);
-
-    spi_bus(true);
-
+    dev.cs_pin = cs[driver.id].pin;
+    spi_select(&dev);
     delay(100);
 
     datagram->payload.value = 0;
@@ -193,9 +184,9 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *data
     spi_put_byte(0);
     spi_put_byte(0);
 
-    DIGITAL_OUT(cs[driver.id].pin, 1);
+    spi_deselect(&dev);
     delay(100);
-    DIGITAL_OUT(cs[driver.id].pin, 0);
+    spi_select(&dev);
 
     status = spi_put_byte(datagram->addr.value);
     datagram->payload.data[3] = spi_get_byte();
@@ -203,11 +194,7 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *data
     datagram->payload.data[1] = spi_get_byte();
     datagram->payload.data[0] = spi_get_byte();
 
-    DIGITAL_OUT(cs[driver.id].pin, 1);
-
-    spi_set_speed(f_spi);
-
-    spi_bus(false);
+    spi_deselect(&dev);
 
     return status;
 }
@@ -215,12 +202,9 @@ TMC_spi_status_t tmc_spi_read (trinamic_motor_t driver, TMC_spi_datagram_t *data
 TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *datagram)
 {
     TMC_spi_status_t status;
-    uint32_t f_spi = spi_set_speed(SPI_MASTER_FREQ_10M);
 
-    DIGITAL_OUT(cs[driver.id].pin, 0);
-
-    spi_bus(true);
-
+    dev.cs_pin = cs[driver.id].pin;
+    spi_select(&dev);
     delay(100);
 
     datagram->addr.write = 1;
@@ -230,11 +214,7 @@ TMC_spi_status_t tmc_spi_write (trinamic_motor_t driver, TMC_spi_datagram_t *dat
     spi_put_byte(datagram->payload.data[1]);
     spi_put_byte(datagram->payload.data[0]);
 
-    DIGITAL_OUT(cs[driver.id].pin, 1);
-
-    spi_set_speed(f_spi);
-
-    spi_bus(false);
+    spi_deselect(&dev);
 
     return status;
 }
@@ -287,7 +267,7 @@ void tmc_spi_init (void)
 {
     static trinamic_driver_if_t driver_if = {.on_drivers_init = if_init};
 
-    spi_init();
+    spi_start(&dev);
     trinamic_if_init(&driver_if);
 }
 

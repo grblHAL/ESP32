@@ -424,28 +424,40 @@ static output_signal_t outputpin[] = {
     { .id = Output_DirZ_2,         .pin = Z2_DIRECTION_PIN,      .group = PinGroup_StepperDir },
 #endif
 #ifdef MOTOR_CS_PIN
-    { .id = Output_MotorChipSelect,   .pin = MOTOR_CS_PIN,      .group = PinGroup_MotorChipSelect },
+    { .id = Output_MotorChipSelect,   .pin = MOTOR_CS_PIN,       .group = PinGroup_MotorChipSelect },
 #endif
 #ifdef MOTOR_CSX_PIN
-    { .id = Output_MotorChipSelectX,  .pin = MOTOR_CSX_PIN,     .group = PinGroup_MotorChipSelect },
+    { .id = Output_MotorChipSelectX,  .pin = MOTOR_CSX_PIN,      .group = PinGroup_MotorChipSelect },
 #endif
 #ifdef MOTOR_CSY_PIN
-    { .id = Output_MotorChipSelectY,  .pin = MOTOR_CSY_PIN,     .group = PinGroup_MotorChipSelect },
+    { .id = Output_MotorChipSelectY,  .pin = MOTOR_CSY_PIN,      .group = PinGroup_MotorChipSelect },
 #endif
 #ifdef MOTOR_CSZ_PIN
-    { .id = Output_MotorChipSelectZ,  .pin = MOTOR_CSZ_PIN,     .group = PinGroup_MotorChipSelect },
+    { .id = Output_MotorChipSelectZ,  .pin = MOTOR_CSZ_PIN,      .group = PinGroup_MotorChipSelect },
 #endif
 #ifdef MOTOR_CSM3_PIN
-    { .id = Output_MotorChipSelectM3, .pin = MOTOR_CSM3_PIN,    .group = PinGroup_MotorChipSelect },
+    { .id = Output_MotorChipSelectM3, .pin = MOTOR_CSM3_PIN,     .group = PinGroup_MotorChipSelect },
 #endif
 #ifdef MOTOR_CSM4_PIN
-    { .id = Output_MotorChipSelectM4, .pin = MOTOR_CSM4_PIN,    .group = PinGroup_MotorChipSelect },
+    { .id = Output_MotorChipSelectM4, .pin = MOTOR_CSM4_PIN,     .group = PinGroup_MotorChipSelect },
 #endif
 #ifdef MOTOR_CSM5_PIN
-    { .id = Output_MotorChipSelectM5, .pin = MOTOR_CSM5_PIN,    .group = PinGroup_MotorChipSelect },
+    { .id = Output_MotorChipSelectM5, .pin = MOTOR_CSM5_PIN,     .group = PinGroup_MotorChipSelect },
 #endif
 #ifdef SD_CS_PIN
-    { .id = Output_SdCardCS,          .pin = SD_CS_PIN,        .group = PinGroup_SdCard },
+    { .id = Output_SdCardCS,          .pin = SD_CS_PIN,          .group = PinGroup_SPICS },
+#endif
+#ifdef SPI_CS0_PIN
+    { .id = Output_SPICS0,            .pin = SPI_CS0_PIN,        .group = PinGroup_SPICS },
+#endif
+#ifdef SPI_CS1_PIN
+    { .id = Output_SPICS1,            .pin = SPI_CS1_PIN,        .group = PinGroup_SPICS },
+#endif
+#ifdef SPI_CS2_PIN
+    { .id = Output_SPICS2,            .pin = SPI_CS2_PIN,        .group = PinGroup_SPICS },
+#endif
+#ifdef SPI_CS3_PIN
+    { .id = Output_SPICS3,            .pin = SPI_CS3_PIN,       .group = PinGroup_SPICS },
 #endif
 #ifdef MODBUS_DIRECTION_PIN
     { .id = Output_Aux0,           .pin = MODBUS_DIRECTION_PIN,  .group = PinGroup_AuxOutput },
@@ -2415,7 +2427,7 @@ IRAM_ATTR inline static void spindle1_off (spindle_ptrs_t *spindle)
     } else {
         DIGITAL_OUT(SPINDLE1_ENABLE_PIN, pwm_spindle1.config->cfg.invert.on);
     }
-#else
+#elif DRIVER_SPINDLE1_ENABLE & SPINDLE_ENA
     DIGITAL_OUT(SPINDLE1_ENABLE_PIN, pwm_spindle1.config->cfg.invert.on);
 #endif
 }
@@ -2433,7 +2445,7 @@ IRAM_ATTR inline static void spindle1_on (spindle_ptrs_t *spindle)
     } else {
         DIGITAL_OUT(SPINDLE1_ENABLE_PIN, !pwm_spindle1.config->cfg.invert.on);
     }
-#else
+#elif DRIVER_SPINDLE1_ENABLE & SPINDLE_ENA
     DIGITAL_OUT(SPINDLE1_ENABLE_PIN, !pwm_spindle1.config->cfg.invert.on);
 #endif
 }
@@ -3399,7 +3411,7 @@ static bool driver_setup (settings_t *settings)
     idx = sizeof(outputpin) / sizeof(output_signal_t);
     do {
         idx--;
-        if(outputpin[idx].group == PinGroup_MotorChipSelect || outputpin[idx].group == PinGroup_MotorUART) {
+        if(outputpin[idx].group == PinGroup_MotorChipSelect || outputpin[idx].group == PinGroup_MotorUART || outputpin[idx].group == PinGroup_SPICS) {
 #if USE_I2S_OUT
             if(outputpin[idx].type == Pin_I2S)
                 DIGITAL_OUT(outputpin[idx].pin, 1);
@@ -3555,7 +3567,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "260204";
+    hal.driver_version = "260410";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
