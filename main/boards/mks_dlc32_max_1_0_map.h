@@ -73,7 +73,7 @@
 #define AUXOUTPUT0_PIN          GPIO_NUM_2  // Laser TTL
 #define AUXOUTPUT1_PIN          GPIO_NUM_35 // Spindle enable
 #define AUXOUTPUT2_PIN          GPIO_NUM_1  // Air pump
-#define AUXOUTPUT3_PIN          GPIO_NUM_41 // Beeper
+#define AUXOUTPUT3_PIN          GPIO_NUM_42 // Beeper
 //#define AUXOUTPUT4_PIN          GPIO_NUM_? // TBD
 
 // Define driver spindle pins
