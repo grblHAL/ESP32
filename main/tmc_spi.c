@@ -41,7 +41,7 @@ static inline void delay (uint32_t delay)
 }
 
 static spi_slave_t dev = {
-    .f_clock = SPI_MASTER_FREQ_10M
+    .f_clock = 2000000
 };
 
 #if TRINAMIC_SPI_ENABLE & TRINAMIC_SPI_CS_SINGLE
