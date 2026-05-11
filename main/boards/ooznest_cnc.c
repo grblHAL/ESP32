@@ -31,13 +31,18 @@ typedef struct {
 } ooznest_motor_settings_t;
 
 typedef struct {
-    ooznest_motor_settings_t driver[N_AXIS];
+    ooznest_motor_settings_t driver[N_AXIS]; // 3 axes (X, Y, Z)
 } ooznest_settings_t;
 
 static ooznest_settings_t mks;
 static nvs_address_t nvs_address;
 static settings_changed_ptr settings_changed;
 static on_realtime_report_ptr prev_realtime_report;
+
+static struct {
+    float current;
+    uint_fast8_t axis;
+} current_iterator;
 
 #if I2C_ENABLE
 static float last_vbus_v = 0.0f;
@@ -54,12 +59,16 @@ static void ooznest_settings_save (void)
     hal.nvs.memcpy_to_nvs(nvs_address, (uint8_t *)&mks, sizeof(ooznest_settings_t), true);
 }
 
-static void set_current (uint_fast8_t axis, float current)
+static void set_motor_current (uint8_t motor_idx, float current)
 {
-    if (axis >= N_AXIS)
+    if (motor_idx >= 4)
         return;
 
 #if I2C_ENABLE
+    // MCP4728 DAC channel mapping for Ooznest CNC hardware:
+    // Ch 0: X, Ch 1: Y1, Ch 2: Y2, Ch 3: Z
+    uint32_t dac_channel = motor_idx;
+
     // MCP4728 I2C address is usually 0x60
     static const uint8_t dac_addr = 0x60 << 1;
 
@@ -69,7 +78,7 @@ static void set_current (uint_fast8_t axis, float current)
 
     // Single Write Command for MCP4728
     // Byte 1: 0 1 0 0 0 DAC1 DAC0 UDAC (=1 for immediate update)
-    data[0] = 0x40 | ((axis & 0x03) << 1) | 0x01;
+    data[0] = 0x40 | ((dac_channel & 0x03) << 1) | 0x01;
     // Byte 2: VREF(=0) PD1(=0) PD0(=0) Gx(=0) D11 D10 D9 D8
     data[1] = (v >> 8) & 0x0F;
     // Byte 3: D7 D6 D5 D4 D3 D2 D1 D0
@@ -93,10 +102,36 @@ static void set_current (uint_fast8_t axis, float current)
 #endif
 }
 
+static void motor_iterator_callback (motor_map_t motor)
+{
+    if (motor.axis == current_iterator.axis) {
+        set_motor_current(motor.id, current_iterator.current);
+    }
+}
+
+static void set_current (uint_fast8_t axis, float current)
+{
+    if (axis >= N_AXIS)
+        return;
+
+    if (hal.stepper.motor_iterator) {
+        current_iterator.axis = axis;
+        current_iterator.current = current;
+        hal.stepper.motor_iterator(motor_iterator_callback);
+    } else {
+        // Fallback for very early initialization if iterator is not yet available
+        uint8_t motor_idx = axis == 2 ? 3 : axis;
+        set_motor_current(motor_idx, current);
+        if (axis == 1) { // Default Y ganging fallback
+            set_motor_current(2, current);
+        }
+    }
+}
+
 static status_code_t set_axis_setting (setting_id_t setting, float value)
 {
-    uint_fast8_t idx;
     status_code_t status = Status_OK;
+    uint_fast8_t idx;
 
     switch(settings_get_axis_base(setting, &idx)) {
 
