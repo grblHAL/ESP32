@@ -290,14 +290,14 @@ static void ooznest_on_realtime_report (stream_write_ptr stream_write, report_tr
 #endif
 }
 
-static void set_leds (void *data)
-{
-    if(hal.rgb0.out) {
-        hal.rgb0.out(0, (rgb_color_t){ .R = 0, .G = 255, .B = 0 }); // Green for OK
-        if(hal.rgb0.write)
-            hal.rgb0.write();
-    }
-}
+// static void set_leds (void *data)
+// {
+//     if(hal.rgb0.out) {
+//         hal.rgb0.out(0, (rgb_color_t){ .R = 0, .G = 255, .B = 0 }); // Green for OK
+//         if(hal.rgb0.write)
+//             hal.rgb0.write();
+//     }
+// }
 
 void board_init (void)
 {
@@ -322,7 +322,7 @@ void board_init (void)
     hal.driver_cap.ethernet = On;
     hal.driver_cap.probe2 = On;
 
-    task_add_immediate(set_leds, NULL);
+    // task_add_immediate(set_leds, NULL);
 
     #if I2C_ENABLE
       // POST: Check for I2C DAC
