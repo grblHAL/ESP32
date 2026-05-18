@@ -486,9 +486,9 @@ char *bluetooth_get_device_mac (void)
     if(is_up) {
         uint8_t mac[6];
         esp_read_mac(mac, ESP_MAC_BT);
-        sprintf(device_mac, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        snprintf(device_mac, sizeof(device_mac), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     } else
-        strcpy(device_mac, "-");
+        strncpy(device_mac, "-", sizeof(device_mac));
 
     return device_mac;
 }
@@ -696,12 +696,17 @@ static void gatts_profile_event_handler (esp_gatts_cb_event_t event, esp_gatt_if
                 ESP_LOGE(GATTS_TABLE_TAG, "ESP_GATTS_WRITE_EVT : handle = %d\n", res);
                 if(res == SPP_IDX_SPP_COMMAND_VAL){
                     uint8_t * spp_cmd_buff = NULL;
-                    spp_cmd_buff = (uint8_t *)malloc((spp_mtu_size - 3) * sizeof(uint8_t));
+                    spp_cmd_buff = (uint8_t *)malloc(spp_mtu_size - 3);
                     if(spp_cmd_buff == NULL){
                         ESP_LOGE(GATTS_TABLE_TAG, "%s malloc failed\n", __func__);
                         break;
                     }
                     memset(spp_cmd_buff,0x0,(spp_mtu_size - 3));
+                    if(p_data->write.len > (spp_mtu_size - 3)){
+                        ESP_LOGE(GATTS_TABLE_TAG, "%s write len exceeds buffer\n", __func__);
+                        free(spp_cmd_buff);
+                        break;
+                    }
                     memcpy(spp_cmd_buff,p_data->write.value,p_data->write.len);
                     xQueueSend(cmd_cmd_queue,&spp_cmd_buff,10/portTICK_PERIOD_MS);
                 }else if(res == SPP_IDX_SPP_DATA_NTF_CFG){
@@ -1133,8 +1138,10 @@ static error_details_t error_details = {
 
 static void bluetooth_settings_restore (void)
 {
-    strcpy(bluetooth.device_name, BLUETOOTH_DEVICE);
-    strcpy(bluetooth.service_name, BLUETOOTH_SERVICE);
+    strncpy(bluetooth.device_name, BLUETOOTH_DEVICE, sizeof(bluetooth.device_name) - 1);
+    bluetooth.device_name[sizeof(bluetooth.device_name) - 1] = '\0';
+    strncpy(bluetooth.service_name, BLUETOOTH_SERVICE, sizeof(bluetooth.service_name) - 1);
+    bluetooth.service_name[sizeof(bluetooth.service_name) - 1] = '\0';
 
     hal.nvs.memcpy_to_nvs(nvs_address, (uint8_t *)&bluetooth, sizeof(bluetooth_settings_t), true);
 }
