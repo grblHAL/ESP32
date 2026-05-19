@@ -136,8 +136,9 @@
 
 // Neopixel - disabled not enough RMTs for 4 motors and LED
 // #define LED_PIN                 GPIO_NUM_48
-// #define NEOPIXEL_DMA_ENABLE     1
-// #define NEOPIXELS_NUM           3 // 3 LEDs onboard, port for more offboard
+// #define NEOPIXEL_SPI
+
+
 
 
 // Not created yet
