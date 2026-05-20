@@ -23,6 +23,8 @@ set(SRCS
  ioports_analog.c
  i2c.c
  spi.c
+ neopixel_rmt.c
+ neopixel_spi.c
  boards/BlackBoxX32.c
  boards/ooznest_cnc.c
  grbl/grbllib.c
