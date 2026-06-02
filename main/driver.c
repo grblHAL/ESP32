@@ -3340,6 +3340,9 @@ static bool driver_setup (settings_t *settings)
 #endif // SDCARD_ENABLE
 
 #if ETHERNET_ENABLE
+  #if WIFI_ENABLE
+    if((hal.driver_cap.ethernet &= setting_get_int_value(setting_get_details(Setting_WifiMode, NULL), 0) == WiFiMode_NULL))
+  #endif
     enet_start();
 #endif
 
@@ -3405,7 +3408,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "260519";
+    hal.driver_version = "260602";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3775,6 +3778,10 @@ bool driver_init (void)
 #elif TRINAMIC_UART_ENABLE
     extern void tmc_uart_init (void);
     tmc_uart_init();
+#endif
+
+#if ETHERNET_ENABLE
+    hal.driver_cap.ethernet = On;
 #endif
 
 #ifdef HAS_BOARD_INIT

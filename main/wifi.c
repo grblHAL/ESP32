@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2025 Terje Io
+  Copyright (c) 2018-2026 Terje Io
 
   Some parts of the code is based on example code by Espressif, in the public domain
 
@@ -912,13 +912,22 @@ static char *wifi_get_country (setting_id_t setting)
 
 #endif
 
+FLASHMEM static bool is_wifi_enabled (const setting_detail_t *setting, uint_fast16_t offset)
+{
+#if ETHERNET_ENABLE
+    return wifi.mode != WiFiMode_NULL;
+#else
+    return true;
+#endif
+}
+
 static const setting_group_detail_t ethernet_groups [] = {
     { Group_Root, Group_Networking, "Networking" },
     { Group_Networking, Group_Networking_Wifi, "WiFi" }
 };
 
 static const setting_detail_t ethernet_settings[] = {
-    { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, netservices, NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL, { .reboot_required = On } },
+    { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, netservices, NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, is_wifi_enabled, { .reboot_required = On } },
     { Setting_WiFi_STA_SSID, Group_Networking_Wifi, "WiFi Station (STA) SSID", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.sta.ssid, NULL, NULL },
     { Setting_Wifi_AP_BSSID, Group_Networking_Wifi, "WiFi Access Point (AP) BSSID", NULL, Format_String, "x(17)", "17", "17", Setting_NonCoreFn, wifi_set_bssid, wifi_get_bssid, NULL, { .allow_null = On, .reboot_required = On } },
     { Setting_WiFi_STA_Password, Group_Networking_Wifi, "WiFi Station (STA) Password", NULL, Format_Password, "x(32)", "8", "32", Setting_NonCore, &wifi.sta.password, NULL, NULL, { .allow_null = On } },
@@ -1321,7 +1330,7 @@ static void stream_changed (stream_type_t type)
 
 bool wifi_init (void)
 {
-    if((nvs_address = nvs_alloc(sizeof(wifi_settings_t)))) {
+    if((hal.driver_cap.wifi = (nvs_address = nvs_alloc(sizeof(wifi_settings_t))) != 0)) {
 
         networking_init();
 
@@ -1338,6 +1347,7 @@ bool wifi_init (void)
         settings_register(&setting_details);
 
         networking.get_info = get_info;
+
         allowed_services.mask = networking_get_services_list((char *)netservices).mask;
     }
 
