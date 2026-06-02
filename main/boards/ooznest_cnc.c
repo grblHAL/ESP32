@@ -21,7 +21,9 @@
 #include "grbl/settings.h"
 #include "grbl/task.h"
 #include "grbl/state_machine.h"
-#include "grbl/alarms.h"
+#include "grbl/protocol.h"
+#include "grbl/system.h"
+#include "grbl/report.h"
 
 #include "sdcard/sdcard.h"
 
@@ -51,19 +53,15 @@ static float last_vbus_v = 0.0f;
 static float last_current_a = 0.0f;
 #endif
 
-static bool vin_ok = false;
+typedef enum {
+    Power_On = 0,
+    Power_Alarm,
+    Power_Lost
+} power_state_t;
+
+static power_state_t power_state = Power_On;
 static bool vin_was_ok = false;
-
-#define Alarm_PowerLoss ((alarm_code_t)22)
-
-static const alarm_detail_t ooznest_alarm_detail[] = {
-    { Alarm_PowerLoss, "Low Input Voltage Alarm: Power input has dropped below the required voltage. Inspect the power supply and ensure stable input voltage before clearing the alarm and unlocking the machine." },
-};
-
-static alarm_details_t ooznest_alarm_details = {
-    .n_alarms = sizeof(ooznest_alarm_detail) / sizeof(alarm_detail_t),
-    .alarms = ooznest_alarm_detail
-};
+static bool power_lost_during_motion = false;
 
 static bool ooznest_is_setting_available (const setting_detail_t *setting, uint_fast16_t subgroup)
 {
@@ -232,24 +230,24 @@ static setting_details_t setting_details = {
 };
 
 #if I2C_ENABLE
+static void raise_power_alarm (void *data);
+static void check_power_restored (void *data);
+
 // INA219 Polling Task (Non-blocking grblHAL task)
 static void ina219_task (void *pvParameters)
 {
     static uint32_t last_poll = 0;
 
-    // Poll every 500ms
     if (hal.get_elapsed_ticks() - last_poll < 500) return;
     last_poll = hal.get_elapsed_ticks();
 
     const uint8_t ina_addr = 0x40 << 1;
 
-    // Use zero delay for semaphore to avoid blocking the main grbl loop
     if (i2cBusy != NULL && xSemaphoreTake(i2cBusy, 0) == pdTRUE) {
 
         uint8_t bus_data[2] = {0};
         uint8_t shunt_data[2] = {0};
 
-        // Read Bus Voltage Register (0x02)
         i2c_cmd_handle_t cmd = i2c_cmd_link_create();
         i2c_master_start(cmd);
         i2c_master_write_byte(cmd, ina_addr | I2C_MASTER_WRITE, true);
@@ -262,7 +260,6 @@ static void ina219_task (void *pvParameters)
         esp_err_t err_v = i2c_master_cmd_begin(I2C_PORT, cmd, 10 / portTICK_PERIOD_MS);
         i2c_cmd_link_delete(cmd);
 
-        // Read Shunt Voltage Register (0x01)
         cmd = i2c_cmd_link_create();
         i2c_master_start(cmd);
         i2c_master_write_byte(cmd, ina_addr | I2C_MASTER_WRITE, true);
@@ -283,20 +280,55 @@ static void ina219_task (void *pvParameters)
 
             float vbus_v = (bus_reg >> 3) * 0.004f;
             float shunt_mv = shunt_reg * 0.01f;
-            float current_a = (shunt_mv / 1000.0f) / 0.03f; // R = 0.03 ohm
+            float current_a = (shunt_mv / 1000.0f) / 0.03f;
 
             last_vbus_v = vbus_v;
             last_current_a = current_a;
 
-            if(vbus_v > 18.0f) {
-                vin_ok = true;
+            if(vbus_v > 19.0f) {
                 vin_was_ok = true;
-            } else if(vin_was_ok && vbus_v < 12.0f && !(state_get() & (STATE_ALARM|STATE_ESTOP))) {
-                vin_ok = false;
-                system_set_exec_alarm(Alarm_PowerLoss);
+            } else if(vin_was_ok && vbus_v < 18.0f && power_state == Power_On) {
+                vin_was_ok = false;
+                power_state = Power_Alarm;
+                power_lost_during_motion = !!(state_get() & (STATE_CYCLE|STATE_JOG|STATE_HOMING));
+                protocol_enqueue_foreground_task(raise_power_alarm, NULL);
             }
         }
     }
+}
+
+static void raise_power_alarm (void *data)
+{
+    if(power_state == Power_Alarm) {
+        system_raise_alarm(Alarm_MotorFault);
+        task_add_delayed(check_power_restored, NULL, 250);
+    }
+
+    power_state = Power_Lost;
+}
+
+static void check_power_restored (void *data)
+{
+    if(power_state != Power_Lost)
+        return;
+
+    if(last_vbus_v > 19.0f) {
+
+        power_state = Power_On;
+        vin_was_ok = true;
+
+        if(power_lost_during_motion) {
+            power_lost_during_motion = false;
+            report_message("Motor power restored - check workpiece, position may be lost", Message_Info);
+        } else {
+            report_message("Motor power restored", Message_Info);
+
+            if(hal.stepper.status)
+                hal.stepper.status(true);
+        }
+
+    } else
+        task_add_delayed(check_power_restored, NULL, 250);
 }
 #endif
 
@@ -446,9 +478,6 @@ static void ooznest_update_leds (sys_state_t state)
 
 static void ooznest_on_state_change (sys_state_t state)
 {
-    if((state & (STATE_CYCLE|STATE_JOG|STATE_HOMING)) && vin_was_ok && !vin_ok)
-        system_set_exec_alarm(Alarm_PowerLoss);
-
     ooznest_update_leds(state);
 
     if(on_state_change)
@@ -518,8 +547,6 @@ void board_init (void)
 
     task_run_on_startup(ooznest_init_leds, NULL);
 #endif
-
-    alarms_register(&ooznest_alarm_details);
 
     #if I2C_ENABLE
       // POST: Check for I2C DAC
