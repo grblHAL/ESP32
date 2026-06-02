@@ -134,9 +134,9 @@
 // #endif
 
 
-// Neopixel - disabled not enough RMTs for 4 motors and LED
-// #define LED_PIN                 GPIO_NUM_48
-// #define NEOPIXEL_SPI
+// Neopixel
+#define LED_PIN                 GPIO_NUM_48
+#define NEOPIXEL_SPI
 
 
 

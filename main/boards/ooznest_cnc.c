@@ -20,6 +20,8 @@
 #include "grbl/nvs_buffer.h"
 #include "grbl/settings.h"
 #include "grbl/task.h"
+#include "grbl/state_machine.h"
+#include "grbl/alarms.h"
 
 #include "sdcard/sdcard.h"
 
@@ -48,6 +50,20 @@ static struct {
 static float last_vbus_v = 0.0f;
 static float last_current_a = 0.0f;
 #endif
+
+static bool vin_ok = false;
+static bool vin_was_ok = false;
+
+#define Alarm_PowerLoss ((alarm_code_t)22)
+
+static const alarm_detail_t ooznest_alarm_detail[] = {
+    { Alarm_PowerLoss, "Low Input Voltage Alarm: Power input has dropped below the required voltage. Inspect the power supply and ensure stable input voltage before clearing the alarm and unlocking the machine." },
+};
+
+static alarm_details_t ooznest_alarm_details = {
+    .n_alarms = sizeof(ooznest_alarm_detail) / sizeof(alarm_detail_t),
+    .alarms = ooznest_alarm_detail
+};
 
 static bool ooznest_is_setting_available (const setting_detail_t *setting, uint_fast16_t subgroup)
 {
@@ -271,6 +287,14 @@ static void ina219_task (void *pvParameters)
 
             last_vbus_v = vbus_v;
             last_current_a = current_a;
+
+            if(vbus_v > 18.0f) {
+                vin_ok = true;
+                vin_was_ok = true;
+            } else if(vin_was_ok && vbus_v < 12.0f && !(state_get() & (STATE_ALARM|STATE_ESTOP))) {
+                vin_ok = false;
+                system_set_exec_alarm(Alarm_PowerLoss);
+            }
         }
     }
 }
@@ -290,14 +314,176 @@ static void ooznest_on_realtime_report (stream_write_ptr stream_write, report_tr
 #endif
 }
 
-// static void set_leds (void *data)
-// {
-//     if(hal.rgb0.out) {
-//         hal.rgb0.out(0, (rgb_color_t){ .R = 0, .G = 255, .B = 0 }); // Green for OK
-//         if(hal.rgb0.write)
-//             hal.rgb0.write();
-//     }
-// }
+// --- LED Status Control ---
+
+#define LED_OFF     (rgb_color_t){ .R = 0, .G = 0, .B = 0 }
+#define LED_RED     (rgb_color_t){ .R = 255, .G = 0, .B = 0 }
+#define LED_GREEN   (rgb_color_t){ .R = 0, .G = 255, .B = 0 }
+#define LED_BLUE    (rgb_color_t){ .R = 0, .G = 0, .B = 255 }
+#define LED_YELLOW  (rgb_color_t){ .R = 255, .G = 255, .B = 0 }
+#define LED_WHITE   (rgb_color_t){ .R = 255, .G = 255, .B = 255 }
+#define LED_ORANGE  (rgb_color_t){ .R = 255, .G = 102, .B = 0 }
+#define LED_TEAL    (rgb_color_t){ .R = 0, .G = 128, .B = 128 }
+
+static on_state_change_ptr on_state_change;
+static on_program_completed_ptr on_program_completed;
+
+static void rgb_set_all (rgb_color_t color)
+{
+    if(!hal.rgb0.out) return;
+    for(uint16_t device = 0; device < hal.rgb0.num_devices; device++)
+        hal.rgb0.out(device, color);
+    if(hal.rgb0.write)
+        hal.rgb0.write();
+}
+
+static void rgb_set_idle (void)
+{
+    if(!hal.rgb0.out) return;
+    uint16_t num = hal.rgb0.num_devices;
+    hal.rgb0.out(0, LED_GREEN);
+    if(num > 1) hal.rgb0.out(1, LED_ORANGE);
+    if(num > 2) hal.rgb0.out(2, LED_TEAL);
+    for(uint16_t device = 3; device < num; device++) {
+        float t = (float)(device - 3) / (num > 3 ? num - 3 : 1);
+        hal.rgb0.out(device, (rgb_color_t){
+            .R = (uint8_t)(255 + (0 - 255) * t),
+            .G = (uint8_t)(102 + (128 - 102) * t),
+            .B = (uint8_t)(0 + (128 - 0) * t)
+        });
+    }
+    if(hal.rgb0.write)
+        hal.rgb0.write();
+}
+
+// Alarm: running chase left to right
+static void ooznest_led_alarm (void *data)
+{
+    if(!(state_get() & (STATE_ALARM | STATE_ESTOP)))
+        return;
+
+    static uint16_t pos = 0;
+    uint16_t num = hal.rgb0.num_devices;
+
+    for(uint16_t device = 0; device < num; device++) {
+        uint16_t dist = pos > device ? pos - device : device - pos;
+        if(dist == 0)
+            hal.rgb0.out(device, LED_RED);
+        else if(dist == 1)
+            hal.rgb0.out(device, (rgb_color_t){ .R = 160, .G = 0, .B = 0 });
+        else if(dist == 2)
+            hal.rgb0.out(device, (rgb_color_t){ .R = 80, .G = 0, .B = 0 });
+        else
+            hal.rgb0.out(device, (rgb_color_t){ .R = 16, .G = 0, .B = 0 });
+    }
+    if(hal.rgb0.write)
+        hal.rgb0.write();
+
+    if(++pos >= num) pos = 0;
+
+    task_add_delayed(ooznest_led_alarm, NULL, 50);
+}
+
+// Homing: expanding ring from center outward, then reset
+static void ooznest_led_homing (void *data)
+{
+    if(state_get() != STATE_HOMING)
+        return;
+
+    static uint16_t radius = 0;
+    static int8_t dir = 1;
+    uint16_t num = hal.rgb0.num_devices;
+    uint16_t center = num / 2;
+
+    for(uint16_t device = 0; device < num; device++) {
+        uint16_t dist = device < center ? center - device : device - center;
+        hal.rgb0.out(device, dist <= radius ? LED_BLUE : LED_OFF);
+    }
+    if(hal.rgb0.write)
+        hal.rgb0.write();
+
+    if(dir > 0) {
+        if(++radius >= center) dir = -1;
+    } else {
+        if(radius-- == 0) dir = 1;
+    }
+
+    task_add_delayed(ooznest_led_homing, NULL, 60);
+}
+
+static void ooznest_update_leds (sys_state_t state)
+{
+    switch(state) {
+        case STATE_IDLE:
+            rgb_set_idle();
+            break;
+
+        case STATE_ALARM:
+        case STATE_ESTOP:
+            task_add_immediate(ooznest_led_alarm, NULL);
+            break;
+
+        case STATE_HOMING:
+        case STATE_CHECK_MODE:
+            task_add_immediate(ooznest_led_homing, NULL);
+            break;
+
+        case STATE_SAFETY_DOOR:
+            rgb_set_all(LED_YELLOW);
+            break;
+
+        case STATE_CYCLE:
+        case STATE_JOG:
+        case STATE_HOLD:
+        case STATE_SLEEP:
+        case STATE_TOOL_CHANGE:
+        default:
+            rgb_set_all(LED_WHITE);
+            break;
+    }
+}
+
+static void ooznest_on_state_change (sys_state_t state)
+{
+    if((state & (STATE_CYCLE|STATE_JOG|STATE_HOMING)) && vin_was_ok && !vin_ok)
+        system_set_exec_alarm(Alarm_PowerLoss);
+
+    ooznest_update_leds(state);
+
+    if(on_state_change)
+        on_state_change(state);
+}
+
+static void ooznest_job_completed (void *data)
+{
+    static uint8_t flash_count = 0;
+
+    if(flash_count >= 6) {
+        flash_count = 0;
+        ooznest_update_leds(state_get());
+        return;
+    }
+
+    rgb_set_all(flash_count++ % 2 ? LED_OFF : LED_GREEN);
+    if(hal.rgb0.write)
+        hal.rgb0.write();
+
+    task_add_delayed(ooznest_job_completed, NULL, 150);
+}
+
+static void ooznest_on_program_completed (program_flow_t program_flow, bool check_mode)
+{
+    if(!check_mode)
+        task_add_immediate(ooznest_job_completed, NULL);
+
+    if(on_program_completed)
+        on_program_completed(program_flow, check_mode);
+}
+
+static void ooznest_init_leds (void *data)
+{
+    ooznest_update_leds(state_get());
+}
 
 void board_init (void)
 {
@@ -322,7 +508,15 @@ void board_init (void)
     hal.driver_cap.ethernet = On;
     hal.driver_cap.probe2 = On;
 
-    // task_add_immediate(set_leds, NULL);
+    on_state_change = grbl.on_state_change;
+    grbl.on_state_change = ooznest_on_state_change;
+
+    on_program_completed = grbl.on_program_completed;
+    grbl.on_program_completed = ooznest_on_program_completed;
+
+    task_add_immediate(ooznest_init_leds, NULL);
+
+    alarms_register(&ooznest_alarm_details);
 
     #if I2C_ENABLE
       // POST: Check for I2C DAC
