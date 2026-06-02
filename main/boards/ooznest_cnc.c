@@ -314,6 +314,7 @@ static void ooznest_on_realtime_report (stream_write_ptr stream_write, report_tr
 #endif
 }
 
+#if !STATUS_LIGHT_ENABLE
 // --- LED Status Control ---
 
 #define LED_OFF     (rgb_color_t){ .R = 0, .G = 0, .B = 0 }
@@ -484,6 +485,7 @@ static void ooznest_init_leds (void *data)
 {
     ooznest_update_leds(state_get());
 }
+#endif
 
 void board_init (void)
 {
@@ -507,13 +509,15 @@ void board_init (void)
     hal.signals_cap.motor_warning = Off;
     hal.driver_cap.probe2 = On;
 
+#if !STATUS_LIGHT_ENABLE
     on_state_change = grbl.on_state_change;
     grbl.on_state_change = ooznest_on_state_change;
 
     on_program_completed = grbl.on_program_completed;
     grbl.on_program_completed = ooznest_on_program_completed;
 
-    task_add_immediate(ooznest_init_leds, NULL);
+    task_run_on_startup(ooznest_init_leds, NULL);
+#endif
 
     alarms_register(&ooznest_alarm_details);
 
