@@ -318,8 +318,9 @@ static void got_ip_event_handler (void *arg, esp_event_base_t event_base, int32_
 
 bool enet_start (void)
 {
-    if(esp_netif_init() != ESP_OK)
-        return false;
+
+    if(!enet_enabled || esp_netif_init() != ESP_OK)
+      return false;
 
     esp_netif_t *eth_netif;
 
@@ -390,7 +391,7 @@ bool enet_start (void)
     esp_eth_phy_t *phy = esp_eth_phy_new_w5500(&phy_config);
     esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
     esp_eth_handle_t eth_handle = NULL;
-    
+
     ESP_ERROR_CHECK(esp_eth_driver_install(&config, &eth_handle));
 
     if(esp_read_mac(mac_addr, ESP_MAC_ETH) == ESP_OK)
