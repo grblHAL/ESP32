@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2023-2024 Terje Io
+  Copyright (c) 2023-2026 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -80,12 +80,12 @@ static limit_signals_t limitsGetState (void)
     return state;
 }
 
-static void onHomingRateSet (axes_signals_t axes, float rate, homing_mode_t mode)
+static void onHomingRateSet (axes_signals_t axes, coord_data_t *feedrate, homing_mode_t mode)
 {
     homing = axes;
 
     if(on_homing_rate_set)
-        on_homing_rate_set(axes, rate, mode);
+        on_homing_rate_set(axes, feedrate, mode);
 }
 
 static void onHomingCompleted (axes_signals_t cycle, bool success)
