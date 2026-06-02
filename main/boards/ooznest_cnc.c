@@ -505,7 +505,6 @@ void board_init (void)
     }
 
     hal.signals_cap.motor_warning = Off;
-    hal.driver_cap.ethernet = On;
     hal.driver_cap.probe2 = On;
 
     on_state_change = grbl.on_state_change;
@@ -538,6 +537,22 @@ void board_init (void)
           // Start INA219 task natively in grblHAL
           task_add_systick(ina219_task, NULL);
       }
+    #endif
+
+    #if ETHERNET_ENABLE
+
+      gpio_config_t gpioConfig = {
+          .pin_bit_mask = 1ULL << INPUT_GPIO_CS,
+          .mode = GPIO_MODE_INPUT,
+          .pull_up_en = GPIO_PULLUP_DISABLE,
+          .pull_down_en = GPIO_PULLDOWN_ENABLE,
+          .intr_type = GPIO_INTR_DISABLE
+      };
+
+      gpio_config(&gpioConfig);
+
+      hal.driver_cap.ethernet = !!DIGITAL_IN(INPUT_GPIO_CS);
+
     #endif
   }
 

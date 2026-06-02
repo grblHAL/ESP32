@@ -99,16 +99,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //
 
+static bool enet_enabled;
 static char if_name[NETIF_NAMESIZE] = "";
 static stream_type_t active_stream = StreamType_Null;
 static network_settings_t network, ethernet;
 static network_services_t services = {0}, allowed_services;
 static uint32_t nvs_address;
-static on_report_options_ptr on_report_options;
-static on_stream_changed_ptr on_stream_changed;
 static uint8_t mac_addr[6] = {0};
 static esp_netif_ip_info_t *ip_info = NULL;
 static network_flags_t network_status = {};
+
+static on_report_options_ptr on_report_options;
+static on_stream_changed_ptr on_stream_changed;
+static networking_get_info wifi_get_info;
 
 static char netservices[NETWORK_SERVICES_LEN] = "";
 
@@ -167,7 +170,8 @@ static network_info_t *get_info (const char *interface)
     #endif
 
         return &info;
-    }
+    } else if(wifi_get_info)
+        return(wifi_get_info(interface));
 
     return NULL;
 }
@@ -421,21 +425,33 @@ static const setting_group_detail_t ethernet_groups [] = {
     { Group_Root, Group_Networking, "Networking" }
 };
 
+FLASHMEM static bool is_eth_enabled (const setting_detail_t *setting, uint_fast16_t offset)
+{
+#if WIFI_ENABLE
+    if(setting->id == Setting_NetworkServices)
+        return enet_enabled && setting_get_int_value(setting_get_details(Setting_WifiMode, NULL), 0) == WiFiMode_NULL;
+    else
+        return enet_enabled;
+#else
+    return true;
+#endif
+}
+
 static const setting_detail_t ethernet_settings[] = {
-    { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, netservices, NULL, NULL, Setting_NonCoreFn, ethernet_set_services, ethernet_get_services, NULL, { .reboot_required = On } },
-    { Setting_Hostname, Group_Networking, "Hostname", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, ethernet.hostname, NULL, NULL, { .reboot_required = On } },
-    { Setting_IpMode, Group_Networking, "IP Mode", NULL, Format_RadioButtons, "Static,DHCP,AutoIP", NULL, NULL, Setting_NonCore, &ethernet.ip_mode, NULL, NULL, { .reboot_required = On } },
-    { Setting_IpAddress, Group_Networking, "IP Address", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, NULL, { .reboot_required = On } },
-    { Setting_Gateway, Group_Networking, "Gateway", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, NULL, { .reboot_required = On } },
-    { Setting_NetMask, Group_Networking, "Netmask", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, NULL, { .reboot_required = On } },
-    { Setting_TelnetPort, Group_Networking, "Telnet port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.telnet_port, NULL, NULL, { .reboot_required = On } },
+    { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, netservices, NULL, NULL, Setting_NonCoreFn, ethernet_set_services, ethernet_get_services, is_eth_enabled, { .reboot_required = On } },
+    { Setting_Hostname, Group_Networking, "Hostname", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, ethernet.hostname, NULL, is_eth_enabled, { .reboot_required = On } },
+    { Setting_IpMode, Group_Networking, "IP Mode", NULL, Format_RadioButtons, "Static,DHCP,AutoIP", NULL, NULL, Setting_NonCore, &ethernet.ip_mode, NULL, is_eth_enabled, { .reboot_required = On } },
+    { Setting_IpAddress, Group_Networking, "IP Address", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, is_eth_enabled, { .reboot_required = On } },
+    { Setting_Gateway, Group_Networking, "Gateway", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, is_eth_enabled, { .reboot_required = On } },
+    { Setting_NetMask, Group_Networking, "Netmask", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, is_eth_enabled, { .reboot_required = On } },
+    { Setting_TelnetPort, Group_Networking, "Telnet port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.telnet_port, NULL, is_eth_enabled, { .reboot_required = On } },
 #if FTP_ENABLE
-    { Setting_FtpPort, Group_Networking, "FTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.ftp_port, NULL, NULL, { .reboot_required = On } },
+    { Setting_FtpPort, Group_Networking, "FTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.ftp_port, NULL, is_eth_enabled, { .reboot_required = On } },
 #endif
 #if HTTP_ENABLE
-    { Setting_HttpPort, Group_Networking, "HTTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.http_port, NULL, NULL, { .reboot_required = On } },
+    { Setting_HttpPort, Group_Networking, "HTTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.http_port, NULL, is_eth_enabled, { .reboot_required = On } },
 #endif
-    { Setting_WebSocketPort, Group_Networking, "Websocket port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.websocket_port, NULL, NULL, { .reboot_required = On } }
+    { Setting_WebSocketPort, Group_Networking, "Websocket port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.websocket_port, NULL, is_eth_enabled, { .reboot_required = On } }
 };
 
 #ifndef NO_SETTINGS_DESCRIPTIONS
@@ -611,11 +627,11 @@ static void stream_changed (stream_type_t type)
 
 bool enet_init (void)
 {
-    if((nvs_address = nvs_alloc(sizeof(network_settings_t)))) {
+    enet_enabled = hal.driver_cap.ethernet;
+
+    if((hal.driver_cap.ethernet = !!(nvs_address = nvs_alloc(sizeof(network_settings_t))))) {
 
         networking_init();
-
-        hal.driver_cap.ethernet = On;
 
         on_report_options = grbl.on_report_options;
         grbl.on_report_options = report_options;
@@ -625,7 +641,9 @@ bool enet_init (void)
 
         settings_register(&setting_details);
 
+        wifi_get_info = networking.get_info;
         networking.get_info = get_info;
+
         allowed_services.mask = networking_get_services_list((char *)netservices).mask;
     }
 
