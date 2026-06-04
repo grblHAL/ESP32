@@ -11,7 +11,7 @@
 #error "This board has ESP32-S3 processor, select a corresponding build!"
 #endif
 
-#define BOARD_NAME "Ooznest-CNC"
+#define BOARD_NAME "Ooznest-Motion-Control-Core"
 #define BOARD_URL "https://ooznest.co.uk"
 #define HAS_BOARD_INIT
 
@@ -138,6 +138,8 @@
 #define LED_PIN                 GPIO_NUM_48
 #define NEOPIXEL_SPI
 
+// Notor Fault
+#define MOTOR_FAULT_PIN         21
 
 
 

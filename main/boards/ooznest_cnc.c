@@ -207,14 +207,12 @@ static void ooznest_settings_load (void)
         set_current(idx, mks.driver[idx].current);
     } while(idx);
 
-    // settings.control_invert.motor_fault = settings.control_invert.motor_warning = On;
     ioport_setting_changed(Setting_ControlInvertMask);
 }
 
 
 static void ooznest_settings_changed (settings_t *settings, settings_changed_flags_t changed)
 {
-    // settings->control_invert.motor_fault = settings->control_invert.motor_warning = On;
     ioport_setting_changed(Setting_ControlInvertMask);
     if(settings_changed)
         settings_changed(settings, changed);
