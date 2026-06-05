@@ -3341,10 +3341,9 @@ static bool driver_setup (settings_t *settings)
 
 #if ETHERNET_ENABLE
   #if WIFI_ENABLE
-    hal.driver_cap.ethernet &= setting_get_int_value(setting_get_details(Setting_WifiMode, NULL), 0) == WiFiMode_NULL;
+    if((hal.driver_cap.ethernet &= setting_get_int_value(setting_get_details(Setting_WifiMode, NULL), 0) == WiFiMode_NULL))
   #endif
-    if(hal.driver_cap.ethernet)
-        enet_start();
+    enet_start();
 #endif
 
     return IOInitDone;
