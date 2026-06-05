@@ -63,6 +63,19 @@
 #include "esp32s3/clk.h"
 #if USB_SERIAL_CDC
 #include "usb_serial.h"
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
+status_code_t enter_bootloader (sys_state_t state, char *args)
+{
+
+    hal.stream.write("[MSG:Warning: Entering ESP32 Bootloader]" ASCII_EOL);
+    hal.delay_ms(100, NULL);
+
+    REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
+    esp_restart();
+    return Status_OK;
+}
+
 #endif // USB_SERIAL_CDC
 #endif
 
@@ -3405,6 +3418,22 @@ bool driver_init (void)
 
 #if CONFIG_IDF_TARGET_ESP32S3
     hal.info = "ESP32-S3";
+
+    // Register $BOOTLOADER bootloader command
+
+    static const sys_command_t boot_command_list[] = {
+        {"BOOTLOADER", enter_bootloader, { .noargs = On }, { .str = "enter ESP32 bootloader" } }
+    };
+
+    static sys_commands_t boot_commands = {
+        .n_commands = sizeof(boot_command_list) / sizeof(sys_command_t),
+        .commands = boot_command_list
+    };
+
+
+    system_register_commands(&boot_commands);
+
+
 #else
     hal.info = "ESP32";
 #endif
