@@ -36,6 +36,7 @@
 //#define BOARD_MKS_DLC32_MAX_V1        			// Has a ESP32-S3 MCU
 //#define BOARD_MKS_DLC32_V2P0          			//
 //#define BOARD_MKS_TINYBEE_V1          			//
+//#define BOARD_OOZNEST_CNC                         // Has a ESP32-S3 MCU
 //#define BOARD_PIBOT_I2S_6_AXIS        			// PiBot 6-axis I2S board
 //#define BOARD_PROTONEER_3XX           			//
 //#define BOARD_ROOTCNC_PRO             			//
@@ -114,8 +115,18 @@
 //#define TOOLTABLE_ENABLE        1 // Enable file based tool table.
 
 // --- IO expanders: ---
-//#define MCP3221_ENABLE          1 // MCP3221 I2C ADC input, default address is 0x9A (MCP3221_ADDRESS).
-//#define PCA9654E_ENABLE         1 // PCA9654E I2C digital I/O, default address is 0x40 (PCA9654E_ADDRESS).
+//#define MCP3221_ENABLE          1 // MCP3221 I2C 12 bit ADC input, default address is 0x9A (MCP3221_ADDRESS).
+//#define MCP4725_ENABLE          1 // MCP4725 I2C 12 bit DAC output, default address is 0xC0 (MCP3221_ADDRESS).
+//#define MCP23017_ENABLE         1 // MCP23017 I2C 16 channel digital I/O, default address is 0x40 (MCP23017_ADDRESS).
+                                    // 1: Port A as outputs, port B as inputs.
+                                    // 2: Port A and B as outputs.
+                                    // 3: Port A and B as inputs.
+//#define PCA9654E_ENABLE         1 // PCA9654E I2C 8 channel digital out, default address is 0x40 (PCA9654E_ADDRESS).
+//#define HC595_ENABLE            1 // 74HC595 SPI shift register 8 - 32 channel digital outputs.
+                                    // 1:  8 channels.
+                                    // 2: 16 channels.
+                                    // 3: 24 channels.
+                                    // 4: 32 channels.
 //#define FNC_EXPANDER_ENABLE     1 // FluidNC STM32F103 based I/O expander (Airedale)
 
 // Optional control signals:
