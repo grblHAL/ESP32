@@ -263,6 +263,14 @@ static void usb_rx_callback (int itf, cdcacm_event_t *event)
 	}
 }
 
+// never called?
+void usb_line_state_callback (int itf, cdcacm_event_t *event)
+{
+    (void)itf;
+
+    stream_usb_linestate_changed(0, (serial_linestate_t){ .dtr = event->line_state_changed_data.dtr, .rts = event->line_state_changed_data.rts });
+}
+
 const io_stream_t *usb_serialInit (void)
 {
     static const io_stream_t stream = {
@@ -289,7 +297,7 @@ const io_stream_t *usb_serialInit (void)
         .rx_unread_buf_sz = 64,
         .callback_rx = &usb_rx_callback, // the first way to register a callback
         .callback_rx_wanted_char = NULL,
-        .callback_line_state_changed = NULL,
+        .callback_line_state_changed = usb_line_state_callback,
         .callback_line_coding_changed = NULL
     };
 
