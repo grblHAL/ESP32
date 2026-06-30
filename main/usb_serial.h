@@ -27,5 +27,6 @@
 #include "grbl/hal.h"
 
 const io_stream_t *usb_serialInit(void);
+bool usb_serialEnterBootloader (void);
 
 /*EOF*/
