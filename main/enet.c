@@ -77,10 +77,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ip4addr_ntoa_r(ipaddr, buf, buflen) ipaddr_ntoa_r(ipaddr, buf, buflen)
 #endif
 
-#ifndef ip4addr_aton
-#define ip4addr_aton(cp, addr) ipaddr_aton(cp, addr)
-#endif
-
 #ifndef INPUT_GPIO_INTERRUPT
 #define INPUT_GPIO_INTERRUPT 35
 #endif
@@ -123,6 +119,18 @@ static inline void set_addr (char *ip, ip4_addr_t *addr)
 static inline void get_addr (esp_ip4_addr_t *addr, char *ip)
 {
     memcpy(addr, ip, sizeof(esp_ip4_addr_t));
+}
+
+static bool parse_ip4_addr (const char *value, ip4_addr_t *addr)
+{
+    ip_addr_t parsed;
+
+    if(ipaddr_aton(value, &parsed) != 1 || !IP_IS_V4_VAL(parsed))
+        return false;
+
+    *addr = *ip_2_ip4(&parsed);
+
+    return true;
 }
 
 
@@ -430,7 +438,8 @@ FLASHMEM static bool is_eth_enabled (const setting_detail_t *setting, uint_fast1
 #if WIFI_ENABLE
     if(setting->id == Setting_NetworkServices)
         return enet_enabled && setting_get_int_value(setting_get_details(Setting_WifiMode, NULL), 0) == WiFiMode_NULL;
-    else
+
+    return enet_enabled;
 #else
     return enet_enabled;
 #endif
@@ -499,7 +508,7 @@ static status_code_t ethernet_set_ip (setting_id_t setting, char *value)
 {
     ip4_addr_t addr;
 
-    if(ip4addr_aton(value, &addr) != 1)
+    if(!parse_ip4_addr(value, &addr))
         return Status_InvalidStatement;
 
     status_code_t status = Status_OK;
@@ -574,17 +583,17 @@ static void ethernet_settings_restore (void)
 
     ethernet.ip_mode = (ip_mode_t)NETWORK_IPMODE;
 
-    if(ip4addr_aton(NETWORK_IP, &addr) == 1)
+    if(parse_ip4_addr(NETWORK_IP, &addr))
         set_addr(ethernet.ip, &addr);
 
-    if(ip4addr_aton(NETWORK_GATEWAY, &addr) == 1)
+    if(parse_ip4_addr(NETWORK_GATEWAY, &addr))
         set_addr(ethernet.gateway, &addr);
 
 #if NETWORK_IPMODE == 0
-    if(ip4addr_aton(NETWORK_MASK, &addr) == 1)
+    if(parse_ip4_addr(NETWORK_MASK, &addr))
         set_addr(ethernet.mask, &addr);
 #else
-    if(ip4addr_aton("255.255.255.0", &addr) == 1)
+    if(parse_ip4_addr("255.255.255.0", &addr))
         set_addr(ethernet.mask, &addr);
 #endif
 

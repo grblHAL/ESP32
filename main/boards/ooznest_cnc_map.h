@@ -11,12 +11,13 @@
 #error "This board has ESP32-S3 processor, select a corresponding build!"
 #endif
 
-#define BOARD_NAME "Ooznest-CNC"
+#define BOARD_NAME "Ooznest-Motion-Control-Core"
 #define BOARD_URL "https://ooznest.co.uk"
 #define HAS_BOARD_INIT
 
 #define USE_EXPANDERS
-#define HC595_CS_PIN            GPIO_NUM_8
+#define SPI_CS0_PIN             GPIO_NUM_8
+#define HC595_CS_PIN            SPI_CS0_PIN
 
 #define X_STEP_PIN              GPIO_NUM_38
 #define X_DIRECTION_PIN         GPIO_NUM_42
@@ -41,8 +42,6 @@
 #define X_LIMIT_PIN             GPIO_NUM_9
 #define Y_LIMIT_PIN             GPIO_NUM_10
 #define Z_LIMIT_PIN             GPIO_NUM_12
-
-
 
 // I2C - onboard MCP4728 and INA219
 #undef I2C_ENABLE
@@ -70,6 +69,7 @@
 #define AUXOUTPUT1_PIN          GPIO_NUM_2 // Aux signal on GPIO header
 #define AUXOUTPUT2_PIN          GPIO_NUM_14 // Spindle 1 PWM
 #define AUXOUTPUT3_PIN          GPIO_NUM_13 // Spindle PWM
+
 #define AUXINPUT0_PIN           GPIO_NUM_0  // Mode Button
 #define AUXINPUT1_PIN           GPIO_NUM_17 // Probe
 #define AUXINPUT2_PIN           GPIO_NUM_16 // TLS / Probe 2
@@ -123,10 +123,24 @@
 #define SAFETY_DOOR_PIN         AUXINPUT4_PIN
 #endif
 
+// // Define flood and mist coolant enable output pins.
+// #if COOLANT_ENABLE & COOLANT_MIST
+//   #define COOLANT_MIST_PORT      EXPANDER_PORT
+//   #define COOLANT_MIST_PIN       1
+// #endif
+// #if COOLANT_ENABLE & COOLANT_FLOOD
+//   #define COOLANT_FLOOD_PORT      EXPANDER_PORT
+//   #define COOLANT_FLOOD_PIN       4
+// #endif
+
+
 // Neopixel
 #define LED_PIN                 GPIO_NUM_48
-#define NEOPIXEL_DMA_ENABLE     1
-#define NEOPIXELS_NUM           3 // 3 LEDs onboard, port for more offboard
+#define NEOPIXEL_SPI
+
+// Notor Fault
+#define MOTOR_FAULT_PIN         21
+
 
 
 // Not created yet
