@@ -72,6 +72,7 @@ set(SRCS
  grbl/kinematics/wall_plotter.c
  grbl/kinematics/delta.c
  grbl/kinematics/polar.c
+ grbl/kinematics/asymmetric_ganging.c
  littlefs_hal.c
  littlefs/lfs.c
  littlefs/lfs_util.c
