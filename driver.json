@@ -533,12 +533,10 @@
         "wifi": 1,
         "bluetooth": 0,
         "control_inputs": 1,
-        "pio_board": "esp32-s3-devkitc-1",
+        "pio_board": "esp32-s3-devkitc-1"
       },
       "cmake_args": {
         "SDKCONFIG_DEFAULTS": "\"sdkconfig.defaults;sdkconfig.defaults.esp32s3;sdkconfig.ooznest-cnc\""
-      }
-      "symbols": {
       }
     }
   ]
