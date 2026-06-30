@@ -520,7 +520,7 @@
     }, {
       "name": "Ooznest Motion Control Core",
       "symbol": "BOARD_OOZNEST_CNC",
-      "URL": "https://https://ooznest.co.uk/",
+      "URL": "https://ooznest.co.uk/",
       "MAP": "main/boards/ooznest_cnc_map.h",
       "caps": {
         "axes": 4,
@@ -536,6 +536,6 @@
       },
       "symbols": {
       }
-    },
+    }
   ]
 }
