@@ -63,20 +63,18 @@
 #include "esp32s3/clk.h"
 #if USB_SERIAL_CDC
 #include "usb_serial.h"
-#include "soc/soc.h"
-#include "soc/rtc_cntl_reg.h"
 status_code_t enter_bootloader (sys_state_t state, char *args)
 {
+    (void)state;
+    (void)args;
 
     hal.stream.write("[MSG:Warning: Entering ESP32 Bootloader]" ASCII_EOL);
     hal.delay_ms(100, NULL);
 
-    REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
-    esp_restart();
-    return Status_OK;
+    return usb_serialEnterBootloader() ? Status_OK : Status_InvalidStatement;
 }
 
-#endif // USB_SERIAL_CDC
+#endif
 #endif
 
 #if WIFI_ENABLE
