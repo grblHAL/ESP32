@@ -3416,26 +3416,10 @@ bool driver_init (void)
 
 #if CONFIG_IDF_TARGET_ESP32S3
     hal.info = "ESP32-S3";
-
-    // Register $BOOTLOADER bootloader command
-
-    static const sys_command_t boot_command_list[] = {
-        {"BOOTLOADER", enter_bootloader, { .noargs = On }, { .str = "enter ESP32 bootloader" } }
-    };
-
-    static sys_commands_t boot_commands = {
-        .n_commands = sizeof(boot_command_list) / sizeof(sys_command_t),
-        .commands = boot_command_list
-    };
-
-
-    system_register_commands(&boot_commands);
-
-
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "260602";
+    hal.driver_version = "260704";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3519,7 +3503,26 @@ bool driver_init (void)
     grbl.on_execute_realtime = wdt_tickler;
 
 #if USB_SERIAL_CDC
+
     stream_connect(usb_serialInit());
+
+  #if CONFIG_IDF_TARGET_ESP32S3
+
+    // Register $BOOTLOADER bootloader command
+
+    static const sys_command_t boot_command_list[] = {
+        {"BOOTLOADER", enter_bootloader, { .noargs = On }, { .str = "enter ESP32 bootloader" } }
+    };
+
+    static sys_commands_t boot_commands = {
+        .n_commands = sizeof(boot_command_list) / sizeof(sys_command_t),
+        .commands = boot_command_list
+    };
+
+    system_register_commands(&boot_commands);
+
+  #endif
+
 #else
     if(!stream_connect_instance(SERIAL_STREAM, BAUD_RATE))
         while(true); // Cannot boot if no communication channel is available!
