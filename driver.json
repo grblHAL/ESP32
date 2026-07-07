@@ -308,7 +308,7 @@
         {
       "name": "PiBot V5.88 Ultra, 8MB+ flash",
       "symbol": "BOARD_PIBOT_5_88_ULTRA",
-      "URL": "h https://www.pibot.com/cnc-laser-electronics/pibot-fluidnc-grblhal-esp32-s3-6-1-axis-cnc-controller-v5-88-ultra.",
+      "URL": "https://www.pibot.com/cnc-laser-electronics/pibot-fluidnc-grblhal-esp32-s3-6-1-axis-cnc-controller-v5-88-ultra",
       "notes": "Experimental!",
       "MAP": "main/boards/pibot_5_88_ultra_map.h",
       "caps": {
