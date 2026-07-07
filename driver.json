@@ -305,6 +305,30 @@
         "modbus_rtu_dir": 1
       }
     },
+        {
+      "name": "PiBot V5.88 Ultra, 8MB+ flash",
+      "symbol": "BOARD_PIBOT_5_88_ULTRA",
+      "URL": "https://www.pibot.com/cnc-laser-electronics/pibot-fluidnc-grblhal-esp32-s3-6-1-axis-cnc-controller-v5-88-ultra",
+      "notes": "Experimental!",
+      "MAP": "main/boards/pibot_5_88_ultra_map.h",
+      "caps": {
+        "axes": 4,
+        "usb_cdc": 1,
+        "serial_ports": 2,
+        "digital_in": 1,
+        "eeprom": 0,
+        "fram": 0,
+        "i2c": 0,
+        "sdcard": 1,
+        "wifi": 1,
+        "bluetooth": 0,
+        "pio_board": "esp32-s3-devkitc-1",
+        "control_inputs": 1
+      },
+      "cmake_args": {
+        "SDKCONFIG_DEFAULTS": "\"sdkconfig.defaults;sdkconfig_s3_8m\""
+      }
+    },
     {
       "name": "Protoneer v3",
       "symbol": "BOARD_PROTONEER_3XX",

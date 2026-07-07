@@ -38,6 +38,7 @@
 //#define BOARD_MKS_TINYBEE_V1          			//
 //#define BOARD_OOZNEST_CNC                         // Has a ESP32-S3 MCU
 //#define BOARD_PIBOT_I2S_6_AXIS        			// PiBot 6-axis I2S board
+//#define BOARD_PIBOT_5_88_ULTRA        			// Has a ESP32-S3 MCU
 //#define BOARD_PROTONEER_3XX           			//
 //#define BOARD_ROOTCNC_PRO             			//
 //#define BOARD_ROOTCNC_V2              			//
