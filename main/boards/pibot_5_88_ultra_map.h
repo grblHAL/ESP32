@@ -178,25 +178,27 @@
 
 // Define flood and mist coolant enable output pins.
 #if COOLANT_ENABLE & COOLANT_FLOOD
-   #define COOLANT_FLOOD_PIN     AUXOUTPUT2_PIN 
- #endif
+  #define COOLANT_FLOOD_PIN     AUXOUTPUT2_PIN
+#endif
 #if COOLANT_ENABLE & COOLANT_MIST
-  #define COOLANT_MIST_PIN       AUXOUTPUT3_PIN 
+  #define COOLANT_MIST_PIN      AUXOUTPUT3_PIN
 #endif
 
-
 // UART1 (Modbus)
-#ifdef ADD_SERIAL1
 #define SERIAL1_PORT            1
 #define UART1_RX_PIN            GPIO_NUM_11
 #define UART1_TX_PIN            GPIO_NUM_12
+#if MODBUS_ENABLE && (MODBUS_ENABLE & MODBUS_RTU_ENABLED)
+#define MODBUS_RTU_STREAM 1
 #endif
 
-// UART2 (pendant)
-#ifdef ADD_SERIAL2
+// UART2 (pendant, FNC expander)
 #define SERIAL2_PORT
-#define UART1_RX_PIN            GPIO_NUM_35
-#define UART1_TX_PIN            GPIO_NUM_0
+#define UART2_RX_PIN            GPIO_NUM_35
+#define UART2_TX_PIN            GPIO_NUM_0
+#if MPG_ENABLE && !defined(MPG_STREAM)
+#define MPG_STREAM 2
 #endif
-
-
+#if FNC_EXPANDER_ENABLE && !defined(FNC_STREAM)
+#define FNC_STREAM 2
+#endif
