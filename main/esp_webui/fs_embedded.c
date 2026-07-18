@@ -205,5 +205,5 @@ void fs_embedded_mount (void)
         .fstat = fs_stat
     };
 
-    vfs_mount("/embedded", &fs, (vfs_st_mode_t){ .directory = true, .read_only = true, .hidden = true });
+    vfs_mount(NULL, "/embedded", &fs, (vfs_st_mode_t){ .directory = true, .read_only = true, .hidden = true });
 }
