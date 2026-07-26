@@ -68,6 +68,7 @@ set(SRCS
  grbl/utf8.c
  grbl/vfs.c
  grbl/fs_device.c
+ grbl/kinematics/asymmetric_ganging.c
  grbl/kinematics/corexy.c
  grbl/kinematics/wall_plotter.c
  grbl/kinematics/delta.c
@@ -229,6 +230,7 @@ set(MISC_PLUGINS_SOURCE
  plugins/homing_pulloff.c
  plugins/mcp3221.c
  plugins/mcp4725.c
+ plugins/mcp23017.c
  plugins/pca9654e.c
  plugins/pwm_servo_m280.c
  plugins/rgb_led_m150.c

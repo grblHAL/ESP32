@@ -2541,9 +2541,9 @@ IRAM_ATTR static void spindle1SetStateVariable (spindle_ptrs_t *spindle, spindle
         spindle1_off(spindle);
         pwm1_off(spindle);
     } else {
-#ifdef SPINDLE_DIRECTION_PIN
+#ifdef SPINDLE1_DIRECTION_PIN
         if(!spindle->context.pwm->flags.cloned)
-            spindle_dir(state.ccw);
+            spindle1_dir(state.ccw);
 #endif
         if(rpm == 0.0f && spindle->context.pwm->flags.rpm_controlled)
             spindle1_off(spindle);
@@ -3419,7 +3419,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "260704";
+    hal.driver_version = "260726";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;

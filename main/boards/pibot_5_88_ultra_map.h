@@ -111,8 +111,8 @@
 
 
 // AUX
-#define AUXOUTPUT0_PIN          GPIO_NUM_4 // Aux signal on GPIO header
-#define AUXOUTPUT1_PIN          GPIO_NUM_5 // Aux signal on GPIO header
+#define AUXOUTPUT0_PIN          GPIO_NUM_4  // Aux signal on GPIO header
+#define AUXOUTPUT1_PIN          GPIO_NUM_5  // Aux signal on GPIO header
 #define AUXOUTPUT2_PIN          GPIO_NUM_10 // Coolant flood
 #define AUXOUTPUT3_PIN          GPIO_NUM_15 // Coolant mist
 #define AUXOUTPUT4_PIN          GPIO_NUM_45 // Spindle PWM
@@ -121,30 +121,28 @@
 #define AUXOUTPUT7_PIN          GPIO_NUM_7  // +10v forward
 #define AUXOUTPUT8_PIN          GPIO_NUM_8  // +10v reverse
 
-#define AUXINPUT0_PIN           GPIO_NUM_0  // Mode Button
-#define AUXINPUT1_PIN           GPIO_NUM_47 // Probe
-#define AUXINPUT2_PIN           GPIO_NUM_3  // Tool Setter (requires jumper selection first)
+#define AUXINPUT0_PIN           GPIO_NUM_47 // Probe
+#define AUXINPUT1_PIN           GPIO_NUM_3  // Tool Setter (requires jumper selection first)
 #if !M5_LIMIT_ENABLE
-#define AUXINPUT4_PIN           GPIO_NUM_48 // Door pin
+#define AUXINPUT2_PIN           GPIO_NUM_48 // Door pin
 #endif
-
 #if !M4_LIMIT_ENABLE
-#define AUXINPUT5_PIN           GPIO_NUM_36 // TBD
+#define AUXINPUT3_PIN           GPIO_NUM_36 // TBD
 #endif
-
 
 // Spindles
 // reference: (ttps://wiki.pibot.com/doku.php?id=pibot_cnc_laser_series:v588_ultra:pinout_reference:start#pb1
 
 // Primary Spindle = PWM + IOT Relay + 0-10v. Enable and PWM, no DIR
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
-#define SPINDLE_PWM_PIN AUXOUTPUT4_PIN
+#define SPINDLE_PWM_PIN         AUXOUTPUT4_PIN
 #endif
-
 #if (DRIVER_SPINDLE_ENABLE & SPINDLE_ENA)
 #define SPINDLE_ENABLE_PIN      SPINDLE_ENABLE_DUMMY_PIN
 #endif
-
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+//#define SPINDLE_DIRECTION_PIN   AUXOUTPUT1_PIN
+#endif
 
 //Secondary Spindle = Laser Port
 //10V:
@@ -153,27 +151,30 @@
 // output_pin:  AUXOUTPUT6_PIN
 
 #if DRIVER_SPINDLE1_ENABLE & SPINDLE_PWM
-#define DRIVER_SPINDLE1_ENABLE SPINDLE_PWM
-#define SPINDLE1_PWM_PIN        AUXOUTPUT5_PIN
+#define SPINDLE1_PWM_PIN        AUXOUTPUT6_PIN
+#endif
+#if DRIVER_SPINDLE1_ENABLE & SPINDLE_ENABLE
+#define SPINDLE1_ENABLE_PIN     AUXOUTPUT7_PIN
+#endif
+#if DRIVER_SPINDLE1_ENABLE & SPINDLE_DIR
+#define SPINDLE1_DIRECTION_PIN  AUXOUTPUT8_PIN
 #endif
 
 // Inputs
 
 // Probe
 #if PROBE_ENABLE
-#define PROBE_PIN               AUXINPUT1_PIN
+#define PROBE_PIN               AUXINPUT0_PIN
 #endif
 
 // Tool Setter
 #if TOOLSETTER_ENABLE
-#define TOOLSETTER_PIN          AUXINPUT2_PIN
+#define TOOLSETTER_PIN          AUXINPUT1_PIN
 #endif
 
 // Door
-#if SAFETY_DOOR_ENABLE
-#if !M5_LIMIT_ENABLE
-#define SAFETY_DOOR_PIN         AUXINPUT4_PIN
-#endif
+#if SAFETY_DOOR_ENABLE && defined(AUXINPUT2_PIN)
+#define SAFETY_DOOR_PIN         AUXINPUT2_PIN
 #endif
 
 // Define flood and mist coolant enable output pins.
