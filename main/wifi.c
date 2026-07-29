@@ -65,7 +65,6 @@ const static int SCANNING_BIT = BIT1;
 const static int APSTA_BIT = BIT2;
 
 static EventGroupHandle_t wifi_event_group;
-static stream_type_t active_stream = StreamType_Null;
 static network_settings_t network;
 static network_services_t services = {0}, allowed_services;
 static wifi_config_t wifi_sta_config;
@@ -74,8 +73,6 @@ static ap_list_t ap_list = {0};
 static wifi_settings_t wifi;
 static nvs_address_t nvs_address;
 static esp_netif_t *sta_netif = NULL, *ap_netif = NULL;
-static on_report_options_ptr on_report_options;
-static on_stream_changed_ptr on_stream_changed;
 static network_flags_t sta_status = {}, ap_status = {};
 static char netservices[NETWORK_SERVICES_LEN] = "", sta_if_name[NETIF_NAMESIZE] = "", ap_if_name[NETIF_NAMESIZE] = "";
 static char *country_codes[] = {
@@ -100,12 +97,15 @@ static bool validate_country_code (char *country_id)
 
 #if MQTT_ENABLE
 
-static bool mqtt_connected = false;
+static void status_event_publish (network_flags_t changed);
+
 static on_mqtt_client_connected_ptr on_client_connected;
 
 static void mqtt_connection_changed (bool connected)
 {
-    mqtt_connected = connected;
+    ap_status.mqtt_connected = connected;
+
+    status_event_publish((network_flags_t){ .mqtt_connected = On });
 
     if(on_client_connected)
          on_client_connected(connected);
@@ -156,6 +156,8 @@ static network_info_t *get_info (const char *interface)
 
             esp_netif_ip_info_t ip_info;
 
+            info.wifi_mode = interface == sta_if_name ? WiFiMode_STA : WiFiMode_AP;
+
             if(esp_netif_get_mac(netif, bmac) == ESP_OK)
                 strcpy(info.mac, networking_mac_to_string(bmac));
 
@@ -186,80 +188,6 @@ static network_info_t *get_info (const char *interface)
     }
 
     return NULL;
-}
-
-static void reportIP (bool newopt)
-{
-    on_report_options(newopt);
-
-    if(newopt) {
-        hal.stream.write(",WIFI");
-#if FTP_ENABLE
-        if(services.ftp)
-            hal.stream.write(",FTP");
-#endif
-#if WEBDAV_ENABLE
-        if(services.webdav)
-            hal.stream.write(",WebDAV");
-#endif
-#if MDNS_ENABLE
-        if(services.mdns)
-            hal.stream.write(",mDNS");
-#endif
-#if SSDP_ENABLE
-        if(services.ssdp)
-            hal.stream.write(",SSDP");
-#endif
-    } else {
-
-        network_info_t *network;
-
-        if(*sta_if_name && (network = get_info(sta_if_name))) {
-
-            hal.stream.write("[WIFI STA MAC:");
-            hal.stream.write(network->mac);
-            hal.stream.write("]" ASCII_EOL);
-
-            hal.stream.write("[STA IP:");
-            hal.stream.write(network->status.ip);
-            hal.stream.write("]" ASCII_EOL);
-
-#if MQTT_ENABLE
-            char *client_id;
-            if(*(client_id = network->mqtt_client_id)) {
-                hal.stream.write("[MQTT CLIENTID:");
-                hal.stream.write(client_id);
-                hal.stream.write(mqtt_connected ? "]" ASCII_EOL : " (offline)]" ASCII_EOL);
-            }
-#endif
-        }
-
-        if(*ap_if_name && (network = get_info(ap_if_name))) {
-
-            hal.stream.write("[WIFI AP MAC:");
-            hal.stream.write(network->mac);
-            hal.stream.write("]" ASCII_EOL);
-
-            hal.stream.write("[AP IP:");
-            hal.stream.write(network->status.ip);
-            hal.stream.write("]" ASCII_EOL);
-
-#if MQTT_ENABLE
-            char *client_id;
-            if(*(client_id = network->mqtt_client_id)) {
-                hal.stream.write("[MQTT CLIENTID:");
-                hal.stream.write(client_id);
-                hal.stream.write(mqtt_connected ? "]" ASCII_EOL : " (offline)]" ASCII_EOL);
-            }
-#endif
-        }
-
-        if(active_stream == StreamType_Telnet || active_stream == StreamType_WebSocket) {
-            hal.stream.write("[NETCON:");
-            hal.stream.write(active_stream == StreamType_Telnet ? "Telnet" : "Websocket");
-            hal.stream.write("]" ASCII_EOL);
-        }
-    }
 }
 
 #if TELNET_ENABLE || WEBSOCKET_ENABLE || FTP_ENABLE
@@ -346,8 +274,8 @@ static void start_services (bool start_ssdp)
 #endif
 
 #if MQTT_ENABLE
-    if(!mqtt_connected)
-        mqtt_connect(&network.mqtt, get_info(*sta_if_name ? sta_if_name : ap_if_name));
+    if(!ap_status.mqtt_connected)
+        mqtt_connect(get_info(*sta_if_name ? sta_if_name : ap_if_name), &network.mqtt);
 #endif
 
 #if TELNET_ENABLE || WEBSOCKET_ENABLE || FTP_ENABLE
@@ -1319,26 +1247,11 @@ static void wifi_settings_load (void)
         wifi.ap.network.websocket_port++;
 }
 
-static void stream_changed (stream_type_t type)
-{
-    if(type != StreamType_SDCard)
-        active_stream = type;
-
-    if(on_stream_changed)
-        on_stream_changed(type);
-}
-
 bool wifi_init (void)
 {
     if((hal.driver_cap.wifi = (nvs_address = nvs_alloc(sizeof(wifi_settings_t))) != 0)) {
 
         networking_init();
-
-        on_report_options = grbl.on_report_options;
-        grbl.on_report_options = reportIP;
-
-        on_stream_changed = grbl.on_stream_changed;
-        grbl.on_stream_changed = stream_changed;
 
 #if MQTT_ENABLE
         on_client_connected = mqtt_events.on_client_connected;

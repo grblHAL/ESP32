@@ -151,11 +151,28 @@
 #define I2C_CLOCK               100000
 #endif
 
-#ifdef ADD_SERIAL1
+// UART1 (Modbus)
 #define SERIAL1_PORT
 #define UART1_RX_PIN            GPIO_NUM_16
 #define UART1_TX_PIN            GPIO_NUM_15
-#if MODBUS_ENABLE & MODBUS_RTU_DIR_ENABLED
+#if MODBUS_ENABLE & MODBUS_RTU_ENABLED
+#undef MODBUS_ENABLE
+#define MODBUS_RTU_STREAM       1
+#define MODBUS_ENABLE           (MODBUS_RTU_ENABLED|MODBUS_RTU_DIR_ENABLED)
 #define MODBUS_DIRECTION_PIN    GPIO_NUM_14
 #endif
+
+// UART2 (pendant, FNC expander)
+#if !I2C_ENABLE
+#define SERIAL2_PORT
+#define UART2_RX_PIN            GPIO_NUM_27
+#define UART2_TX_PIN            GPIO_NUM_25
+#if MPG_ENABLE && !defined(MPG_STREAM)
+#define MPG_STREAM              2
+#endif
+#if FNC_EXPANDER_ENABLE && !defined(FNC_STREAM)
+#define FNC_STREAM              2
+#endif
+#elif MPG_ENABLE || FNC_EXPANDER_ENABLE
+#error MPG or FluidNC expander cannot be used when I2C is enabled!
 #endif
