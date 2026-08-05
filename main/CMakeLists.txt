@@ -68,6 +68,7 @@ set(SRCS
  grbl/utf8.c
  grbl/vfs.c
  grbl/fs_device.c
+ grbl/fs_ram.c
  grbl/kinematics/asymmetric_ganging.c
  grbl/kinematics/corexy.c
  grbl/kinematics/wall_plotter.c
@@ -184,7 +185,6 @@ set(NETWORKING_SOURCE
  networking/utils.c
  networking/multipartparser.c
  networking/networking.c
- networking/fs_ram.c
  networking/etag.c
  networking/webdav.c
  networking/ssdp.c
