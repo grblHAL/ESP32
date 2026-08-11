@@ -2320,34 +2320,44 @@ bool spindleConfig (spindle_ptrs_t *spindle)
     if(spindle == NULL)
         return false;
 
-    if((spindle->cap.variable = !settings.pwm_spindle.flags.pwm_disable && settings.pwm_spindle.rpm_max > settings.pwm_spindle.rpm_min)) {
+    // NOTE: duty_resolution/timer setup must run before spindle_precompute_pwm_values()
+    // regardless of outcome, since pwm_max_value feeds its clock_hz argument. It used to
+    // live inside the locally-recomputed "cap.variable" gate below, which meant that on
+    // any call where that local condition was false, spindle_precompute_pwm_values() was
+    // never invoked at all -- and since that function is the ONLY place that assigns
+    // spindle->context.pwm, context.pwm stayed NULL. The unconditional dereference of
+    // spindle->context.pwm->flags.enable_out a few lines down (in the false-branch) then
+    // NULL-derefs on the very first such call (Guru Meditation / LoadProhibited).
+    // Fixed to match the Teensy (iMXRT1062) driver's pattern: call
+    // spindle_precompute_pwm_values() unconditionally and branch on its return value --
+    // it already sets spindle->cap.variable AND spindle->context.pwm internally either way.
+    if(pwm_spindle.timer.freq_hz != (uint32_t)settings.pwm_spindle.pwm_freq) {
+        pwm_spindle.timer.freq_hz = (uint32_t)settings.pwm_spindle.pwm_freq;
+        if(pwm_spindle.timer.freq_hz <= 100) {
+#if SOC_LEDC_TIMER_BIT_WIDE_NUM > 14
+            if(pwm_spindle.timer.duty_resolution != LEDC_TIMER_16_BIT) {
+                pwm_spindle.timer.duty_resolution = LEDC_TIMER_16_BIT;
+                ledc_timer_config(&pwm_spindle.timer);
+            }
+#else
+            if(pwm_spindle.timer.duty_resolution != LEDC_TIMER_14_BIT) {
+                pwm_spindle.timer.duty_resolution = LEDC_TIMER_14_BIT;
+                ledc_timer_config(&pwm_spindle.timer);
+            }
+#endif
+        } else if(pwm_spindle.timer.duty_resolution != LEDC_TIMER_10_BIT) {
+            pwm_spindle.timer.duty_resolution = LEDC_TIMER_10_BIT;
+            ledc_timer_config(&pwm_spindle.timer);
+        }
+    }
+
+    pwm_spindle.pwm_max_value = (1UL << pwm_spindle.timer.duty_resolution) - 1;
+    pwm_spindle.spindle_pwm.offset = (settings.pwm_spindle.invert.pwm ? -1 : 1);
+
+    if(spindle_precompute_pwm_values(spindle, &pwm_spindle.spindle_pwm, &settings.pwm_spindle, pwm_spindle.pwm_max_value * settings.pwm_spindle.pwm_freq)) {
 
         spindle->esp32_off = spindleOff;
         spindle->set_state = spindleSetStateVariable;
-
-        if(pwm_spindle.timer.freq_hz != (uint32_t)settings.pwm_spindle.pwm_freq) {
-            pwm_spindle.timer.freq_hz = (uint32_t)settings.pwm_spindle.pwm_freq;
-            if(pwm_spindle.timer.freq_hz <= 100) {
-#if SOC_LEDC_TIMER_BIT_WIDE_NUM > 14
-                if(pwm_spindle.timer.duty_resolution != LEDC_TIMER_16_BIT) {
-                    pwm_spindle.timer.duty_resolution = LEDC_TIMER_16_BIT;
-                    ledc_timer_config(&pwm_spindle.timer);
-                }
-#else
-                if(pwm_spindle.timer.duty_resolution != LEDC_TIMER_14_BIT) {
-                    pwm_spindle.timer.duty_resolution = LEDC_TIMER_14_BIT;
-                    ledc_timer_config(&pwm_spindle.timer);
-                }
-#endif
-            } else if(pwm_spindle.timer.duty_resolution != LEDC_TIMER_10_BIT) {
-                pwm_spindle.timer.duty_resolution = LEDC_TIMER_10_BIT;
-                ledc_timer_config(&pwm_spindle.timer);
-            }
-        }
-
-        pwm_spindle.pwm_max_value = (1UL << pwm_spindle.timer.duty_resolution) - 1;
-        pwm_spindle.spindle_pwm.offset = (settings.pwm_spindle.invert.pwm ? -1 : 1);
-        spindle_precompute_pwm_values(spindle, &pwm_spindle.spindle_pwm, &settings.pwm_spindle, pwm_spindle.pwm_max_value * settings.pwm_spindle.pwm_freq);
 
         ledc_set_freq(pwm_spindle.timer.speed_mode, pwm_spindle.timer.timer_num, pwm_spindle.timer.freq_hz);
 
