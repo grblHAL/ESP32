@@ -1193,66 +1193,66 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out1)
 #endif
 #if Z_GANGED && defined(Z2_STEP_PIN)
                     case Z_AXIS:
-    					rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR_IDX);
-    					rmt_ll_tx_start(&RMT, Z2_MOTOR_IDX);
+                        rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR_IDX);
+                        rmt_ll_tx_start(&RMT, Z2_MOTOR_IDX);
                         break;
 #endif
                 }
 
                 if(step_out1.bits & mask) switch(idx) {
 
-					case X_AXIS:
-						rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
-						rmt_ll_tx_start(&RMT, X_AXIS);
-						break;
+                    case X_AXIS:
+                        rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
+                        rmt_ll_tx_start(&RMT, X_AXIS);
+                        break;
 
-					case Y_AXIS:
-						rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
-						rmt_ll_tx_start(&RMT, Y_AXIS);
-						break;
+                    case Y_AXIS:
+                        rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
+                        rmt_ll_tx_start(&RMT, Y_AXIS);
+                        break;
 #ifdef Z_STEP_PIN
-					case Z_AXIS:
-						rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
-						rmt_ll_tx_start(&RMT, Z_AXIS);
-						break;
+                    case Z_AXIS:
+                        rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
+                        rmt_ll_tx_start(&RMT, Z_AXIS);
+                        break;
 #endif
 #ifdef A_AXIS
-					case A_AXIS:
-						rmt_ll_tx_reset_pointer(&RMT, A_AXIS);
-						rmt_ll_tx_start(&RMT, A_AXIS);
-						break;
+                    case A_AXIS:
+                        rmt_ll_tx_reset_pointer(&RMT, A_AXIS);
+                        rmt_ll_tx_start(&RMT, A_AXIS);
+                        break;
 #endif
 #ifdef B_AXIS
-					case B_AXIS:
-						rmt_ll_tx_reset_pointer(&RMT, B_AXIS);
-						rmt_ll_tx_start(&RMT, B_AXIS);
-						break;
+                    case B_AXIS:
+                        rmt_ll_tx_reset_pointer(&RMT, B_AXIS);
+                        rmt_ll_tx_start(&RMT, B_AXIS);
+                        break;
 #endif
 #ifdef C_AXIS
-					case C_AXIS:
-						rmt_ll_tx_reset_pointer(&RMT, C_AXIS);
-						rmt_ll_tx_start(&RMT, C_AXIS);
-						break;
+                    case C_AXIS:
+                        rmt_ll_tx_reset_pointer(&RMT, C_AXIS);
+                        rmt_ll_tx_start(&RMT, C_AXIS);
+                        break;
 #endif
 #ifdef U_AXIS
-					case U_AXIS:
-						rmt_ll_tx_reset_pointer(&RMT, U_AXIS);
-						rmt_ll_tx_start(&RMT, U_AXIS);
-						break;
+                    case U_AXIS:
+                        rmt_ll_tx_reset_pointer(&RMT, U_AXIS);
+                        rmt_ll_tx_start(&RMT, U_AXIS);
+                        break;
 #endif
 #ifdef V_AXIS
-					case V_AXIS:
-						rmt_ll_tx_reset_pointer(&RMT, V_AXIS);
-						rmt_ll_tx_start(&RMT, V_AXIS);
-						break;
+                    case V_AXIS:
+                        rmt_ll_tx_reset_pointer(&RMT, V_AXIS);
+                        rmt_ll_tx_start(&RMT, V_AXIS);
+                        break;
 #endif
 #ifdef W_AXIS
-					case W_AXIS:
-						rmt_ll_tx_reset_pointer(&RMT, W_AXIS);
-						rmt_ll_tx_start(&RMT, W_AXIS);
-						break;
+                    case W_AXIS:
+                        rmt_ll_tx_reset_pointer(&RMT, W_AXIS);
+                        rmt_ll_tx_start(&RMT, W_AXIS);
+                        break;
 #endif
-				}
+                }
             }
             mask <<= 1;
         }
@@ -1347,16 +1347,16 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out)
 {
 #if STEP_INJECT_ENABLE
 /*
-	uint32_t mask;
+    uint32_t mask;
 
-	if(step_pulse.inject.out.z) {
-		mask = 1 << (Z_AXIS * 3);
-		if(RMT.int_raw.val & mask) {
-			step_pulse.inject.out.z = Off;
-			RMT.int_raw.val = mask;
-		}
-		step_pulse.inject.axes.bits = step_pulse.inject.claimed.bits;
-	}
+    if(step_pulse.inject.out.z) {
+        mask = 1 << (Z_AXIS * 3);
+        if(RMT.int_raw.val & mask) {
+            step_pulse.inject.out.z = Off;
+            RMT.int_raw.val = mask;
+        }
+        step_pulse.inject.axes.bits = step_pulse.inject.claimed.bits;
+    }
 */
     axes_signals_t axes = { .bits = step_pulse.inject.axes.bits };
 
@@ -1387,11 +1387,11 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out)
                     break;
 #if defined(Z_STEP_PIN)
                 case Z_AXIS:
-					rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
-					rmt_ll_tx_start(&RMT, Z_AXIS);
+                    rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
+                    rmt_ll_tx_start(&RMT, Z_AXIS);
   #if Z_GANGED && defined(Z2_STEP_PIN)
-					rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR_IDX);
-					rmt_ll_tx_start(&RMT, Z2_MOTOR_IDX);
+                    rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR_IDX);
+                    rmt_ll_tx_start(&RMT, Z2_MOTOR_IDX);
   #endif
                     break;
 #endif
@@ -1414,22 +1414,22 @@ inline IRAM_ATTR static void set_step_outputs (axes_signals_t step_out)
                     break;
 #endif
 #ifdef U_AXIS
-				case U_AXIS:
-					rmt_ll_tx_reset_pointer(&RMT, U_AXIS);
-					rmt_ll_tx_start(&RMT, U_AXIS);
-					break;
+                case U_AXIS:
+                    rmt_ll_tx_reset_pointer(&RMT, U_AXIS);
+                    rmt_ll_tx_start(&RMT, U_AXIS);
+                    break;
 #endif
 #ifdef V_AXIS
-				case V_AXIS:
-					rmt_ll_tx_reset_pointer(&RMT, V_AXIS);
-					rmt_ll_tx_start(&RMT, V_AXIS);
-					break;
+                case V_AXIS:
+                    rmt_ll_tx_reset_pointer(&RMT, V_AXIS);
+                    rmt_ll_tx_start(&RMT, V_AXIS);
+                    break;
 #endif
 #ifdef W_AXIS
-				case W_AXIS:
-					rmt_ll_tx_reset_pointer(&RMT, W_AXIS);
-					rmt_ll_tx_start(&RMT, W_AXIS);
-					break;
+                case W_AXIS:
+                    rmt_ll_tx_reset_pointer(&RMT, W_AXIS);
+                    rmt_ll_tx_start(&RMT, W_AXIS);
+                    break;
 #endif
             }
             mask <<= 1;
@@ -1526,7 +1526,7 @@ static void stepperClaimMotor (uint_fast8_t axis_id, bool claim)
 
 void stepperOutputStep (axes_signals_t step_out, axes_signals_t dir_out)
 {
-	if(step_out.bits) {
+    if(step_out.bits) {
 
         uint_fast8_t idx = N_AXIS - 1, mask = 1 << (N_AXIS - 1);
         axes_signals_t axes = { .bits = step_out.bits };
@@ -1542,87 +1542,87 @@ void stepperOutputStep (axes_signals_t step_out, axes_signals_t dir_out)
 
                 switch(idx) {
 
-					case X_AXIS:
-						DIGITAL_OUT(X_DIRECTION_PIN, dir_out.x);
+                    case X_AXIS:
+                        DIGITAL_OUT(X_DIRECTION_PIN, dir_out.x);
 #if X_GANGED
-						DIGITAL_OUT(X2_DIRECTION_PIN, dir_out.x ^ settings.steppers.ganged_dir_invert.x);
+                        DIGITAL_OUT(X2_DIRECTION_PIN, dir_out.x ^ settings.steppers.ganged_dir_invert.x);
 #endif
-			            rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
-			            rmt_ll_tx_start(&RMT, X_AXIS);
+                        rmt_ll_tx_reset_pointer(&RMT, X_AXIS);
+                        rmt_ll_tx_start(&RMT, X_AXIS);
 #if X_GANGED
-			            rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR_IDX);
-			            rmt_ll_tx_start(&RMT, X2_MOTOR_IDX);
+                        rmt_ll_tx_reset_pointer(&RMT, X2_MOTOR_IDX);
+                        rmt_ll_tx_start(&RMT, X2_MOTOR_IDX);
 #endif
-						break;
+                        break;
 
-					case Y_AXIS:
-						DIGITAL_OUT(Y_DIRECTION_PIN, dir_out.y);
+                    case Y_AXIS:
+                        DIGITAL_OUT(Y_DIRECTION_PIN, dir_out.y);
 #if Y_GANGED
-						DIGITAL_OUT(Y2_DIRECTION_PIN, dir_out.y ^ settings.steppers.ganged_dir_invert.y);
+                        DIGITAL_OUT(Y2_DIRECTION_PIN, dir_out.y ^ settings.steppers.ganged_dir_invert.y);
 #endif
-			            rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
-			            rmt_ll_tx_start(&RMT, Y_AXIS);
+                        rmt_ll_tx_reset_pointer(&RMT, Y_AXIS);
+                        rmt_ll_tx_start(&RMT, Y_AXIS);
 #if Y_GANGED
-			            rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR_IDX);
-			            rmt_ll_tx_start(&RMT, Y2_MOTOR_IDX);
+                        rmt_ll_tx_reset_pointer(&RMT, Y2_MOTOR_IDX);
+                        rmt_ll_tx_start(&RMT, Y2_MOTOR_IDX);
 #endif
-						break;
+                        break;
 
 #ifdef Z_STEP_PIN
-					case Z_AXIS:
-						DIGITAL_OUT(Z_DIRECTION_PIN, dir_out.z);
+                    case Z_AXIS:
+                        DIGITAL_OUT(Z_DIRECTION_PIN, dir_out.z);
   #if Z_GANGED
-						DIGITAL_OUT(Z2_DIRECTION_PIN, dir_out.z ^ settings.steppers.ganged_dir_invert.z);
+                        DIGITAL_OUT(Z2_DIRECTION_PIN, dir_out.z ^ settings.steppers.ganged_dir_invert.z);
   #endif
-						rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
-						rmt_ll_tx_start(&RMT, Z_AXIS);
+                        rmt_ll_tx_reset_pointer(&RMT, Z_AXIS);
+                        rmt_ll_tx_start(&RMT, Z_AXIS);
   #if Z_GANGED
-						rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR_IDX);
-						rmt_ll_tx_start(&RMT, Z2_MOTOR_IDX);
+                        rmt_ll_tx_reset_pointer(&RMT, Z2_MOTOR_IDX);
+                        rmt_ll_tx_start(&RMT, Z2_MOTOR_IDX);
   #endif
-						break;
+                        break;
 #endif
 #ifdef A_AXIS
-					case A_AXIS:
-						DIGITAL_OUT(A_DIRECTION_PIN, dir_out.a);
-			            rmt_ll_tx_reset_pointer(&RMT, A_AXIS);
-			            rmt_ll_tx_start(&RMT, A_AXIS);
-						break;
+                    case A_AXIS:
+                        DIGITAL_OUT(A_DIRECTION_PIN, dir_out.a);
+                        rmt_ll_tx_reset_pointer(&RMT, A_AXIS);
+                        rmt_ll_tx_start(&RMT, A_AXIS);
+                        break;
 #endif
 #ifdef B_AXIS
-					case B_AXIS:
-						DIGITAL_OUT(B_DIRECTION_PIN, dir_out.b);
-			            rmt_ll_tx_reset_pointer(&RMT, B_AXIS);
-			            rmt_ll_tx_start(&RMT, B_AXIS);
-						break;
+                    case B_AXIS:
+                        DIGITAL_OUT(B_DIRECTION_PIN, dir_out.b);
+                        rmt_ll_tx_reset_pointer(&RMT, B_AXIS);
+                        rmt_ll_tx_start(&RMT, B_AXIS);
+                        break;
 #endif
 #ifdef C_AXIS
-					case C_AXIS:
-						DIGITAL_OUT(C_DIRECTION_PIN, dir_out.c);
-			            rmt_ll_tx_reset_pointer(&RMT, C_AXIS);
-			            rmt_ll_tx_start(&RMT, C_AXIS);
-						break;
+                    case C_AXIS:
+                        DIGITAL_OUT(C_DIRECTION_PIN, dir_out.c);
+                        rmt_ll_tx_reset_pointer(&RMT, C_AXIS);
+                        rmt_ll_tx_start(&RMT, C_AXIS);
+                        break;
 #endif
 #ifdef U_AXIS
-					case U_AXIS:
-						DIGITAL_OUT(U_DIREWTION_PIN, dir_out.u);
-			            rmt_ll_tx_reset_pointer(&RMT, U_AXIS);
-			            rmt_ll_tx_start(&RMT, U_AXIS);
-						break;
+                    case U_AXIS:
+                        DIGITAL_OUT(U_DIREWTION_PIN, dir_out.u);
+                        rmt_ll_tx_reset_pointer(&RMT, U_AXIS);
+                        rmt_ll_tx_start(&RMT, U_AXIS);
+                        break;
 #endif
 #ifdef V_AXIS
-					case V_AXIS:
-						DIGITAL_OUT(V_DIREWTION_PIN, dir_out.v);
-			            rmt_ll_tx_reset_pointer(&RMT, V_AXIS);
-			            rmt_ll_tx_start(&RMT, V_AXIS);
-						break;
+                    case V_AXIS:
+                        DIGITAL_OUT(V_DIREWTION_PIN, dir_out.v);
+                        rmt_ll_tx_reset_pointer(&RMT, V_AXIS);
+                        rmt_ll_tx_start(&RMT, V_AXIS);
+                        break;
 #endif
 #ifdef W_AXIS
-					case W_AXIS:
-						DIGITAL_OUT(W_DIREWTION_PIN, dir_out.w);
-			            rmt_ll_tx_reset_pointer(&RMT, W_AXIS);
-			            rmt_ll_tx_start(&RMT, W_AXIS);
-						break;
+                    case W_AXIS:
+                        DIGITAL_OUT(W_DIREWTION_PIN, dir_out.w);
+                        rmt_ll_tx_reset_pointer(&RMT, W_AXIS);
+                        rmt_ll_tx_start(&RMT, W_AXIS);
+                        break;
 #endif
                 }
             }
@@ -2319,6 +2319,7 @@ bool spindleConfig (spindle_ptrs_t *spindle)
 {
     if(spindle == NULL)
         return false;
+
     if(pwm_spindle.timer.freq_hz != (uint32_t)settings.pwm_spindle.pwm_freq) {
         pwm_spindle.timer.freq_hz = (uint32_t)settings.pwm_spindle.pwm_freq;
         if(pwm_spindle.timer.freq_hz <= 100) {
@@ -2472,7 +2473,7 @@ IRAM_ATTR static void spindle1SetState (spindle_ptrs_t *spindle, spindle_state_t
     }
 }
 
-#if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
+#if DRIVER_SPINDLE1_ENABLE & SPINDLE_PWM
 
 // Variable spindle control functions
 
@@ -2496,7 +2497,7 @@ IRAM_ATTR static void spindle1SetSpeed (spindle_ptrs_t *spindle, uint_fast16_t p
     if(pwm_value == spindle->context.pwm->off_value) {
 
         if(spindle->context.pwm->flags.rpm_controlled) {
-            spindle_off(spindle);
+            spindle1_off(spindle);
             if(spindle->context.pwm->flags.laser_off_overdrive) {
                 ledc_set_duty(pwm_spindle1.channel.speed_mode, pwm_spindle1.channel.channel, spindle->context.pwm->settings->invert.pwm ? pwm_spindle1.pwm_max_value - pwm_value : pwm_value);
                 ledc_update_duty(pwm_spindle1.channel.speed_mode, pwm_spindle1.channel.channel);
@@ -2514,7 +2515,7 @@ IRAM_ATTR static void spindle1SetSpeed (spindle_ptrs_t *spindle, uint_fast16_t p
          ledc_update_duty(pwm_spindle1.channel.speed_mode, pwm_spindle1.channel.channel);
 #endif
          if(!spindle->context.pwm->flags.enable_out && spindle->context.pwm->flags.rpm_controlled)
-             spindle_on(spindle);
+             spindle1_on(spindle);
     }
 }
 
@@ -2557,45 +2558,43 @@ bool spindle1Config (spindle_ptrs_t *spindle)
     if(spindle == NULL)
         return false;
 
-    if((spindle->cap.variable = !pwm_spindle1.config->cfg.flags.pwm_disable && pwm_spindle1.config->cfg.rpm_max > pwm_spindle1.config->cfg.rpm_min)) {
+    if(pwm_spindle1.timer.freq_hz != (uint32_t)pwm_spindle1.config->cfg.pwm_freq) {
+        pwm_spindle1.timer.freq_hz = (uint32_t)pwm_spindle1.config->cfg.pwm_freq;
+        if(pwm_spindle1.timer.freq_hz <= 100) {
+#if SOC_LEDC_TIMER_BIT_WIDE_NUM > 14
+            if(pwm_spindle1.timer.duty_resolution != LEDC_TIMER_16_BIT) {
+                pwm_spindle1.timer.duty_resolution = LEDC_TIMER_16_BIT;
+                ledc_timer_config(&pwm_spindle1.timer);
+            }
+#else
+            if(pwm_spindle1.timer.duty_resolution != LEDC_TIMER_14_BIT) {
+                pwm_spindle1.timer.duty_resolution = LEDC_TIMER_14_BIT;
+                ledc_timer_config(&pwm_spindle1.timer);
+            }
+#endif
+        } else if(pwm_spindle1.timer.duty_resolution != LEDC_TIMER_10_BIT) {
+            pwm_spindle1.timer.duty_resolution = LEDC_TIMER_10_BIT;
+            ledc_timer_config(&pwm_spindle1.timer);
+        }
+    }
+
+    pwm_spindle1.pwm_max_value = (1UL << pwm_spindle1.timer.duty_resolution) - 1;
+    pwm_spindle1.spindle_pwm.offset = (pwm_spindle1.config->cfg.invert.pwm ? -1 : 1);
+
+    if(spindle_precompute_pwm_values(spindle, &pwm_spindle1.spindle_pwm, &pwm_spindle1.config->cfg, pwm_spindle1.pwm_max_value * pwm_spindle1.config->cfg.pwm_freq)) {
 
         spindle->esp32_off = spindle1Off;
         spindle->set_state = spindle1SetStateVariable;
-
-        if(pwm_spindle1.timer.freq_hz != (uint32_t)pwm_spindle1.config->cfg.pwm_freq) {
-            pwm_spindle1.timer.freq_hz = (uint32_t)pwm_spindle1.config->cfg.pwm_freq;
-            if(pwm_spindle1.timer.freq_hz <= 100) {
-#if SOC_LEDC_TIMER_BIT_WIDE_NUM > 14
-                if(pwm_spindle1.timer.duty_resolution != LEDC_TIMER_16_BIT) {
-                    pwm_spindle1.timer.duty_resolution = LEDC_TIMER_16_BIT;
-                    ledc_timer_config(&pwm_spindle1.timer);
-                }
-#else
-                if(pwm_spindle1.timer.duty_resolution != LEDC_TIMER_14_BIT) {
-                    pwm_spindle1.timer.duty_resolution = LEDC_TIMER_14_BIT;
-                    ledc_timer_config(&pwm_spindle1.timer);
-                }
-#endif
-            } else if(pwm_spindle1.timer.duty_resolution != LEDC_TIMER_10_BIT) {
-                pwm_spindle1.timer.duty_resolution = LEDC_TIMER_10_BIT;
-                ledc_timer_config(&pwm_spindle1.timer);
-            }
-        }
-
-        pwm_spindle1.pwm_max_value = (1UL << pwm_spindle1.timer.duty_resolution) - 1;
-        pwm_spindle1.spindle_pwm.offset = (pwm_spindle1.config->cfg.invert.pwm ? -1 : 1);
-        spindle_precompute_pwm_values(spindle, &pwm_spindle1.spindle_pwm, &pwm_spindle1.config->cfg, pwm_spindle1.pwm_max_value * pwm_spindle1.config->cfg.pwm_freq);
-
         ledc_set_freq(pwm_spindle1.timer.speed_mode, pwm_spindle1.timer.timer_num, pwm_spindle1.timer.freq_hz);
 
 #if PPI_ENABLE
-            if(ppi_spindle == NULL && ppi_timer) {
-                spindle->pulse_on = spindlePulseOn;
-                ppi_spindle = spindle;
-                ppi_spindle_on = spindle1_on;
-                ppi_spindle_off = spindle1_off;
-            } else if(ppi_spindle != spindle)
-                spindle->pulse_on = NULL;
+        if(ppi_spindle == NULL && ppi_timer) {
+            spindle->pulse_on = spindlePulseOn;
+            ppi_spindle = spindle;
+            ppi_spindle_on = spindle1_on;
+            ppi_spindle_off = spindle1_off;
+        } else if(ppi_spindle != spindle)
+            spindle->pulse_on = NULL;
 #endif
     } else {
         if(spindle->context.pwm->flags.enable_out)
@@ -2791,8 +2790,8 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
         if(!bluetooth_ok)
             bluetooth_ok = bluetooth_start_local();
   #if MPG_ENABLE == 2 && MPG_STREAM == 20
-		if(bluetooth_ok && !hal.driver_cap.mpg_mode)
-			hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, stream_mpg_check_enable);
+        if(bluetooth_ok && !hal.driver_cap.mpg_mode)
+            hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, stream_mpg_check_enable);
   #endif
 #endif
 
@@ -3218,7 +3217,7 @@ static bool driver_setup (settings_t *settings)
     uint32_t idx;
     for(idx = 0; idx < (N_AXIS + N_GANGED); idx++) {
 #ifndef Z_STEP_PIN
-    	if(idx != Z_AXIS)
+        if(idx != Z_AXIS)
 #endif
         rmt_set_source_clk(idx, RMT_BASECLK_APB);
     }
@@ -3417,7 +3416,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "260726";
+    hal.driver_version = "260811";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3543,7 +3542,7 @@ bool driver_init (void)
 
 #if NVSDATA_BUFFER_ENABLE
     if(hal.nvs.type != NVS_None)
-    	nvs_buffer_alloc(); // Reallocate memory block for NVS buffer
+        nvs_buffer_alloc(); // Reallocate memory block for NVS buffer
 #endif
 
 #if DRIVER_SPINDLE_ENABLE
