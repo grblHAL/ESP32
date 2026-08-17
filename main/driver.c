@@ -163,7 +163,7 @@ static pwm_spindle_t pwm_spindle = {
     .channel = {
         .gpio_num = SPINDLE_PWM_PIN,
 #if CONFIG_IDF_TARGET_ESP32S3
-        .speed_mode = LEDC_SPEED_MODE_MAX,
+        .speed_mode = LEDC_LOW_SPEED_MODE,
 #else
         .speed_mode = LEDC_HIGH_SPEED_MODE,
 #endif
@@ -199,7 +199,7 @@ static pwm_spindle_t pwm_spindle1 = {
     .channel = {
         .gpio_num = SPINDLE1_PWM_PIN,
 #if CONFIG_IDF_TARGET_ESP32S3
-        .speed_mode = LEDC_SPEED_MODE_MAX,
+        .speed_mode = LEDC_LOW_SPEED_MODE,
 #else
         .speed_mode = LEDC_HIGH_SPEED_MODE,
 #endif
