@@ -46,7 +46,7 @@ static bool busy = false;
 static neopixel_cfg_t neopixel = { .intensity = 255 };
 static spi_device_handle_t handle = NULL;
 
-static settings_changed_ptr settings_changed;
+static settings_changed_ptr on_settings_changed;
 
 static inline void _write (void)
 {
@@ -129,8 +129,7 @@ void onSettingsChanged (settings_t *settings, settings_changed_flags_t changed)
         rgb_clear(&hal.rgb0);
     }
 
-    if(settings_changed)
-        settings_changed(settings, changed);
+    on_settings_changed(settings, changed);
 }
 
 void post_cb (spi_transaction_t *t)
@@ -202,8 +201,8 @@ void neopixel_spi_init (void)
             hal.rgb0.flags = (rgb_properties_t){ .is_strip = On };
             hal.rgb0.cap = (rgb_color_t){ .R = 255, .G = 255, .B = 255 };
 
-            settings_changed = hal.settings_changed;
-            hal.settings_changed = onSettingsChanged;
+            on_settings_changed = grbl.on_settings_changed;
+            grbl.on_settings_changed = onSettingsChanged;
         }
     }
 }

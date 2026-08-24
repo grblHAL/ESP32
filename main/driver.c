@@ -2773,7 +2773,7 @@ gpio_int_type_t map_intr_type (pin_irq_mode_t mode)
 }
 
 // Configures perhipherals when settings are initialized or changed
-static void settings_changed (settings_t *settings, settings_changed_flags_t changed)
+static void on_settings_changed (settings_t *settings, settings_changed_flags_t changed)
 {
     if(IOInitDone) {
 
@@ -3324,7 +3324,7 @@ static bool driver_setup (settings_t *settings)
 
     IOInitDone = settings->version.id == 23;
 
-    hal.settings_changed(settings, (settings_changed_flags_t){0});
+    grbl.on_settings_changed(settings, (settings_changed_flags_t){0});
     hal.stepper.go_idle(true);
 
 #if USE_I2S_OUT && defined(SPINDLE_PWM_PIN)
@@ -3438,7 +3438,7 @@ bool driver_init (void)
     hal.timer.start = timerStart;
     hal.timer.stop = timerStop;
 
-    hal.settings_changed = settings_changed;
+    grbl.on_settings_changed = on_settings_changed;
 
 #if USE_I2S_OUT
     hal.step_us_min = I2S_OUT_USEC_PER_PULSE;
