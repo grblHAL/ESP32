@@ -105,8 +105,6 @@ static uint8_t mac_addr[6] = {0};
 static esp_netif_ip_info_t *ip_info = NULL;
 static network_flags_t network_status = {};
 
-static on_report_options_ptr on_report_options;
-static on_stream_changed_ptr on_stream_changed;
 static networking_get_info wifi_get_info;
 
 static char netservices[NETWORK_SERVICES_LEN] = "";
@@ -182,39 +180,6 @@ static network_info_t *get_info (const char *interface)
         return(wifi_get_info(interface));
 
     return NULL;
-}
-
-static void report_options (bool newopt)
-{
-    on_report_options(newopt);
-
-    if(newopt) {
-        hal.stream.write(",ETH");
-#if FTP_ENABLE
-        if(services.ftp)
-            hal.stream.write(",FTP");
-#endif
-    } else {
-
-        network_info_t *network;
-
-        if((network = get_info(if_name))) {
-
-            hal.stream.write("[MAC:");
-            hal.stream.write(network->mac);
-            hal.stream.write("]" ASCII_EOL);
-
-            hal.stream.write("[IP:");
-            hal.stream.write(network->status.ip);
-            hal.stream.write("]" ASCII_EOL);
-
-            if(active_stream == StreamType_Telnet || active_stream == StreamType_WebSocket) {
-                hal.stream.write("[NETCON:");
-                hal.stream.write(active_stream == StreamType_Telnet ? "Telnet" : "Websocket");
-                hal.stream.write("]" ASCII_EOL);
-            }
-        }
-    }
 }
 
 static void status_event_out (void *data)
@@ -624,15 +589,6 @@ static void ethernet_settings_load (void)
     ethernet.services.mask &= allowed_services.mask;
 }
 
-static void stream_changed (stream_type_t type)
-{
-    if(type != StreamType_SDCard)
-        active_stream = type;
-
-    if(on_stream_changed)
-        on_stream_changed(type);
-}
-
 bool enet_init (void)
 {
     enet_enabled = hal.driver_cap.ethernet;
@@ -640,12 +596,6 @@ bool enet_init (void)
     if((hal.driver_cap.ethernet = !!(nvs_address = nvs_alloc(sizeof(network_settings_t))))) {
 
         networking_init();
-
-        on_report_options = grbl.on_report_options;
-        grbl.on_report_options = report_options;
-
-        on_stream_changed = grbl.on_stream_changed;
-        grbl.on_stream_changed = stream_changed;
 
         settings_register(&setting_details);
 

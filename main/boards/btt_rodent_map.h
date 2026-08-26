@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2024 Terje Io
+  Copyright (c) 2024-2026 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -83,7 +83,9 @@
 
 #define AUXOUTPUT0_PIN          GPIO_NUM_25 // Spindle enable
 #define AUXOUTPUT1_PIN          GPIO_NUM_13 // Spindle PWM
+#if !MODBUS_ENABLE
 #define AUXOUTPUT2_PIN          GPIO_NUM_15 // Spindle direction
+#endif
 #define AUXOUTPUT3_PIN          GPIO_NUM_2  // Coolant flood
 #define AUXOUTPUT4_PIN          GPIO_NUM_4  // Coolant mist
 
@@ -91,11 +93,22 @@
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_PWM
 #define SPINDLE_PWM_PIN         AUXOUTPUT1_PIN
 #endif
-#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
-#define SPINDLE_DIRECTION_PIN   AUXOUTPUT2_PIN
-#endif
 #if DRIVER_SPINDLE_ENABLE & SPINDLE_ENA
 #define SPINDLE_ENABLE_PIN      AUXOUTPUT0_PIN
+#endif
+#if DRIVER_SPINDLE_ENABLE & SPINDLE_DIR
+#ifdef AUXOUTPUT2_PIN
+#define SPINDLE_DIRECTION_PIN   AUXOUTPUT2_PIN
+#else
+#undef DRIVER_SPINDLE_ENABLE
+#if defined(SPINDLE_PWM_PIN) && defined(SPINDLE_ENABLE_PIN)
+#define DRIVER_SPINDLE_ENABLE (SPINDLE_PWM|SPINDLE_ENA)
+#elif defined(SPINDLE_PWM_PIN))
+#define DRIVER_SPINDLE_ENABLE SPINDLE_PWM
+#else
+#define DRIVER_SPINDLE_ENABLE SPINDLE_ENA
+#endif
+#endif
 #endif
 
 // Define flood and mist coolant enable output pins.

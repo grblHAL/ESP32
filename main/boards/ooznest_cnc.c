@@ -40,7 +40,7 @@ typedef struct {
 
 static ooznest_settings_t mks;
 static nvs_address_t nvs_address;
-static settings_changed_ptr settings_changed;
+static settings_changed_ptr on_settings_changed;
 static on_realtime_report_ptr prev_realtime_report;
 
 static struct {
@@ -214,8 +214,8 @@ static void ooznest_settings_load (void)
 static void ooznest_settings_changed (settings_t *settings, settings_changed_flags_t changed)
 {
     ioport_setting_changed(Setting_ControlInvertMask);
-    if(settings_changed)
-        settings_changed(settings, changed);
+
+    on_settings_changed(settings, changed);
 
 }
 
@@ -523,9 +523,9 @@ void board_init (void)
     nvs_address = nvs_alloc(sizeof(ooznest_settings_t));
     settings_register(&setting_details);
 
-    if (hal.settings_changed != ooznest_settings_changed) {
-        settings_changed = hal.settings_changed;
-        hal.settings_changed = ooznest_settings_changed;
+    if (grbl.on_settings_changed != ooznest_settings_changed) {
+        on_settings_changed = grbl.on_settings_changed;
+        grbl.on_settings_changed = ooznest_settings_changed;
     }
 
     if (grbl.on_realtime_report != ooznest_on_realtime_report) {

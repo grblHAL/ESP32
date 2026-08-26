@@ -30,7 +30,7 @@
 #include "hal/rmt_ll.h"
 
 static neopixel_cfg_t neopixel = { .intensity = 255 };
-static settings_changed_ptr settings_changed;
+static settings_changed_ptr on_settings_changed;
 
 #if CONFIG_IDF_TARGET_ESP32S3
 #if N_ABC_MOTORS && X_STEP_PIN < 64
@@ -186,8 +186,7 @@ void onSettingsChanged (settings_t *settings, settings_changed_flags_t changed)
         rgb_clear(&hal.rgb0);
     }
 
-    if(settings_changed)
-        settings_changed(settings, changed);
+    on_settings_changed(settings, changed);
 }
 
 void neopixel_rmt_init (void)
@@ -232,8 +231,8 @@ void neopixel_rmt_init (void)
 
         hal.periph_port.register_pin(&neopixels);
 
-        settings_changed = hal.settings_changed;
-        hal.settings_changed = onSettingsChanged;
+        on_settings_changed = grbl.on_settings_changed;
+        grbl.on_settings_changed = onSettingsChanged;
 
         init = true;
     }
