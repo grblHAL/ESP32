@@ -294,7 +294,12 @@ static bool IRAM_ATTR i2s_out_start (void)
 
     if (i2s_out_pulser_status == PASSTHROUGH) {
         I2S0.conf_chan.tx_chan_mod = 3;  // 3:right+constant 4:left+constant (when tx_msb_right = 1)
-        I2S0.conf_single_data      = port_data;
+#if I2S_OUT_NUM_BITS == 16
+        port_data <<= 16;                   // Shift needed. This specification is not spelled out in the manual.
+        I2S0.conf_single_data = port_data;  // Apply port data in real-time (static I2S)
+#else
+        I2S0.conf_single_data = port_data;  // Apply port data in real-time (static I2S)
+#endif
     } else {
         I2S0.conf_chan.tx_chan_mod = 4;  // 3:right+constant 4:left+constant (when tx_msb_right = 1)
         I2S0.conf_single_data      = 0;
