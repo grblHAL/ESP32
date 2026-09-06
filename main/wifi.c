@@ -567,6 +567,13 @@ static bool init_adapter (esp_netif_t *netif, network_settings_t *settings)
     esp_netif_ip_info_t ipInfo;
 
     if(network.ip_mode == IpMode_Static) {
+
+        if(networking_ismemnull(&network.mask, sizeof(ip4_addr_t))) {
+            ip4_addr_t addr;
+            if(inet_pton(AF_INET, "255.255.255.0", &addr) != 1)
+                set_addr(network.mask, &addr);
+        }
+
         get_addr(&ipInfo.ip, network.ip);
         get_addr(&ipInfo.gw, network.gateway);
         get_addr(&ipInfo.netmask, network.mask);
@@ -684,12 +691,10 @@ bool wifi_start (void)
 
         esp_netif_set_hostname(sta_netif, wifi.sta.network.hostname);
 
-        esp_netif_dhcps_stop(sta_netif);
+        esp_netif_dhcpc_stop(sta_netif);
     
-        wifi.sta.network.ip_mode = IpMode_DHCP; // For now...
-
         if(init_adapter(sta_netif, &wifi.sta.network))
-            esp_netif_dhcps_start(sta_netif);
+            esp_netif_dhcpc_start(sta_netif);
 
         memset(&wifi_sta_config, 0, sizeof(wifi_config_t));
 
@@ -777,194 +782,7 @@ bool wifi_stop (void)
     return true;
 }
 
-static status_code_t wifi_set_int (setting_id_t setting, uint_fast16_t value);
-static uint_fast16_t wifi_get_int (setting_id_t setting);
-static status_code_t wifi_set_ip (setting_id_t setting, char *value);
-static char *wifi_get_ip (setting_id_t setting);
-static void wifi_settings_restore (void);
-static void wifi_settings_load (void);
-
-static status_code_t wifi_set_bssid (setting_id_t setting, char *value)
-{
-    if(*value) {
-
-        uint32_t bssid[6];
-        if(sscanf(value,"%2X:%2X:%2X:%2X:%2X:%2X", &bssid[5], &bssid[4], &bssid[3],
-                                                    &bssid[2], &bssid[1], &bssid[0]) == 6) {
-
-            char c = LCAPS(value[strlen(value) - 1]);
-            if(!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')))
-                return Status_InvalidStatement;
-
-            uint_fast8_t idx;
-            for(idx = 0; idx < 6; idx++)
-                wifi.ap.bssid[idx] = bssid[idx];
-        } else
-            return Status_InvalidStatement;
-    } else
-        memset(wifi.ap.bssid, 0, sizeof(bssid_t));
-
-    return Status_OK;
-}
-
-static char *wifi_get_bssid (setting_id_t setting)
-{
-    static char bssid[18];
-
-    if(networking_ismemnull(wifi.ap.bssid, sizeof(bssid_t)))
-        *bssid = '\0';
-    else
-        sprintf(bssid, MAC_FORMAT_STRING, wifi.ap.bssid[5], wifi.ap.bssid[4], wifi.ap.bssid[3],
-                                           wifi.ap.bssid[2], wifi.ap.bssid[1], wifi.ap.bssid[0]);
-    return bssid;
-}
-
-#if WIFI_SOFTAP
-
-static status_code_t wifi_set_country (setting_id_t setting, char *value)
-{
-    status_code_t status;
-
-    strcaps(value);
-
-    if((status = validate_country_code(value) ? Status_OK : Status_GcodeValueOutOfRange) == Status_OK)
-        strcpy(wifi.ap.country, value);
-
-    return status;
-}
-
-static char *wifi_get_country (setting_id_t setting)
-{
-    return wifi.ap.country;
-}
-
-#endif
-
-FLASHMEM static bool is_wifi_enabled (const setting_detail_t *setting, uint_fast16_t offset)
-{
-#if ETHERNET_ENABLE
-    return wifi.mode != WiFiMode_NULL;
-#else
-    return true;
-#endif
-}
-
-static const setting_group_detail_t ethernet_groups [] = {
-    { Group_Root, Group_Networking, "Networking" },
-    { Group_Networking, Group_Networking_Wifi, "WiFi" }
-};
-
-static const setting_detail_t ethernet_settings[] = {
-    { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, netservices, NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, is_wifi_enabled, { .reboot_required = On } },
-    { Setting_WiFi_STA_SSID, Group_Networking_Wifi, "WiFi Station (STA) SSID", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.sta.ssid, NULL, NULL },
-    { Setting_Wifi_AP_BSSID, Group_Networking_Wifi, "WiFi Access Point (AP) BSSID", NULL, Format_String, "x(17)", "17", "17", Setting_NonCoreFn, wifi_set_bssid, wifi_get_bssid, NULL, { .allow_null = On, .reboot_required = On } },
-    { Setting_WiFi_STA_Password, Group_Networking_Wifi, "WiFi Station (STA) Password", NULL, Format_Password, "x(32)", "8", "32", Setting_NonCore, &wifi.sta.password, NULL, NULL, { .allow_null = On } },
-    { Setting_Hostname3, Group_Networking, "Hostname", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.sta.network.hostname, NULL, NULL, { .reboot_required = On } },
-/*    { Setting_IpMode, Group_Networking, "IP Mode", NULL, Format_RadioButtons, "Static,DHCP,AutoIP", NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL, false }, */
-    { Setting_IpAddress3, Group_Networking, "IP Address", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
-    { Setting_Gateway3, Group_Networking, "Gateway", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
-    { Setting_NetMask3, Group_Networking, "Netmask", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
-#if WIFI_SOFTAP
-    { Setting_WifiMode, Group_Networking_Wifi, "WiFi Mode", NULL, Format_RadioButtons, "Off,Station,Access Point,Access Point/Station", NULL, NULL, Setting_NonCore, &wifi.mode, NULL, NULL },
-    { Setting_WiFi_AP_SSID, Group_Networking_Wifi, "WiFi Access Point (AP) SSID", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.ap.ssid, NULL, NULL },
-    { Setting_WiFi_AP_Password, Group_Networking_Wifi, "WiFi Access Point (AP) Password", NULL, Format_Password, "x(32)", "8", "32", Setting_NonCore, &wifi.ap.password, NULL, NULL, { .allow_null = On } },
-    { Setting_Wifi_AP_Country, Group_Networking_Wifi, "WiFi Country Code", NULL, Format_String, "x(2)", "2", "2", Setting_NonCoreFn, wifi_set_country, wifi_get_country, NULL, { .allow_null = On, .reboot_required = On } },
-    { Setting_Wifi_AP_Channel, Group_Networking_Wifi, "WiFi Channel (AP)", NULL, Format_Int8, "#0", "1", "13", Setting_NonCore, &wifi.ap.channel, NULL, NULL, { .reboot_required = On } },
-    { Setting_Hostname2, Group_Networking, "Hostname (AP)", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.ap.network.hostname, NULL, NULL, { .reboot_required = On } },
-    { Setting_IpAddress2, Group_Networking, "IP Address (AP)", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
-    { Setting_Gateway2, Group_Networking, "Gateway (AP)", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
-    { Setting_NetMask2, Group_Networking, "Netmask (AP)", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
-#else
-    { Setting_WifiMode, Group_Networking_Wifi, "WiFi Mode", NULL, Format_RadioButtons, "Off,Station", NULL, NULL, Setting_NonCore, &wifi.mode, NULL, NULL },
-#endif
-#if TELNET_ENABLE
-    { Setting_TelnetPort3, Group_Networking, "Telnet port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL, { .reboot_required = On } },
-#endif
-#if HTTP_ENABLE
-    { Setting_HttpPort3, Group_Networking, "HTTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL, { .reboot_required = On } },
-#endif
-#if FTP_ENABLE
-    { Setting_FtpPort3, Group_Networking, "FTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL, { .reboot_required = On } },
-#endif
-#if WEBSOCKET_ENABLE
-    { Setting_WebSocketPort3, Group_Networking, "Websocket port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL, { .reboot_required = On } },
-#endif
-#if MQTT_ENABLE
-    { Setting_MQTTBrokerIpAddress, Group_Networking, "MQTT broker IP Address", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
-    { Setting_MQTTBrokerPort, Group_Networking, "MQTT broker port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &wifi.sta.network.mqtt.port, NULL, NULL, { .reboot_required = On } },
-    { Setting_MQTTBrokerUserName, Group_Networking, "MQTT broker username", NULL, Format_String, "x(32)", NULL, "32", Setting_NonCore, &wifi.sta.network.mqtt.user, NULL, NULL, { .allow_null = On } },
-    { Setting_MQTTBrokerPassword, Group_Networking, "MQTT broker password", NULL, Format_Password, "x(32)", NULL, "32", Setting_NonCore, &wifi.sta.network.mqtt.password, NULL, NULL, { .allow_null = On } },
-#endif
-};
-
-#ifndef NO_SETTINGS_DESCRIPTIONS
-
-static const setting_descr_t ethernet_settings_descr[] = {
-    { Setting_NetworkServices, "Network services to enable." },
-    { Setting_WiFi_STA_SSID, "WiFi Station (STA) SSID." },
-    { Setting_Wifi_AP_BSSID, "Optional WiFi Access Point BSSID (MAC) to connect to, colon delimited values." },
-    { Setting_WiFi_STA_Password, "WiFi Station (STA) Password." },
-    { Setting_Hostname3, "Network hostname." },
-//    { Setting_IpMode, "IP Mode." },
-    { Setting_IpAddress3, "Static IP address." },
-    { Setting_Gateway3, "Static gateway address." },
-    { Setting_NetMask3, "Static netmask." },
-#if WIFI_SOFTAP
-    { Setting_WifiMode, "WiFi Mode." },
-    { Setting_WiFi_AP_SSID, "WiFi Access Point (AP) SSID." },
-    { Setting_WiFi_AP_Password, "WiFi Access Point (AP) Password." },
-    { Setting_Wifi_AP_Country, "ISO3166 country code, controls availability of channels 12-14.\\n"
-                               "Set to ""01"" for generic worldwide channels." },
-    { Setting_Wifi_AP_Channel, "WiFi Access Point (AP) channel to use.\\n May be overridden when connecting to an Access Point as station or by country setting." },
-    { Setting_Hostname2, "Network hostname." },
-    { Setting_IpAddress2, "Static IP address." },
-    { Setting_Gateway2, "Static gateway address." },
-    { Setting_NetMask2, "Static netmask." },
-#else
-    { Setting_WifiMode, "WiFi Mode." },
-#endif
-#if TELNET_ENABLE
-    { Setting_TelnetPort3, "(Raw) Telnet port number listening for incoming connections." },
-#endif
-#if FTP_ENABLE
-    { Setting_FtpPort3, "FTP port number listening for incoming connections." },
-#endif
-#if HTTP_ENABLE
-    { Setting_HttpPort3, "HTTP port number listening for incoming connections." },
-#endif
-#if WEBSOCKET_ENABLE
-    { Setting_WebSocketPort3, "Websocket port number listening for incoming connections."
-                              "NOTE: WebUI requires this to be HTTP port number + 1."
-    },
-#endif
-#if MQTT_ENABLE
-    { Setting_MQTTBrokerIpAddress, "IP address for remote MQTT broker. Set to 0.0.0.0 to disable connection." },
-    { Setting_MQTTBrokerPort, "Remote MQTT broker portnumber." },
-    { Setting_MQTTBrokerUserName, "Remote MQTT broker username." },
-    { Setting_MQTTBrokerPassword, "Remote MQTT broker password." },
-#endif
-};
-
-#endif
-
-static void wifi_settings_save (void)
-{
-    hal.nvs.memcpy_to_nvs(nvs_address, (uint8_t *)&wifi, sizeof(wifi_settings_t), true);
-}
-
-static setting_details_t setting_details = {
-    .groups = ethernet_groups,
-    .n_groups = sizeof(ethernet_groups) / sizeof(setting_group_detail_t),
-    .settings = ethernet_settings,
-    .n_settings = sizeof(ethernet_settings) / sizeof(setting_detail_t),
-#ifndef NO_SETTINGS_DESCRIPTIONS
-    .descriptions = ethernet_settings_descr,
-    .n_descriptions = sizeof(ethernet_settings_descr) / sizeof(setting_descr_t),
-#endif
-    .save = wifi_settings_save,
-    .load = wifi_settings_load,
-    .restore = wifi_settings_restore
-};
+//
 
 static status_code_t wifi_set_int (setting_id_t setting, uint_fast16_t value)
 {
@@ -972,6 +790,10 @@ static status_code_t wifi_set_int (setting_id_t setting, uint_fast16_t value)
 
         case Setting_NetworkServices:
             wifi.sta.network.services.mask = wifi.ap.network.services.mask = (uint8_t)value & allowed_services.mask;
+            break;
+
+        case Setting_IpMode3:
+            wifi.sta.network.ip_mode = (ip_mode_t)value;
             break;
 
 #if TELNET_ENABLE
@@ -997,6 +819,7 @@ static status_code_t wifi_set_int (setting_id_t setting, uint_fast16_t value)
             wifi.sta.network.websocket_port = wifi.ap.network.websocket_port = (uint16_t)value;
             break;
 #endif
+
         default:
             break;
     }
@@ -1012,6 +835,10 @@ static uint_fast16_t wifi_get_int (setting_id_t setting)
 
         case Setting_NetworkServices:
             value = wifi.sta.network.services.mask & allowed_services.mask;
+            break;
+
+        case Setting_IpMode3:
+            value = wifi.sta.network.ip_mode;
             break;
 
 #if TELNET_ENABLE
@@ -1037,6 +864,7 @@ static uint_fast16_t wifi_get_int (setting_id_t setting)
             value = wifi.sta.network.websocket_port;
             break;
 #endif
+
         default:
             break;
     }
@@ -1145,6 +973,193 @@ static char *wifi_get_ip (setting_id_t setting)
     return ip;
 }
 
+static status_code_t wifi_set_bssid (setting_id_t setting, char *value)
+{
+    if(*value) {
+
+        uint32_t bssid[6];
+        if(sscanf(value,"%2X:%2X:%2X:%2X:%2X:%2X", &bssid[5], &bssid[4], &bssid[3],
+                                                    &bssid[2], &bssid[1], &bssid[0]) == 6) {
+
+            char c = LCAPS(value[strlen(value) - 1]);
+            if(!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')))
+                return Status_InvalidStatement;
+
+            uint_fast8_t idx;
+            for(idx = 0; idx < 6; idx++)
+                wifi.ap.bssid[idx] = bssid[idx];
+        } else
+            return Status_InvalidStatement;
+    } else
+        memset(wifi.ap.bssid, 0, sizeof(bssid_t));
+
+    return Status_OK;
+}
+
+static char *wifi_get_bssid (setting_id_t setting)
+{
+    static char bssid[18];
+
+    if(networking_ismemnull(wifi.ap.bssid, sizeof(bssid_t)))
+        *bssid = '\0';
+    else
+        sprintf(bssid, MAC_FORMAT_STRING, wifi.ap.bssid[5], wifi.ap.bssid[4], wifi.ap.bssid[3],
+                                           wifi.ap.bssid[2], wifi.ap.bssid[1], wifi.ap.bssid[0]);
+    return bssid;
+}
+
+#if WIFI_SOFTAP
+
+static status_code_t wifi_set_country (setting_id_t setting, char *value)
+{
+    status_code_t status;
+
+    strcaps(value);
+
+    if((status = validate_country_code(value) ? Status_OK : Status_GcodeValueOutOfRange) == Status_OK)
+        strcpy(wifi.ap.country, value);
+
+    return status;
+}
+
+static char *wifi_get_country (setting_id_t setting)
+{
+    return wifi.ap.country;
+}
+
+#endif
+
+FLASHMEM static bool is_wifi_enabled (const setting_detail_t *setting, uint_fast16_t offset)
+{
+#if ETHERNET_ENABLE
+    return wifi.mode != WiFiMode_NULL;
+#else
+    return true;
+#endif
+}
+
+static const setting_group_detail_t wifi_groups [] = {
+    { Group_Root, Group_Networking, "Networking" },
+    { Group_Networking, Group_Networking_Wifi, "WiFi" }
+};
+
+static const setting_detail_t wifi_settings[] = {
+    { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, netservices, NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, is_wifi_enabled, { .reboot_required = On } },
+    { Setting_WiFi_STA_SSID, Group_Networking_Wifi, "WiFi Station (STA) SSID", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.sta.ssid, NULL, NULL },
+    { Setting_Wifi_AP_BSSID, Group_Networking_Wifi, "WiFi Access Point (AP) BSSID", NULL, Format_String, "x(17)", "17", "17", Setting_NonCoreFn, wifi_set_bssid, wifi_get_bssid, NULL, { .allow_null = On, .reboot_required = On } },
+    { Setting_WiFi_STA_Password, Group_Networking_Wifi, "WiFi Station (STA) Password", NULL, Format_Password, "x(32)", "8", "32", Setting_NonCore, &wifi.sta.password, NULL, NULL, { .allow_null = On } },
+    { Setting_Hostname3, Group_Networking, "Hostname", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.sta.network.hostname, NULL, NULL, { .reboot_required = On } },
+    { Setting_IpMode3, Group_Networking, "IP Mode", NULL, Format_RadioButtons, "Static,DHCP", NULL, NULL, Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL, { .reboot_required = On } },
+    { Setting_IpAddress3, Group_Networking, "IP Address", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
+    { Setting_Gateway3, Group_Networking, "Gateway", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
+    { Setting_NetMask3, Group_Networking, "Netmask", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
+#if WIFI_SOFTAP
+    { Setting_WifiMode, Group_Networking_Wifi, "WiFi Mode", NULL, Format_RadioButtons, "Off,Station,Access Point,Access Point/Station", NULL, NULL, Setting_NonCore, &wifi.mode, NULL, NULL },
+    { Setting_WiFi_AP_SSID, Group_Networking_Wifi, "WiFi Access Point (AP) SSID", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.ap.ssid, NULL, NULL },
+    { Setting_WiFi_AP_Password, Group_Networking_Wifi, "WiFi Access Point (AP) Password", NULL, Format_Password, "x(32)", "8", "32", Setting_NonCore, &wifi.ap.password, NULL, NULL, { .allow_null = On } },
+    { Setting_Wifi_AP_Country, Group_Networking_Wifi, "WiFi Country Code", NULL, Format_String, "x(2)", "2", "2", Setting_NonCoreFn, wifi_set_country, wifi_get_country, NULL, { .allow_null = On, .reboot_required = On } },
+    { Setting_Wifi_AP_Channel, Group_Networking_Wifi, "WiFi Channel (AP)", NULL, Format_Int8, "#0", "1", "13", Setting_NonCore, &wifi.ap.channel, NULL, NULL, { .reboot_required = On } },
+    { Setting_Hostname2, Group_Networking, "Hostname (AP)", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, &wifi.ap.network.hostname, NULL, NULL, { .reboot_required = On } },
+    { Setting_IpAddress2, Group_Networking, "IP Address (AP)", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
+    { Setting_Gateway2, Group_Networking, "Gateway (AP)", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
+    { Setting_NetMask2, Group_Networking, "Netmask (AP)", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
+#else
+    { Setting_WifiMode, Group_Networking_Wifi, "WiFi Mode", NULL, Format_RadioButtons, "Off,Station", NULL, NULL, Setting_NonCore, &wifi.mode, NULL, NULL },
+#endif
+#if TELNET_ENABLE
+    { Setting_TelnetPort3, Group_Networking, "Telnet port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL, { .reboot_required = On } },
+#endif
+#if HTTP_ENABLE
+    { Setting_HttpPort3, Group_Networking, "HTTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL, { .reboot_required = On } },
+#endif
+#if FTP_ENABLE
+    { Setting_FtpPort3, Group_Networking, "FTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL, { .reboot_required = On } },
+#endif
+#if WEBSOCKET_ENABLE
+    { Setting_WebSocketPort3, Group_Networking, "Websocket port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCoreFn, wifi_set_int, wifi_get_int, NULL, { .reboot_required = On } },
+#endif
+#if MQTT_ENABLE
+    { Setting_MQTTBrokerIpAddress, Group_Networking, "MQTT broker IP Address", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, wifi_set_ip, wifi_get_ip, NULL, { .reboot_required = On } },
+    { Setting_MQTTBrokerPort, Group_Networking, "MQTT broker port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &wifi.sta.network.mqtt.port, NULL, NULL, { .reboot_required = On } },
+    { Setting_MQTTBrokerUserName, Group_Networking, "MQTT broker username", NULL, Format_String, "x(32)", NULL, "32", Setting_NonCore, &wifi.sta.network.mqtt.user, NULL, NULL, { .allow_null = On } },
+    { Setting_MQTTBrokerPassword, Group_Networking, "MQTT broker password", NULL, Format_Password, "x(32)", NULL, "32", Setting_NonCore, &wifi.sta.network.mqtt.password, NULL, NULL, { .allow_null = On } },
+#endif
+};
+
+static const setting_descr_t ethernet_settings_descr[] = {
+    { Setting_NetworkServices, "Network services to enable." },
+    { Setting_WiFi_STA_SSID, "WiFi Station (STA) SSID." },
+    { Setting_Wifi_AP_BSSID, "Optional WiFi Access Point BSSID (MAC) to connect to, colon delimited values." },
+    { Setting_WiFi_STA_Password, "WiFi Station (STA) Password." },
+    { Setting_Hostname3, "Network hostname." },
+    { Setting_IpMode3, "IP Mode." },
+    { Setting_IpAddress3, "Static IP address." },
+    { Setting_Gateway3, "Static gateway address." },
+    { Setting_NetMask3, "Static netmask." },
+#if WIFI_SOFTAP
+    { Setting_WifiMode, "WiFi Mode." },
+    { Setting_WiFi_AP_SSID, "WiFi Access Point (AP) SSID." },
+    { Setting_WiFi_AP_Password, "WiFi Access Point (AP) Password." },
+    { Setting_Wifi_AP_Country, "ISO3166 country code, controls availability of channels 12-14.\\n"
+                               "Set to ""01"" for generic worldwide channels." },
+    { Setting_Wifi_AP_Channel, "WiFi Access Point (AP) channel to use.\\n May be overridden when connecting to an Access Point as station or by country setting." },
+    { Setting_Hostname2, "Network hostname." },
+    { Setting_IpAddress2, "Static IP address." },
+    { Setting_Gateway2, "Static gateway address." },
+    { Setting_NetMask2, "Static netmask." },
+#else
+    { Setting_WifiMode, "WiFi Mode." },
+#endif
+#if TELNET_ENABLE
+    { Setting_TelnetPort3, "(Raw) Telnet port number listening for incoming connections." },
+#endif
+#if FTP_ENABLE
+    { Setting_FtpPort3, "FTP port number listening for incoming connections." },
+#endif
+#if HTTP_ENABLE
+    { Setting_HttpPort3, "HTTP port number listening for incoming connections." },
+#endif
+#if WEBSOCKET_ENABLE
+    { Setting_WebSocketPort3, "Websocket port number listening for incoming connections.\n"
+                              "NOTE: WebUI requires this to be HTTP port number + 1."
+    },
+#endif
+#if MQTT_ENABLE
+    { Setting_MQTTBrokerIpAddress, "IP address for remote MQTT broker. Set to 0.0.0.0 to disable connection." },
+    { Setting_MQTTBrokerPort, "Remote MQTT broker portnumber." },
+    { Setting_MQTTBrokerUserName, "Remote MQTT broker username." },
+    { Setting_MQTTBrokerPassword, "Remote MQTT broker password." },
+#endif
+};
+
+static void wifi_settings_save (void)
+{
+    hal.nvs.memcpy_to_nvs(nvs_address, (uint8_t *)&wifi, sizeof(wifi_settings_t), true);
+}
+
+#if WIFI_SOFTAP
+
+static void ap_settings_restore (void)
+{
+    ip4_addr_t addr;
+
+    wifi.ap.network.ip_mode = IpMode_Static;
+    strlcpy(wifi.ap.network.hostname, NETWORK_AP_HOSTNAME, sizeof(wifi.ap.network.hostname));
+    strlcpy(wifi.ap.ssid, NETWORK_AP_SSID, sizeof(wifi.ap.ssid));
+    strlcpy(wifi.ap.password, NETWORK_AP_PASSWORD, sizeof(wifi.ap.password));
+
+    if(inet_pton(AF_INET, NETWORK_AP_IP, &addr) == 1)
+        set_addr(wifi.ap.network.ip, &addr);
+
+    if(inet_pton(AF_INET, NETWORK_AP_GATEWAY, &addr) == 1)
+        set_addr(wifi.ap.network.gateway, &addr);
+
+    if(inet_pton(AF_INET, NETWORK_AP_MASK, &addr) == 1)
+        set_addr(wifi.ap.network.mask, &addr);
+}
+
+#endif
+
 static void wifi_settings_restore (void)
 {
     ip4_addr_t addr;
@@ -1173,23 +1188,11 @@ static void wifi_settings_restore (void)
         set_addr(wifi.sta.network.mask, &addr);
 #endif
 
-// Access Point
-
 #if WIFI_SOFTAP
 
-    wifi.ap.network.ip_mode = IpMode_Static;
-    strlcpy(wifi.ap.network.hostname, NETWORK_AP_HOSTNAME, sizeof(wifi.ap.network.hostname));
-    strlcpy(wifi.ap.ssid, NETWORK_AP_SSID, sizeof(wifi.ap.ssid));
-    strlcpy(wifi.ap.password, NETWORK_AP_PASSWORD, sizeof(wifi.ap.password));
+// Access Point
 
-    if(inet_pton(AF_INET, NETWORK_AP_IP, &addr) == 1)
-        set_addr(wifi.ap.network.ip, &addr);
-
-    if(inet_pton(AF_INET, NETWORK_AP_GATEWAY, &addr) == 1)
-        set_addr(wifi.ap.network.gateway, &addr);
-
-    if(inet_pton(AF_INET, NETWORK_AP_MASK, &addr) == 1)
-        set_addr(wifi.ap.network.mask, &addr);
+    ap_settings_restore();
 
 #endif
 
@@ -1236,6 +1239,11 @@ static void wifi_settings_load (void)
     wifi.sta.network.services.mask &= allowed_services.mask;
     wifi.ap.network.services.mask &= allowed_services.mask;
 
+#if WIFI_SOFTAP
+    if((wifi.mode == WiFiMode_AP || wifi.mode == WiFiMode_APSTA) && networking_ismemnull(&wifi.ap.network.ip, sizeof(ip4_addr_t)))
+        ap_settings_restore();
+#endif
+
     if(wifi.sta.network.services.http &&
         wifi.sta.network.services.websocket &&
          wifi.sta.network.websocket_port == wifi.sta.network.http_port)
@@ -1249,6 +1257,18 @@ static void wifi_settings_load (void)
 
 bool wifi_init (void)
 {
+    static setting_details_t setting_details = {
+        .groups = wifi_groups,
+        .n_groups = sizeof(wifi_groups) / sizeof(setting_group_detail_t),
+        .settings = wifi_settings,
+        .n_settings = sizeof(wifi_settings) / sizeof(setting_detail_t),
+        .descriptions = ethernet_settings_descr,
+        .n_descriptions = sizeof(ethernet_settings_descr) / sizeof(setting_descr_t),
+        .save = wifi_settings_save,
+        .load = wifi_settings_load,
+        .restore = wifi_settings_restore
+    };
+
     if((hal.driver_cap.wifi = (nvs_address = nvs_alloc(sizeof(wifi_settings_t))) != 0)) {
 
         networking_init();

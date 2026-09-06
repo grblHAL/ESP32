@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2018-2025 Terje Io
+  Copyright (c) 2018-2026 Terje Io
 
   Some parts of the code is based on example code by Espressif, in the public domain
 
@@ -690,22 +690,9 @@ static const setting_detail_t bluetooth_settings[] = {
     { Setting_BlueToothServiceName, Group_Bluetooth, "Bluetooth service name", NULL, Format_String, "x(32)", NULL, "32", Setting_NonCore, bluetooth.service_name, NULL, NULL }
 };
 
-#ifndef NO_SETTINGS_DESCRIPTIONS
-
 static const setting_descr_t bluetooth_settings_descr[] = {
     { Setting_BlueToothDeviceName, "Bluetooth device name." },
     { Setting_BlueToothServiceName, "Bluetooth service name." },
-};
-
-#endif
-
-PROGMEM static const status_detail_t status_detail[] = {
-   { Status_BTInitError, "Bluetooth initalisation failed." }
-};
-
-static error_details_t error_details = {
-    .errors = status_detail,
-    .n_errors = sizeof(status_detail) / sizeof(status_detail_t)
 };
 
 static void bluetooth_settings_restore (void)
@@ -727,22 +714,29 @@ static void bluetooth_settings_save (void)
     hal.nvs.memcpy_to_nvs(nvs_address, (uint8_t *)&bluetooth, sizeof(bluetooth_settings_t), true);
 }
 
-static setting_details_t setting_details = {
-    .groups = bluetooth_groups,
-    .n_groups = sizeof(bluetooth_groups) / sizeof(setting_group_detail_t),
-    .settings = bluetooth_settings,
-    .n_settings = sizeof(bluetooth_settings) / sizeof(setting_detail_t),
-#ifndef NO_SETTINGS_DESCRIPTIONS
-    .descriptions = bluetooth_settings_descr,
-    .n_descriptions = sizeof(bluetooth_settings_descr) / sizeof(setting_descr_t),
-#endif
-    .save = bluetooth_settings_save,
-    .load = bluetooth_settings_load,
-    .restore = bluetooth_settings_restore
-};
-
 bool bluetooth_init_local (void)
 {
+    static const status_detail_t status_detail[] = {
+       { Status_BTInitError, "Bluetooth initalisation failed." }
+    };
+
+    static error_details_t error_details = {
+        .errors = status_detail,
+        .n_errors = sizeof(status_detail) / sizeof(status_detail_t)
+    };
+
+    static setting_details_t setting_details = {
+        .groups = bluetooth_groups,
+        .n_groups = sizeof(bluetooth_groups) / sizeof(setting_group_detail_t),
+        .settings = bluetooth_settings,
+        .n_settings = sizeof(bluetooth_settings) / sizeof(setting_detail_t),
+        .descriptions = bluetooth_settings_descr,
+        .n_descriptions = sizeof(bluetooth_settings_descr) / sizeof(setting_descr_t),
+        .save = bluetooth_settings_save,
+        .load = bluetooth_settings_load,
+        .restore = bluetooth_settings_restore
+    };
+
     if((nvs_address = nvs_alloc(sizeof(bluetooth_settings_t)))) {
 
         hal.driver_cap.bluetooth = On;

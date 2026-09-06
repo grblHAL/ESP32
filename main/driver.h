@@ -38,13 +38,20 @@
 
 #endif // OVERRIDE_MY_MACHINE
 
+#define EXPANDER_PORT 1
+#define OPTS_POSTPROCESSING
+
 #if WEBUI_ENABLE && !defined(WEBUI_INFLASH)
 #define WEBUI_INFLASH 1
 #endif
 
-#define EXPANDER_PORT 1
+#if defined(BOARD_CNC_BOOSTERPACK) && !defined(PCA9654E_ENABLE)
+#define PCA9654E_ENABLE 1
+#endif
 
-#define OPTS_POSTPROCESSING
+#if defined(BOARD_OOZNEST_CNC) && !defined(HC595_ENABLE)
+#define HC595_ENABLE    1
+#endif
 
 #include "grbl/driver_opts.h"
 
@@ -122,7 +129,6 @@ typedef struct {
 #endif
 
 #ifdef BOARD_CNC_BOOSTERPACK
-  #define PCA9654E_ENABLE 1
   #include "boards/cnc_boosterpack_map.h"
 #elif defined(BOARD_BDRING_V4)
   #include "boards/bdring_v4_map.h"
@@ -183,6 +189,9 @@ typedef struct {
 #elif defined(BOARD_GENERIC_I2S_S3)
   #include "boards/generic_i2s_s3_map.h"
 #elif defined(BOARD_OOZNEST_CNC)
+#ifndef HC595_ENABLE
+#define HC595_ENABLE            1
+#endif
   #include "boards/ooznest_cnc_map.h"
 #else // default board - NOTE: NOT FINAL VERSION!
  #ifndef WEB_BUILD

@@ -387,88 +387,6 @@ bool enet_start (void)
     return true;
 }
 
-static void ethernet_settings_load (void);
-static void ethernet_settings_restore (void);
-static status_code_t ethernet_set_ip (setting_id_t setting, char *value);
-static char *ethernet_get_ip (setting_id_t setting);
-static status_code_t ethernet_set_services (setting_id_t setting, uint_fast16_t int_value);
-static uint32_t ethernet_get_services (setting_id_t id);
-
-static const setting_group_detail_t ethernet_groups [] = {
-    { Group_Root, Group_Networking, "Networking" }
-};
-
-FLASHMEM static bool is_eth_enabled (const setting_detail_t *setting, uint_fast16_t offset)
-{
-#if WIFI_ENABLE
-    if(setting->id == Setting_NetworkServices)
-        return enet_enabled && setting_get_int_value(setting_get_details(Setting_WifiMode, NULL), 0) == WiFiMode_NULL;
-
-    return enet_enabled;
-#else
-    return enet_enabled;
-#endif
-}
-
-static const setting_detail_t ethernet_settings[] = {
-    { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, netservices, NULL, NULL, Setting_NonCoreFn, ethernet_set_services, ethernet_get_services, is_eth_enabled, { .reboot_required = On } },
-    { Setting_Hostname, Group_Networking, "Hostname", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, ethernet.hostname, NULL, is_eth_enabled, { .reboot_required = On } },
-    { Setting_IpMode, Group_Networking, "IP Mode", NULL, Format_RadioButtons, "Static,DHCP,AutoIP", NULL, NULL, Setting_NonCore, &ethernet.ip_mode, NULL, is_eth_enabled, { .reboot_required = On } },
-    { Setting_IpAddress, Group_Networking, "IP Address", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, is_eth_enabled, { .reboot_required = On } },
-    { Setting_Gateway, Group_Networking, "Gateway", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, is_eth_enabled, { .reboot_required = On } },
-    { Setting_NetMask, Group_Networking, "Netmask", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, is_eth_enabled, { .reboot_required = On } },
-    { Setting_TelnetPort, Group_Networking, "Telnet port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.telnet_port, NULL, is_eth_enabled, { .reboot_required = On } },
-#if FTP_ENABLE
-    { Setting_FtpPort, Group_Networking, "FTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.ftp_port, NULL, is_eth_enabled, { .reboot_required = On } },
-#endif
-#if HTTP_ENABLE
-    { Setting_HttpPort, Group_Networking, "HTTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.http_port, NULL, is_eth_enabled, { .reboot_required = On } },
-#endif
-    { Setting_WebSocketPort, Group_Networking, "Websocket port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.websocket_port, NULL, is_eth_enabled, { .reboot_required = On } }
-};
-
-#ifndef NO_SETTINGS_DESCRIPTIONS
-
-static const setting_descr_t ethernet_settings_descr[] = {
-    { Setting_NetworkServices, "Network services to enable. Consult driver documentation for availability." },
-    { Setting_Hostname, "Network hostname." },
-    { Setting_IpMode, "IP Mode." },
-    { Setting_IpAddress, "Static IP address." },
-    { Setting_Gateway, "Static gateway address." },
-    { Setting_NetMask, "Static netmask." },
-    { Setting_TelnetPort, "(Raw) Telnet port number listening for incoming connections." },
-#if FTP_ENABLE
-    { Setting_FtpPort, "FTP port number listening for incoming connections." },
-#endif
-#if HTTP_ENABLE
-    { Setting_HttpPort, "HTTP port number listening for incoming connections." },
-#endif
-    { Setting_WebSocketPort, "Websocket port number listening for incoming connections."
-                             "NOTE: WebUI requires this to be HTTP port number + 1."
-    }
-};
-
-#endif
-
-static void ethernet_settings_save (void)
-{
-    hal.nvs.memcpy_to_nvs(nvs_address, (uint8_t *)&ethernet, sizeof(network_settings_t), true);
-}
-
-static setting_details_t setting_details = {
-    .groups = ethernet_groups,
-    .n_groups = sizeof(ethernet_groups) / sizeof(setting_group_detail_t),
-    .settings = ethernet_settings,
-    .n_settings = sizeof(ethernet_settings) / sizeof(setting_detail_t),
-#ifndef NO_SETTINGS_DESCRIPTIONS
-    .descriptions = ethernet_settings_descr,
-    .n_descriptions = sizeof(ethernet_settings_descr) / sizeof(setting_descr_t),
-#endif
-    .save = ethernet_settings_save,
-    .load = ethernet_settings_load,
-    .restore = ethernet_settings_restore
-};
-
 static status_code_t ethernet_set_ip (setting_id_t setting, char *value)
 {
     ip4_addr_t addr;
@@ -538,6 +456,63 @@ static uint32_t ethernet_get_services (setting_id_t id)
     return (uint32_t)ethernet.services.mask & allowed_services.mask;
 }
 
+static const setting_group_detail_t ethernet_groups[] = {
+    { Group_Root, Group_Networking, "Networking" }
+};
+
+FLASHMEM static bool is_eth_enabled (const setting_detail_t *setting, uint_fast16_t offset)
+{
+#if WIFI_ENABLE
+    if(setting->id == Setting_NetworkServices)
+        return enet_enabled && setting_get_int_value(setting_get_details(Setting_WifiMode, NULL), 0) == WiFiMode_NULL;
+
+    return enet_enabled;
+#else
+    return enet_enabled;
+#endif
+}
+
+static const setting_detail_t ethernet_settings[] = {
+    { Setting_NetworkServices, Group_Networking, "Network Services", NULL, Format_Bitfield, netservices, NULL, NULL, Setting_NonCoreFn, ethernet_set_services, ethernet_get_services, is_eth_enabled, { .reboot_required = On } },
+    { Setting_Hostname, Group_Networking, "Hostname", NULL, Format_String, "x(64)", NULL, "64", Setting_NonCore, ethernet.hostname, NULL, is_eth_enabled, { .reboot_required = On } },
+    { Setting_IpMode, Group_Networking, "IP Mode", NULL, Format_RadioButtons, "Static,DHCP,AutoIP", NULL, NULL, Setting_NonCore, &ethernet.ip_mode, NULL, is_eth_enabled, { .reboot_required = On } },
+    { Setting_IpAddress, Group_Networking, "IP Address", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, is_eth_enabled, { .reboot_required = On } },
+    { Setting_Gateway, Group_Networking, "Gateway", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, is_eth_enabled, { .reboot_required = On } },
+    { Setting_NetMask, Group_Networking, "Netmask", NULL, Format_IPv4, NULL, NULL, NULL, Setting_NonCoreFn, ethernet_set_ip, ethernet_get_ip, is_eth_enabled, { .reboot_required = On } },
+    { Setting_TelnetPort, Group_Networking, "Telnet port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.telnet_port, NULL, is_eth_enabled, { .reboot_required = On } },
+#if FTP_ENABLE
+    { Setting_FtpPort, Group_Networking, "FTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.ftp_port, NULL, is_eth_enabled, { .reboot_required = On } },
+#endif
+#if HTTP_ENABLE
+    { Setting_HttpPort, Group_Networking, "HTTP port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.http_port, NULL, is_eth_enabled, { .reboot_required = On } },
+#endif
+    { Setting_WebSocketPort, Group_Networking, "Websocket port", NULL, Format_Int16, "####0", "1", "65535", Setting_NonCore, &ethernet.websocket_port, NULL, is_eth_enabled, { .reboot_required = On } }
+};
+
+static const setting_descr_t ethernet_settings_descr[] = {
+    { Setting_NetworkServices, "Network services to enable. Consult driver documentation for availability." },
+    { Setting_Hostname, "Network hostname." },
+    { Setting_IpMode, "IP Mode." },
+    { Setting_IpAddress, "Static IP address." },
+    { Setting_Gateway, "Static gateway address." },
+    { Setting_NetMask, "Static netmask." },
+    { Setting_TelnetPort, "(Raw) Telnet port number listening for incoming connections." },
+#if FTP_ENABLE
+    { Setting_FtpPort, "FTP port number listening for incoming connections." },
+#endif
+#if HTTP_ENABLE
+    { Setting_HttpPort, "HTTP port number listening for incoming connections." },
+#endif
+    { Setting_WebSocketPort, "Websocket port number listening for incoming connections."
+                             "NOTE: WebUI requires this to be HTTP port number + 1."
+    }
+};
+
+static void ethernet_settings_save (void)
+{
+    hal.nvs.memcpy_to_nvs(nvs_address, (uint8_t *)&ethernet, sizeof(network_settings_t), true);
+}
+
 static void ethernet_settings_restore (void)
 {
     memset(&ethernet, 0, sizeof(network_settings_t));
@@ -591,6 +566,18 @@ static void ethernet_settings_load (void)
 
 bool enet_init (void)
 {
+    static setting_details_t setting_details = {
+        .groups = ethernet_groups,
+        .n_groups = sizeof(ethernet_groups) / sizeof(setting_group_detail_t),
+        .settings = ethernet_settings,
+        .n_settings = sizeof(ethernet_settings) / sizeof(setting_detail_t),
+        .descriptions = ethernet_settings_descr,
+        .n_descriptions = sizeof(ethernet_settings_descr) / sizeof(setting_descr_t),
+        .save = ethernet_settings_save,
+        .load = ethernet_settings_load,
+        .restore = ethernet_settings_restore
+    };
+
     enet_enabled = hal.driver_cap.ethernet;
 
     if((hal.driver_cap.ethernet = !!(nvs_address = nvs_alloc(sizeof(network_settings_t))))) {
