@@ -90,12 +90,12 @@ static vfs_file_t *fs_open (const char *filename, const char *mode)
 
     if(strchr(mode, 'r')) {
 
-        const esp_embedded_file_t *file = NULL;
+        const esp_embedded_file_t *file;
 
-        if((file = find_file(filename)) && (fileh = malloc(sizeof(vfs_file_t) + sizeof(embedded_filehandle_t)))) {
+        if((file = find_file(filename)) && (fileh = malloc(sizeof(vfs_file_t) - VFS_HANDLE_SIZE + sizeof(embedded_filehandle_t)))) {
             embedded_filehandle_t *f = (embedded_filehandle_t *)&fileh->handle;
             f->file = file;
-            f->remaining = file->size;
+            fileh->size = f->remaining = file->size;
         }
     }
 
@@ -136,9 +136,7 @@ static size_t fs_tell (vfs_file_t *file)
 
 static bool fs_eof (vfs_file_t *file)
 {
-    embedded_filehandle_t *fileh = (embedded_filehandle_t *)&file->handle;
-
-    return fileh->remaining == 0;
+    return ((embedded_filehandle_t *)&file->handle)->remaining == 0;
 }
 
 static int fs_unlink (const char *filename)
@@ -172,7 +170,7 @@ static int fs_stat (const char *filename, vfs_stat_t *st)
     return file ? 0 : -1;
 }
 
-void fs_embedded_mount (void)
+void add_embedded_files (void)
 {
     extern const unsigned char favicon_ico_start[] asm("_binary_favicon_ico_start");
     extern const unsigned char favicon_ico_end[]   asm("_binary_favicon_ico_end");

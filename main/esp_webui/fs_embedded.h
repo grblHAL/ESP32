@@ -23,4 +23,4 @@
 
 #pragma once
 
-void fs_embedded_mount (void);
+void add_embedded_files (void);

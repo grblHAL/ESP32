@@ -113,6 +113,57 @@ static void mqtt_connection_changed (bool connected)
 
 #endif
 
+static void status_event_out (void *data)
+{
+    networking.event(sta_if_name, (network_status_t){ .value = (uint32_t)data });
+}
+
+static void status_event_publish (network_flags_t changed)
+{
+    task_add_immediate(status_event_out, (void *)((network_status_t){ .changed = changed, .flags = sta_status }).value);
+}
+
+static void status_ap_event_out (void *data)
+{
+    networking.event(ap_if_name, (network_status_t){ .value = (uint32_t)data });
+}
+
+static void status_ap_event_publish (network_flags_t changed)
+{
+    task_add_immediate(status_ap_event_out, (void *)((network_status_t){ .changed = changed, .flags = ap_status }).value);
+}
+
+static void ap_scan (void *data)
+{
+    // https://esp32.com/viewtopic.php?t=5536
+    // https://esp32.com/viewtopic.php?t=7305
+/*
+    static const wifi_scan_config_t scan_config = {
+        .ssid = 0,
+        .bssid = 0,
+        .channel = 0,
+        .scan_time.active = {
+          .min = 500,
+          .max = 1500
+        },
+        .scan_type = WIFI_SCAN_TYPE_ACTIVE,
+        .show_hidden = false
+    };
+*/
+    if(!(xEventGroupGetBits(wifi_event_group) & SCANNING_BIT) && esp_wifi_scan_start(NULL, false) == ESP_OK)
+        xEventGroupSetBits(wifi_event_group, SCANNING_BIT);
+
+    if(sta_status.ap_scan_completed) {
+        sta_status.ap_scan_completed = Off;
+        status_event_publish((network_flags_t){ .ap_scan_completed = On });
+    }
+}
+
+void wifi_ap_scan (void)
+{
+    ap_scan(NULL);
+}
+
 ap_list_t *wifi_get_aplist (void)
 {
     if(ap_list.ap_records && xSemaphoreTake(aplist_mutex, pdMS_TO_TICKS(10)) == pdTRUE)
@@ -283,26 +334,6 @@ static void start_services (bool start_ssdp)
 #endif
 }
 
-static void status_event_out (void *data)
-{
-    networking.event(sta_if_name, (network_status_t){ .value = (uint32_t)data });
-}
-
-static void status_event_publish (network_flags_t changed)
-{
-    task_add_immediate(status_event_out, (void *)((network_status_t){ .changed = changed, .flags = sta_status }).value);
-}
-
-static void status_ap_event_out (void *data)
-{
-    networking.event(ap_if_name, (network_status_t){ .value = (uint32_t)data });
-}
-
-static void status_ap_event_publish (network_flags_t changed)
-{
-    task_add_immediate(status_ap_event_out, (void *)((network_status_t){ .changed = changed, .flags = ap_status }).value);
-}
-
 static void stop_services (void)
 {
     network_services_t running;
@@ -343,32 +374,6 @@ char *wifi_get_authmode_name (wifi_auth_mode_t authmode)
            "unknown";
 }
 
-void wifi_ap_scan (void)
-{
-    // https://esp32.com/viewtopic.php?t=5536
-    // https://esp32.com/viewtopic.php?t=7305
-
-    static const wifi_scan_config_t scan_config = {
-        .ssid = 0,
-        .bssid = 0,
-        .channel = 0,
-        .scan_time.active = {
-          .min = 500,
-          .max = 1500
-        },
-        .scan_type = WIFI_SCAN_TYPE_ACTIVE,
-        .show_hidden = false
-    };
-
-    if(!(xEventGroupGetBits(wifi_event_group) & SCANNING_BIT) && esp_wifi_scan_start(&scan_config, false) == ESP_OK)
-        xEventGroupSetBits(wifi_event_group, SCANNING_BIT);
-
-    if(sta_status.ap_scan_completed) {
-        sta_status.ap_scan_completed = Off;
-        status_event_publish((network_flags_t){ .ap_scan_completed = On });
-    }
-}
-
 static void ip_event_handler (void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     switch(event_id) {
@@ -389,7 +394,7 @@ static void ip_event_handler (void *arg, esp_event_base_t event_base, int32_t ev
                 strcpy(wifi.sta.password, (char *)wifi_sta_config.sta.password);
                 // commit to EEPROM?
             } else
-                wifi_ap_scan();
+                ap_scan(NULL);
             if(!sta_status.ip_aquired) {
                 sta_status.ip_aquired = On;
                 status_event_publish((network_flags_t){ .ip_aquired = On });
@@ -416,7 +421,7 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
             if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT) {
                 start_services(false);
                 services.dns = dns_server_start(sta_netif);
-//                protocol_enqueue_rt_command(wifi_ap_scan);
+//                task_add_immediate(ap_scan, NULL);
             }
             if(!ap_status.ap_started) {
                 ap_status.ap_started = ap_status.ip_aquired = On;
@@ -436,7 +441,7 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
                     /* // screws up dns?
                     if(!(xEventGroupGetBits(wifi_event_group) & SCANNING_BIT)) {
                       //  ap_list.ap_selected = NULL;
-                      //  wifi_ap_scan();
+                      //  ap_scan(NULL);
                     }
                     */
                     if(!services.dns)
@@ -454,7 +459,7 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
             websocketd_close_connections();
 #endif
             if(xEventGroupGetBits(wifi_event_group) & APSTA_BIT)
-                wifi_ap_scan();
+                ap_scan(NULL);
 #if SSDP_ENABLE
             else if(!(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT))
                 ssdp_stop();
@@ -482,7 +487,7 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
                 if(!services.dns)
                     services.dns = dns_server_start(sta_netif);
 //                ap_list.ap_selected = NULL;
-//                wifi_ap_scan();
+//                ap_scan(NULL);
             }
 /*
             switch(((wifi_event_ap_stadisconnected_t *)event_data)->disconnected.reason) {
@@ -497,7 +502,7 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
                     esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_sta_config);
                     ap_list.ap_selected = NULL;
                     if(true)
-                        wifi_ap_scan();
+                        ap_scan(NULL);
                     break;
 
                 default:
@@ -522,7 +527,8 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
                 ap_list.ap_num = 0;
                 esp_wifi_scan_get_ap_num(&ap_list.ap_num);
 
-                if((ap_list.ap_records = (wifi_ap_record_t *)malloc(sizeof(wifi_ap_record_t) * ap_list.ap_num)) != NULL)
+
+                if((ap_list.ap_records = (wifi_ap_record_t *)malloc(sizeof(wifi_ap_record_t) * ap_list.ap_num)))
                     esp_wifi_scan_get_ap_records(&ap_list.ap_num, ap_list.ap_records);
 
                 if(!sta_status.ap_scan_completed) {
@@ -533,7 +539,7 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
             }
             // Start a new scan in 10 secs if no station connected...
 //          if(!(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT))
-//              wifi_ap_scan();
+//              task_add_delayed(ap_scan, NULL, 10000);
             break;
 
         default:
@@ -736,7 +742,7 @@ bool wifi_start (void)
     }
 
     if(wifi.mode == WiFiMode_APSTA)
-        wifi_ap_scan();
+        ap_scan(NULL);
 
     return true;
 }
