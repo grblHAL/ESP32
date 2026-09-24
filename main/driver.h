@@ -208,8 +208,12 @@ typedef struct {
 #error "Pins 34 - 39 are input only!"
 #endif
 
-#if defined(USE_I2S_OUT) && STEP_INJECT_ENABLE
+#if defined(USE_I2S_OUT) && STEP_INJECT_ENABLE && !STEP_INJECT_STREAM
 #error "Step injection not yet possible with I2S streaming!"
+#endif
+
+#if STEP_INJECT_STREAM && (!defined(BOARD_MKS_DLC32_V2P0) || CONFIG_IDF_TARGET_ESP32S3 || !STEP_INJECT_ENABLE)
+#error "STEP_INJECT_STREAM v1 requires classic ESP32 MKS DLC32 V2 and STEP_INJECT_ENABLE."
 #endif
 
 #if DRIVER_SPINDLE_PWM_ENABLE && !defined(SPINDLE_PWM_PIN)

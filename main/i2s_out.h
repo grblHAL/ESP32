@@ -190,6 +190,14 @@ i2s_out_pulser_status_t i2s_out_get_pulser_status (void);
  */
 void i2s_out_reset (void);
 
+#if STEP_INJECT_STREAM
+#include "grbl/stepper_injection.h"
+extern const stepper_injection_t i2s_motor_injection;
+bool i2s_injection_claim (uint_fast8_t axis_id, bool claim);
+void i2s_injection_conflict (void);
+void i2s_injection_output_step (axes_signals_t step, axes_signals_t direction);
+#endif
+
 #endif
 
 /*

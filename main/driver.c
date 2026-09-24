@@ -872,6 +872,23 @@ static bool goIdlePending = false;
 static uint32_t t_max_period;
 static uint32_t i2s_step_length = I2S_OUT_USEC_PER_PULSE, i2s_delay_length = I2S_OUT_USEC_PER_PULSE, i2s_delay_samples = 1, i2s_step_samples = 1;
 static bool laser_mode = false;
+#if STEP_INJECT_STREAM
+static void stepperClaimMotor (uint_fast8_t axis_id, bool claim)
+{
+    if(axis_id != Z_AXIS)
+        return;
+    i2s_motor_injection.lock();
+    if(i2s_injection_claim(axis_id, claim)) {
+        if(claim)
+            step_pulse.inject.claimed.bits |= Z_AXIS_BIT;
+        else
+            step_pulse.inject.claimed.bits &= ~Z_AXIS_BIT;
+        step_pulse.inject.axes.bits = step_pulse.inject.claimed.bits;
+    }
+    i2s_motor_injection.unlock();
+}
+#define stepperOutputStep i2s_injection_output_step
+#endif
 #if DRIVER_SPINDLE_ENABLE
 static on_spindle_selected_ptr on_spindle_selected;
 #endif
@@ -936,6 +953,11 @@ static void I2SStepperWakeUp (void)
 // Set stepper pulse output pins
 inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits_1)
 {
+#if STEP_INJECT_STREAM
+    if(step_outbits_1.bits & step_pulse.inject.claimed.bits)
+        i2s_injection_conflict();
+    step_outbits_1.bits &= ~step_pulse.inject.claimed.bits;
+#endif
     axes_signals_t step_outbits_2;
     step_outbits_2.mask = (step_outbits_1.mask & motors_2.mask) ^ settings.steppers.step_invert.mask;
     step_outbits_1.mask = (step_outbits_1.mask & motors_1.mask) ^ settings.steppers.step_invert.mask;
@@ -979,6 +1001,11 @@ inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs
 // Set stepper pulse output pins
 inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits)
 {
+#if STEP_INJECT_STREAM
+    if(step_outbits.bits & step_pulse.inject.claimed.bits)
+        i2s_injection_conflict();
+    step_outbits.bits &= ~step_pulse.inject.claimed.bits;
+#endif
     step_outbits.value ^= settings.steppers.step_invert.mask;
     DIGITAL_OUT(X_STEP_PIN, step_outbits.x);
     DIGITAL_OUT(Y_STEP_PIN, step_outbits.y);
@@ -1750,6 +1777,15 @@ IRAM_ATTR static void stepperGoIdle (bool clear_signals)
 
 #if USE_I2S_OUT
 
+// Plugins wrap pulse_start. Keep its address stable across driver mode changes.
+IRAM_ATTR static void i2sPulseDispatch (stepper_t *stepper)
+{
+    if(hal.stepper.wake_up == I2SStepperWakeUp)
+        I2SStepperPulseStart(stepper);
+    else
+        stepperPulseStart(stepper);
+}
+
 static void i2s_set_streaming_mode (bool stream)
 {
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -1768,14 +1804,12 @@ static void i2s_set_streaming_mode (bool stream)
             hal.stepper.wake_up = I2SStepperWakeUp;
             hal.stepper.go_idle = I2SStepperGoIdle;
             hal.stepper.cycles_per_tick = I2SStepperCyclesPerTick;
-            hal.stepper.pulse_start = I2SStepperPulseStart;
             i2s_out_set_pulse_callback(hal.stepper.interrupt_callback);
         }
     } else if(hal.stepper.wake_up != stepperWakeUp) {
         hal.stepper.wake_up = stepperWakeUp;
         hal.stepper.go_idle = stepperGoIdle;
         hal.stepper.cycles_per_tick = stepperCyclesPerTick;
-        hal.stepper.pulse_start = stepperPulseStart;
         i2s_out_set_pulse_callback(i2s_step_sink);
     }
 }
@@ -3447,7 +3481,7 @@ bool driver_init (void)
     hal.stepper.go_idle = I2SStepperGoIdle;
     hal.stepper.enable = stepperEnable;
     hal.stepper.cycles_per_tick = I2SStepperCyclesPerTick;
-    hal.stepper.pulse_start = I2SStepperPulseStart;
+    hal.stepper.pulse_start = i2sPulseDispatch;
 #else
     hal.stepper.wake_up = stepperWakeUp;
     hal.stepper.go_idle = stepperGoIdle;
@@ -3458,6 +3492,9 @@ bool driver_init (void)
 #if STEP_INJECT_ENABLE
     hal.stepper.output_step = stepperOutputStep;
     hal.stepper.claim_motor = stepperClaimMotor;
+#if STEP_INJECT_STREAM
+    hal.stepper.injection = &i2s_motor_injection;
+#endif
 #endif
     hal.stepper.motor_iterator = motor_iterator;
 #ifdef GANGING_ENABLED

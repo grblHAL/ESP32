@@ -56,6 +56,11 @@
 #include <stdatomic.h>
 
 #include "i2s_out.h"
+#if STEP_INJECT_STREAM
+#include "i2s_injection.h"
+#include "grbl/motion_control.h"
+#include <math.h>
+#endif
 
 #define delay(ms) hal.delay_ms(ms, 0);
 
@@ -124,6 +129,30 @@ static gpio_num_t i2s_out_bck_pin  = 255;
 static gpio_num_t i2s_out_data_pin = 255;
 
 static volatile i2s_out_pulser_status_t i2s_out_pulser_status = PASSTHROUGH;
+
+#if STEP_INJECT_STREAM
+typedef struct {
+    lldesc_t *descriptor;
+    uint32_t generation;
+    uint32_t epoch;
+} i2s_eof_event_t;
+static i2s_injection_t injection;
+static i2s_injection_checkpoint_t injection_map[I2S_OUT_DMABUF_COUNT];
+static bool eof_queued[I2S_OUT_DMABUF_COUNT];
+static uint32_t injection_epoch;
+static bool injection_fault_pending, injection_cancel_pending;
+static bool injection_claimed, injection_drain_only;
+static injection_motion_t cancelled_motion;
+static uint32_t cancelled_steps;
+
+static int IRAM_ATTR injection_slot (lldesc_t *descriptor)
+{
+    for(int i = 0; i < I2S_OUT_DMABUF_COUNT; i++)
+        if(o_dma.desc[i] == descriptor)
+            return i;
+    return -1;
+}
+#endif
 
 // outer lock
 static portMUX_TYPE i2s_out_pulser_spinlock = portMUX_INITIALIZER_UNLOCKED;
@@ -198,6 +227,14 @@ static void IRAM_ATTR i2s_clear_dma_buffer (lldesc_t *dma_desc, uint32_t port_da
 
 static void IRAM_ATTR i2s_clear_o_dma_buffers (uint32_t port_data)
 {
+#if STEP_INJECT_STREAM
+    injection_epoch++;
+    for(int i = 0; i < I2S_OUT_DMABUF_COUNT; i++) {
+        injection_map[i].valid = false;
+        injection_map[i].generation++;
+        eof_queued[i] = false;
+    }
+#endif
     for (int buf_idx = 0; buf_idx < I2S_OUT_DMABUF_COUNT; buf_idx++) {
         // Initialize DMA descriptor
         o_dma.desc[buf_idx]->owner        = 1;
@@ -361,7 +398,11 @@ static void IRAM_ATTR i2s_fillout_dma_buffer (lldesc_t *dma_desc)
                 // pulser status may change in pulse phase func, so I need to check it every time.
                 if (i2s_out_pulser_status == STEPPING) {
                     // fillout future DMA buffer (tail of the DMA buffer chains)
-                    if (i2s_out_pulse_func != NULL) {
+                    if (i2s_out_pulse_func != NULL
+#if STEP_INJECT_STREAM
+                        && !injection_drain_only
+#endif
+                    ) {
                         uint32_t old_rw_pos = o_dma.rw_pos;
                         I2S_OUT_PULSER_EXIT_CRITICAL();   // Temporarily unlocked status lock as it may be locked in pulse callback.
                         i2s_out_pulse_func();             // should be pushed into buffer max DMA_SAMPLE_SAFE_COUNT
@@ -433,6 +474,25 @@ static void IRAM_ATTR i2s_out_intr_handler (void *arg)
         // Get the descriptor of the last item in the linkedlist
         finish_desc = (lldesc_t*)I2S0.out_eof_des_addr;
 
+#if STEP_INJECT_STREAM
+        I2S_OUT_PULSER_ENTER_CRITICAL_ISR();
+        int slot = injection_slot(finish_desc);
+        i2s_eof_event_t event = {finish_desc, slot < 0 ? 0 : injection_map[slot].generation, injection_epoch};
+        if(slot < 0 || (i2s_out_pulser_status == STEPPING && eof_queued[slot]) || xQueueIsQueueFullFromISR(o_dma.queue)) {
+            if(i2s_out_pulser_status == STEPPING) {
+                injection_fault_pending = true;
+                I2S0.out_link.stop = 1;
+                I2S0.conf.tx_start = 0;
+            }
+            i2s_eof_event_t discarded;
+            xQueueReceiveFromISR(o_dma.queue, &discarded, &high_priority_task_awoken);
+        }
+        if(slot >= 0)
+            eof_queued[slot] = true;
+        xQueueSendFromISR(o_dma.queue, &event, &high_priority_task_awoken);
+        I2S_OUT_PULSER_EXIT_CRITICAL_ISR();
+#else
+
         // If the queue is full it's because we have an underflow,
         // more than buf_count isr without new data, remove the front buffer
         if (xQueueIsQueueFullFromISR(o_dma.queue)) {
@@ -453,6 +513,7 @@ static void IRAM_ATTR i2s_out_intr_handler (void *arg)
 
         // Send a DMA complete event to the I2S bitstreamer task with finished buffer
         xQueueSendFromISR(o_dma.queue, &finish_desc, &high_priority_task_awoken);
+#endif
     }
 
     if (high_priority_task_awoken == pdTRUE)
@@ -472,11 +533,63 @@ static void IRAM_ATTR i2sOutTask (void* parameter)
     while (1) {
         // Wait a DMA complete event from I2S isr
         // (Block until a DMA transfer has complete)
+#if STEP_INJECT_STREAM
+        i2s_eof_event_t event;
+        xQueueReceive(o_dma.queue, &event, portMAX_DELAY);
+        injection_progress_t progress;
+        injection_motion_t client = {0};
+        bool notify = false, fault = false;
+        I2S_OUT_PULSER_ENTER_CRITICAL();
+        if(injection_cancel_pending) {
+            client = cancelled_motion;
+            progress = (injection_progress_t){client.id, cancelled_steps, Injection_Cancelled};
+            injection_cancel_pending = false;
+            notify = true;
+        } else if(injection_fault_pending) {
+            client = injection.motion;
+            progress = (injection_progress_t){client.id, injection.confirmed, Injection_Fault};
+            injection.active = false;
+            injection_fault_pending = false;
+            notify = fault = true;
+        } else if(event.epoch == injection_epoch) {
+            int slot = injection_slot(event.descriptor);
+            if(slot >= 0) {
+                client = injection.motion;
+                notify = i2s_injection_confirm(&injection, &injection_map[slot], event.generation, &progress);
+            }
+        }
+        I2S_OUT_PULSER_EXIT_CRITICAL();
+        if(notify && client.notify)
+            client.notify(client.context, &progress);
+        if(fault) {
+            mc_reset();
+            sys.position_lost = true;
+            system_set_exec_alarm(Alarm_AbortCycle);
+            i2s_out_reset();
+            continue;
+        }
+        I2S_OUT_PULSER_ENTER_CRITICAL();
+        if(event.epoch != injection_epoch) {
+            I2S_OUT_PULSER_EXIT_CRITICAL();
+            continue;
+        }
+        int slot = injection_slot(event.descriptor);
+        if(slot < 0 || event.generation != injection_map[slot].generation) {
+            I2S_OUT_PULSER_EXIT_CRITICAL();
+            continue;
+        }
+        dma_desc = event.descriptor;
+        eof_queued[slot] = false;
+        injection_map[slot].valid = false;
+        injection_map[slot].generation++;
+#else
         xQueueReceive(o_dma.queue, &dma_desc, portMAX_DELAY);
+        I2S_OUT_PULSER_ENTER_CRITICAL();
+#endif
         o_dma.current = (uint32_t*)(dma_desc->buf);
         // It reuses the oldest (just transferred) buffer with the name "current"
         // and fills the buffer for later DMA.
-        I2S_OUT_PULSER_ENTER_CRITICAL();  // Lock pulser status
+        // Both branches above hold the pulser lock exactly once.
         if (i2s_out_pulser_status == STEPPING) {
             //
             // Fillout the buffer for pulse
@@ -490,6 +603,15 @@ static void IRAM_ATTR i2sOutTask (void* parameter)
             //
             i2s_fillout_dma_buffer(dma_desc);
             dma_desc->length = o_dma.rw_pos * I2S_SAMPLE_SIZE;
+#if STEP_INJECT_STREAM
+            if(event.epoch == injection_epoch && i2s_out_pulser_status == STEPPING &&
+               !i2s_injection_render(&injection, (uint32_t *)dma_desc->buf, o_dma.rw_pos, &injection_map[slot]))
+                injection_fault_pending = true;
+            if(injection_drain_only && !injection.active) {
+                i2s_out_pulser_status = WAITING;
+                dma_desc->qe.stqe_next = NULL;
+            }
+#endif
         } else if (i2s_out_pulser_status == WAITING) {
             if (dma_desc->qe.stqe_next == NULL) {
                 // Tail of the DMA descriptor found
@@ -585,6 +707,13 @@ i2s_out_pulser_status_t i2s_out_get_pulser_status (void)
 void IRAM_ATTR i2s_out_set_passthrough (void)
 {
     I2S_OUT_PULSER_ENTER_CRITICAL();
+#if STEP_INJECT_STREAM
+    if(injection.active) {
+        injection_drain_only = true;
+        I2S_OUT_PULSER_EXIT_CRITICAL();
+        return;
+    }
+#endif
     if (i2s_out_pulser_status == STEPPING) {
         i2s_out_pulser_status = WAITING;  // Start stopping the pulser
         delay(I2S_OUT_DELAY_MS);
@@ -595,6 +724,9 @@ void IRAM_ATTR i2s_out_set_passthrough (void)
 void i2s_out_set_stepping (void)
 {
     I2S_OUT_PULSER_ENTER_CRITICAL();
+#if STEP_INJECT_STREAM
+    injection_drain_only = false;
+#endif
 
     if (i2s_out_pulser_status == STEPPING) {
         // Re-entered (fail safe)
@@ -646,6 +778,16 @@ void i2s_out_set_pulse_callback (i2s_out_pulse_func_t func)
 void IRAM_ATTR i2s_out_reset (void)
 {
     I2S_OUT_PULSER_ENTER_CRITICAL();
+#if STEP_INJECT_STREAM
+    if(injection.active) {
+        cancelled_motion = injection.motion;
+        cancelled_steps = injection.confirmed;
+        injection_cancel_pending = true;
+        injection.active = false;
+    }
+    injection_fault_pending = false;
+    injection_drain_only = false;
+#endif
     i2s_out_stop();
     if (i2s_out_pulser_status == STEPPING) {
         uint32_t port_data = atomic_load(&i2s_out_port_data);
@@ -663,6 +805,89 @@ void IRAM_ATTR i2s_out_reset (void)
 //
 // Initialize funtion (external function)
 //
+#if STEP_INJECT_STREAM
+static void injection_lock (void) { I2S_OUT_PULSER_ENTER_CRITICAL(); }
+static void injection_unlock (void) { I2S_OUT_PULSER_EXIT_CRITICAL(); }
+
+static bool injection_supports (uint32_t axis_mask)
+{
+    return axis_mask == Z_AXIS_BIT;
+}
+
+static bool injection_submit (const injection_motion_t *motion)
+{
+    if(!i2s_out_initialized || !injection_claimed || !injection_supports(motion->axis_mask) ||
+       injection.active || injection_cancel_pending || injection_fault_pending ||
+       i2s_out_pulser_status == WAITING)
+        return false;
+    if(i2s_out_pulser_status == PASSTHROUGH) {
+        i2s_out_set_stepping();
+        injection_drain_only = true; // standalone injection must not clock the planner
+    }
+    uint32_t step_mask = bit(Z_STEP_PIN - I2S_OUT_PIN_BASE);
+    uint32_t dir_mask = bit(Z_DIRECTION_PIN - I2S_OUT_PIN_BASE);
+    bool direction = !!(motion->direction_mask & Z_AXIS_BIT) ^ settings.steppers.dir_invert.z;
+    i2s_out_write(Z_DIRECTION_PIN - I2S_OUT_PIN_BASE, direction);
+    uint32_t width = (uint32_t)ceilf(settings.steppers.pulse_microseconds / I2S_OUT_USEC_PER_PULSE);
+    uint32_t setup = (uint32_t)ceilf(settings.steppers.pulse_delay_microseconds);
+    if(setup < I2S_OUT_USEC_PER_PULSE)
+        setup = I2S_OUT_USEC_PER_PULSE;
+    return i2s_injection_begin(&injection, motion, step_mask, dir_mask,
+                               direction ? dir_mask : 0, settings.steppers.step_invert.z ? step_mask : 0,
+                               width ? width : 1, setup);
+}
+
+static void injection_cancel (uint32_t id)
+{
+    if(injection.active && injection.motion.id == id)
+        i2s_out_reset();
+}
+
+const stepper_injection_t i2s_motor_injection = {
+    .supports = injection_supports, .submit = injection_submit, .cancel = injection_cancel,
+    .lock = injection_lock, .unlock = injection_unlock
+};
+
+bool i2s_injection_claim (uint_fast8_t axis_id, bool claim)
+{
+    injection_lock();
+    bool accepted = axis_id == Z_AXIS && (!injection.active || claim);
+    if(accepted)
+        injection_claimed = claim;
+    injection_unlock();
+    return accepted;
+}
+
+void i2s_injection_conflict (void)
+{
+    injection_lock();
+    injection_fault_pending = true;
+    injection_unlock();
+}
+
+static injection_event_t injection_single (void *context)
+{
+    (void)context;
+    return (injection_event_t){0, true, true};
+}
+
+void i2s_injection_output_step (axes_signals_t step, axes_signals_t direction)
+{
+    static uint32_t single_id;
+    injection_lock();
+    if(++single_id == 0)
+        single_id = 1;
+    injection_motion_t motion = {
+        .id = single_id, .axis_mask = step.bits, .direction_mask = direction.bits,
+        .requested_steps = 1, .next = injection_single
+    };
+    // The legacy void API cannot report backpressure; never silently lose a step.
+    if(!injection_submit(&motion))
+        injection_fault_pending = true;
+    injection_unlock();
+}
+#endif
+
 bool i2s_out_init2 (i2s_out_init_t init_param)
 {
     if (i2s_out_initialized) {
@@ -732,7 +957,12 @@ bool i2s_out_init2 (i2s_out_init_t init_param)
     i2s_clear_o_dma_buffers(init_param.init_val);
     o_dma.rw_pos  = 0;
     o_dma.current = NULL;
-    o_dma.queue   = xQueueCreate(I2S_OUT_DMABUF_COUNT, sizeof(uint32_t *));
+    o_dma.queue   = xQueueCreate(I2S_OUT_DMABUF_COUNT,
+#if STEP_INJECT_STREAM
+                                sizeof(i2s_eof_event_t));
+#else
+                                sizeof(uint32_t *));
+#endif
 
     // Set the first DMA descriptor
     I2S0.out_link.addr = (uint32_t)o_dma.desc[0];
@@ -800,7 +1030,7 @@ bool i2s_out_init2 (i2s_out_init_t init_param)
     I2S0.sample_rate_conf.tx_bits_mod = 32;
     I2S0.sample_rate_conf.rx_bits_mod = 32;
 #endif
-    I2S0.conf.tx_mono = 0;  // Set this bit to enable transmitter�s mono mode in PCM standard mode.
+    I2S0.conf.tx_mono = 0;  // Set this bit to enable transmitterâ€™s mono mode in PCM standard mode.
 
     I2S0.conf_chan.rx_chan_mod = 1;  // 1: right+right
     I2S0.conf.rx_mono          = 0;
@@ -817,8 +1047,8 @@ bool i2s_out_init2 (i2s_out_init_t init_param)
 
     I2S0.fifo_conf.tx_fifo_mod_force_en = 1;  //The bit should always be set to 1.
 
-    I2S0.pdm_conf.rx_pdm_en = 0;  // Set this bit to enable receiver�s PDM mode.
-    I2S0.pdm_conf.tx_pdm_en = 0;  // Set this bit to enable transmitter�s PDM mode.
+    I2S0.pdm_conf.rx_pdm_en = 0;  // Set this bit to enable receiverâ€™s PDM mode.
+    I2S0.pdm_conf.tx_pdm_en = 0;  // Set this bit to enable transmitterâ€™s PDM mode.
 
     // I2S_COMM_FORMAT_I2S_LSB
     I2S0.conf.tx_short_sync = 0;  // Set this bit to enable transmitter in PCM standard mode.
@@ -835,10 +1065,10 @@ bool i2s_out_init2 (i2s_out_init_t init_param)
                                  // N + b/a = 0
 #if I2S_OUT_NUM_BITS == 16
     // N = 10
-    I2S0.clkm_conf.clkm_div_num = 10;  // minimum value of 2, reset value of 4, max 256 (I�S clock divider�s integral value)
+    I2S0.clkm_conf.clkm_div_num = 10;  // minimum value of 2, reset value of 4, max 256 (IÂ²S clock dividerâ€™s integral value)
 #else
     // N = 5
-    I2S0.clkm_conf.clkm_div_num = 5;  // minimum value of 2, reset value of 4, max 256 (I�S clock divider�s integral value)
+    I2S0.clkm_conf.clkm_div_num = 5;  // minimum value of 2, reset value of 4, max 256 (IÂ²S clock dividerâ€™s integral value)
 #endif
     // b/a = 0
     I2S0.clkm_conf.clkm_div_b = 0;  // 0 at reset
