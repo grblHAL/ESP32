@@ -80,7 +80,7 @@
 #define COOLANT_MIST_PIN        AUXOUTPUT4_PIN
 #endif
 
-#define AUXINPUT0_PIN           GPIO_NUM_1
+#define AUXINPUT0_PIN           GPIO_NUM_42
 #define AUXINPUT1_PIN           GPIO_NUM_2
 #if !SDCARD_ENABLE
 #define AUXINPUT2_PIN           GPIO_NUM_38 // Reset/EStop
