@@ -2,9 +2,9 @@
 
 This optional transport lets the secondary stepper execute a finite Z correction
 through the ESP32 I2S sample stream while normal motion continues on other axes.
-The current driver supports classic ESP32 with the MKS DLC32 V2 board map.
-ESP32-S3, concurrent injected axes and infinite stream moves are outside this
-implementation's supported scope.
+The first version supports finite Z corrections on classic ESP32 with the
+MKS DLC32 V2 board map. The architecture document describes the target scope
+and possible extensions.
 
 ## Architecture
 
@@ -13,7 +13,7 @@ and the stream executor. The stream executor submits an `injection_motion_t`
 through `hal.stepper.injection`. The transport pulls timed events from `next`,
 renders STEP/DIR samples and maintains checkpoints outside the DMA sample words.
 
-An EOF interrupt queues descriptor identity, generation and epoch. The worker
+An EOF interrupt queues descriptor identity, generation and epoch. The output task (`I2SOutTask`, function `i2sOutTask`)
 validates the checkpoint and reports cumulative completed full pulses through
 `notify`, outside the ISR and transport lock. The core keeps a motion active
 while generated output is still draining; generated steps are not confirmed
@@ -77,4 +77,11 @@ The refactor passes 46,122 direct scenarios before and after the change with an
 identical serviced trace (`17d7cd7b62360fa8`). The stream suite contains 771
 scenarios. Physical measurement methodology and the firmware test environment
 are separate follow-up parts of this series; these host results do not replace
-those measurements or claim a full firmware build.
+those measurements. A complete firmware build is recorded in the
+[test and measurement guide](../../doc/i2s-injection-testing.md#complete-firmware-build).
+
+## Further documentation
+
+See the [complete architecture](../../doc/i2s-injection.md) and [test and measurement guide](../../doc/i2s-injection-testing.md). Board-specific firmware fixtures are not bundled with these host tests.
+
+The [simulation command reference](simulation-interface.md) records the historical test adapter and its planned use in subsequent test-environment PRs/releases; those commands are not registered by the current production commits.
