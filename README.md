@@ -86,3 +86,7 @@ Snippets of code is extracted from Espressif ESP-IDF examples which are public d
 ---
 2023-09-20
 
+
+### Finite I2S injection
+
+See [architecture and integration](doc/i2s-injection.md) and the [test and measurement guide](doc/i2s-injection-testing.md).

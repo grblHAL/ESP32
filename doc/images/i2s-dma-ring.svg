@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="780" viewBox="0 0 1240 780" role="img"><title>Five-buffer DMA reuse and EOF accounting</title><desc>Illustrative five-buffer ring. B0 has completed and is refilled; old counts are confirmed before reuse. New content waits for a later EOF.</desc>
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#526780" stroke-width="1.4"/></marker></defs>
+<rect width="1240" height="780" fill="#f5f7fb"/>
+<text x="36" y="44" font-family="sans-serif" font-size="27" font-weight="700" fill="#162b45">DMA ring: confirm old content, then inject into the reusable buffer</text>
+<text x="36" y="75" font-family="sans-serif" font-size="17" font-weight="400" fill="#162b45">Conceptual steady-state snapshot; slot numbers and counts are illustrative.</text>
+<line x1="420.00257161209925" y1="188.2061836491109" x2="496.7414948245473" y2="281.8893756153977" stroke="#526780" stroke-width="3" marker-end="url(#arrow)"/>
+<line x1="539.0056619886141" y1="363.50550298909104" x2="517.4359351281946" y2="481.830506338881" stroke="#526780" stroke-width="3" marker-end="url(#arrow)"/>
+<line x1="399.0" y1="535.0" x2="305.0" y2="535.0" stroke="#526780" stroke-width="3" marker-end="url(#arrow)"/>
+<line x1="182.43757526803665" y1="486.8715582773048" x2="159.07695611484536" y2="367.75617650372357" stroke="#526780" stroke-width="3" marker-end="url(#arrow)"/>
+<line x1="195.52749714055292" y1="285.2435924209057" x2="276.1921541552353" y2="190.61760061554563" stroke="#526780" stroke-width="3" marker-end="url(#arrow)"/>
+<rect x="242" y="116" width="216" height="84" rx="12" fill="#d8f3e9" stroke="#178565" stroke-width="2"/>
+<text x="256" y="150" font-family="sans-serif" font-size="18" font-weight="700" fill="#162b45">B0: reusable</text>
+<text x="256" y="178" font-family="sans-serif" font-size="15" font-weight="400" fill="#162b45">Worker fills + injects</text>
+<rect x="462" y="273" width="216" height="84" rx="12" fill="#fff" stroke="#bdcadc" stroke-width="2"/>
+<text x="476" y="307" font-family="sans-serif" font-size="18" font-weight="700" fill="#162b45">B1: following B0</text>
+<text x="476" y="335" font-family="sans-serif" font-size="15" font-weight="400" fill="#162b45">Hardware may advance</text>
+<rect x="377" y="493" width="216" height="84" rx="12" fill="#fff" stroke="#bdcadc" stroke-width="2"/>
+<text x="391" y="527" font-family="sans-serif" font-size="18" font-weight="700" fill="#162b45">B2: queued</text>
+<text x="391" y="555" font-family="sans-serif" font-size="15" font-weight="400" fill="#162b45">Awaiting transfer</text>
+<rect x="107" y="493" width="216" height="84" rx="12" fill="#fff" stroke="#bdcadc" stroke-width="2"/>
+<text x="121" y="527" font-family="sans-serif" font-size="18" font-weight="700" fill="#162b45">B3: queued</text>
+<text x="121" y="555" font-family="sans-serif" font-size="15" font-weight="400" fill="#162b45">Awaiting transfer</text>
+<rect x="17" y="273" width="216" height="84" rx="12" fill="#fff" stroke="#bdcadc" stroke-width="2"/>
+<text x="31" y="307" font-family="sans-serif" font-size="18" font-weight="700" fill="#162b45">B4: queued</text>
+<text x="31" y="335" font-family="sans-serif" font-size="15" font-weight="400" fill="#162b45">Before B0 next lap</text>
+<text x="265" y="325" font-family="sans-serif" font-size="22" font-weight="700" fill="#162b45">NEXT LAP</text>
+<text x="260" y="355" font-family="sans-serif" font-size="17" font-weight="400" fill="#162b45">New B0 samples</text>
+<text x="260" y="380" font-family="sans-serif" font-size="17" font-weight="400" fill="#162b45">await confirmation</text>
+<rect x="726" y="110" width="476" height="282" rx="12" fill="#ffffff" stroke="#d3ddea" stroke-width="2"/>
+<text x="746" y="143" font-family="sans-serif" font-size="21" font-weight="700" fill="#162b45">At the completed B0 descriptor</text>
+<text x="746" y="184" font-family="sans-serif" font-size="16" font-weight="400" fill="#162b45">1. Validate epoch + descriptor generation</text>
+<text x="746" y="218" font-family="sans-serif" font-size="16" font-weight="400" fill="#162b45">2. Confirm OLD complete-pulse checkpoint</text>
+<text x="746" y="252" font-family="sans-serif" font-size="16" font-weight="400" fill="#162b45">3. Advance generation; fill normal samples</text>
+<text x="746" y="286" font-family="sans-serif" font-size="16" font-weight="400" fill="#162b45">4. Overlay NEW injection STEP/DIR samples</text>
+<text x="746" y="320" font-family="sans-serif" font-size="16" font-weight="400" fill="#162b45">5. Save NEW cumulative checkpoint</text>
+<text x="746" y="354" font-family="sans-serif" font-size="16" font-weight="400" fill="#162b45">6. Confirm new content only after its transfer</text>
+<rect x="726" y="414" width="476" height="201" rx="12" fill="#ffffff" stroke="#d3ddea" stroke-width="2"/>
+<text x="746" y="448" font-family="sans-serif" font-size="21" font-weight="700" fill="#162b45">Illustrative EOF progress ledger</text>
+
+
+
+
+<text x="36" y="670" font-family="sans-serif" font-size="18" font-weight="400" fill="#162b45">DMA continues while I2SOutTask handles queued EOF events; B1 illustrates the next ring position.</text>
+<text x="36" y="704" font-family="sans-serif" font-size="17" font-weight="400" fill="#162b45">A pulse spanning a boundary is counted only after its inactive sample belongs to a confirmed checkpoint.</text>
+<text x="36" y="738" font-family="sans-serif" font-size="17" font-weight="400" fill="#162b45">EOF accounting follows descriptors; external STEP timing is characterized in the measurement section.</text>
+<text x="746" y="482" font-family="sans-serif" font-size="16" fill="#162b45">EOF</text>
+<text x="947" y="482" font-family="sans-serif" font-size="16" fill="#162b45">Cumulative</text>
+<text x="1110" y="482" font-family="sans-serif" font-size="16" fill="#162b45">Delta</text>
+<text x="746" y="512" font-family="sans-serif" font-size="16" fill="#162b45">B4 old</text>
+<text x="947" y="512" font-family="sans-serif" font-size="16" fill="#162b45">12</text>
+<text x="1110" y="512" font-family="sans-serif" font-size="16" fill="#162b45">+4</text>
+<text x="746" y="542" font-family="sans-serif" font-size="16" fill="#162b45">B0 old</text>
+<text x="947" y="542" font-family="sans-serif" font-size="16" fill="#162b45">20</text>
+<text x="1110" y="542" font-family="sans-serif" font-size="16" fill="#162b45">+8</text>
+<text x="746" y="572" font-family="sans-serif" font-size="16" fill="#162b45">B0 new (later)</text>
+<text x="947" y="572" font-family="sans-serif" font-size="16" fill="#162b45">28</text>
+<text x="1110" y="572" font-family="sans-serif" font-size="16" fill="#162b45">+8</text>
+</svg>

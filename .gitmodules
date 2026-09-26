@@ -37,3 +37,6 @@
 [submodule "main/openpnp"]
 	path = main/openpnp
 	url = https://github.com/grblHAL/Plugin_OpenPNP/
+[submodule "main/plasma"]
+	path = main/plasma
+	url = https://github.com/grblHAL/Plugin_plasma.git

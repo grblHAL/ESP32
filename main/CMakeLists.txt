@@ -92,8 +92,13 @@ set(MY_PLUGIN_SOURCE
 )
 endif()
 
+if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/plasma/thc.c)
+list(APPEND SRCS plasma/thc.c plasma/linuxcnc.c plasma/sheetcam.c grbl/pid.c)
+endif()
+
 set(I2S_SOURCE
  i2s_out.c
+ i2s_injection.c
 )
 
 set(I2S_S3_SOURCE
