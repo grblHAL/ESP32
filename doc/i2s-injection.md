@@ -35,8 +35,8 @@ connects each objective to its code path and validation.
 
 | Repository | Responsibility | Detailed document |
 |---|---|---|
-| Core | Shared profile, direct/stream executors, generic HAL contract and confirmed position | [Core contract](../main/grbl/doc/stream-injection.md) |
-| Plugin_plasma | THC integration and confirmed Z offset before ownership handover | [Plasma handover](../main/plasma/doc/stream-injection.md) |
+| Core | Shared profile, direct/stream executors, generic HAL contract and confirmed position | Core contract: [local](../main/grbl/doc/stream-injection.md) / [GitHub](https://github.com/jro84/core/blob/d6a4f2243feb10f54e87676c26b9cdb9631dd651/doc/stream-injection.md) |
+| Plugin_plasma | THC integration and confirmed Z offset before ownership handover | Plasma handover: [local](../main/plasma/doc/stream-injection.md) / [GitHub](https://github.com/jro84/Plugin_plasma/blob/61b5d106a228f4334ccf0f16e46d962183756d09/doc/stream-injection.md) |
 | ESP32 | Axis ownership, I2S sample rendering, DMA checkpoint validation and output-task notifications | This document |
 
 The linked documents follow the ESP32 repository layout, with core and Plasma
@@ -77,7 +77,7 @@ operations to be separate: generating a request cannot mean it has already
 executed. The profile refactor `dff5583` establishes that separation while
 preserving tested DIRECT behavior. Stream support `f628524` then consumes the
 same profile ahead of time and accounts for motion from transport confirmation.
-See the [before/after refactor diagram](../main/grbl/doc/stream-injection.md#why-the-profile-refactor-comes-first).
+See the before/after refactor diagram ([local](../main/grbl/doc/stream-injection.md#why-the-profile-refactor-comes-first), [GitHub](https://github.com/jro84/core/blob/d6a4f2243feb10f54e87676c26b9cdb9631dd651/doc/stream-injection.md#why-the-profile-refactor-comes-first)).
 
 ## C call path and data boundaries
 
