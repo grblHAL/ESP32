@@ -614,7 +614,7 @@ IRAM_ATTR static void driver_delay_ms (uint32_t ms, void (*callback)(void))
         }
         while(ms) {
             vTaskDelay(pdMS_TO_TICKS(2));
-            grbl.on_execute_delay(state_get());
+            task_execute(true);
             ms -= ms > 1 ? 2 : 1;
         }
     }
@@ -3416,7 +3416,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "260811";
+    hal.driver_version = "261003";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3508,7 +3508,8 @@ bool driver_init (void)
     // Register $BOOTLOADER bootloader command
 
     static const sys_command_t boot_command_list[] = {
-        {"BOOTLOADER", enter_bootloader, { .noargs = On }, { .str = "enter ESP32 bootloader" } }
+        { "BL", enter_bootloader, { .allow_blocking = On, .noargs = On }, { .str = "enter ESP32 bootloader" } },
+        { "BOOTLOADER", enter_bootloader, { .allow_blocking = On, .noargs = On }, { .str = "enter ESP32 bootloader" } }
     };
 
     static sys_commands_t boot_commands = {
