@@ -396,8 +396,8 @@ static void ip_event_handler (void *arg, esp_event_base_t event_base, int32_t ev
             } else
                 ap_scan(NULL);
             if(!sta_status.ip_aquired) {
-                sta_status.ip_aquired = On;
-                status_event_publish((network_flags_t){ .ip_aquired = On });
+                sta_status.ip_aquired = sta_status.link_up = On;
+                status_event_publish((network_flags_t){ .ip_aquired = On, .link_up = On });
             }
             break;
 
@@ -424,8 +424,8 @@ static void wifi_event_handler (void *arg, esp_event_base_t event_base, int32_t 
 //                task_add_immediate(ap_scan, NULL);
             }
             if(!ap_status.ap_started) {
-                ap_status.ap_started = ap_status.ip_aquired = On;
-                status_ap_event_publish((network_flags_t){ .ap_started = On, .ip_aquired = On });
+                ap_status.ap_started = ap_status.ip_aquired = sta_status.link_up = On;
+                status_ap_event_publish((network_flags_t){ .ap_started = On, .ip_aquired = On, .link_up = On });
             }
             break;
 /*??

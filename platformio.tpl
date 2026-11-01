@@ -14,10 +14,6 @@ platform = espressif32 @ ~5.3.0
 framework = espidf
 board = %board%
 %board_opts%
-board_build.embed_files =
-  main/embedded/favicon.ico
-  main/embedded/ap_login.html
-  main/embedded/index.html.gz
 build_flags =
   -Wimplicit-fallthrough=1
   -Wno-missing-field-initializers

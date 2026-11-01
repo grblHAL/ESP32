@@ -3416,7 +3416,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "261003";
+    hal.driver_version = "261029";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3720,8 +3720,8 @@ bool driver_init (void)
 #endif
     hal.driver_cap.software_debounce = On;
     hal.driver_cap.step_pulse_delay = On;
-    hal.driver_cap.control_pull_up = On;
-    hal.driver_cap.limits_pull_up = On;
+    hal.driver_cap.pullup_enabled = PULLUPS_ENABLE;
+
 #if ESTOP_ENABLE
     hal.signals_cap.e_stop = On;
     hal.signals_cap.reset = Off;

@@ -123,7 +123,7 @@ set(WEBUI_SOURCE
  webui/fs_handlers.c
  webui/sdfs.c
  webui/flashfs.c
- esp_webui/fs_embedded.c
+ webui/webui_files.c
 )
 
 if("${target}" STREQUAL "esp32s3")
@@ -302,10 +302,6 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_STEPPER_IDLE_LOCK_T
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC MIN_FEED_RATE_OVERRIDE=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC MAX_FEED_RATE_OVERRIDE=999)
 endif()
-
-target_add_binary_data("${COMPONENT_LIB}" "embedded/favicon.ico" BINARY)
-target_add_binary_data("${COMPONENT_LIB}" "embedded/ap_login.html" BINARY)
-target_add_binary_data("${COMPONENT_LIB}" "embedded/index.html.gz" BINARY)
 
 unset(BOARD_BLACKBOX_X32 CACHE)
 unset(Ethernet CACHE)
