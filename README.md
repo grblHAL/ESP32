@@ -1,3 +1,11 @@
+## grblHAL for the Creality CV-30 laser box (fork)
+
+This fork adds the **Creality CV-30** laser control box (ESP32-S2) and ports
+the ESP32 driver to **ESP-IDF 5.5**. See **[cv30/README.md](cv30/README.md)**
+to install it on a CV-30. The original driver README follows.
+
+---
+
 ## ESP32 grblHAL driver
 
 __Important:__  

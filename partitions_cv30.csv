@@ -1,0 +1,11 @@
+# Creality CV-30 laser box: the stock partition table, unchanged
+# (read from the 2026-11-06 full-flash backup). grblHAL runs from whichever
+# OTA slot it is installed into; settings go into the nvs partition as a blob
+# (namespace "grblhal", see main/nvs.c), LittleFS uses "storage" (empty in stock).
+# Name,   Type, SubType, Offset,   Size
+nvs,      data, nvs,     0x9000,   16K
+otadata,  data, ota,     0xd000,   8K
+phy_init, data, phy,     0xf000,   4K
+ota_0,    app,  ota_0,   0x10000,  1408K
+ota_1,    app,  ota_1,   0x170000, 1408K
+storage,  data, fat,     0x2d0000, 1M

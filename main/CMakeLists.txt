@@ -3,6 +3,7 @@
 # Enable these boards here and not in my_machine.h if you want to override board specific default core options.
 # NOTE: if reflashing/updating these options will not be changed, use $RST=$ to propagate them.
 OPTION(BOARD_BLACKBOX_X32 "Compile for BlackBox X32" OFF)
+OPTION(BOARD_CV30 "Compile for the Creality CV-30 laser box (ESP32-S2); on by default for esp32s2" ON)
 
 # WiFi vs. Ethernet support
  # Do not enable unless having a board that supports it!
@@ -259,6 +260,11 @@ endif()
 if("${target}" STREQUAL "esp32s3")
 list (APPEND SRCS ${USB_SOURCE})
 list (APPEND SRCS ${I2S_S3_SOURCE})
+elseif("${target}" STREQUAL "esp32s2")
+# ESP32-S2: native USB like the S3, no I2S stepping driver, no Bluetooth.
+list (APPEND SRCS ${USB_SOURCE})
+set(BLUETOOTH_SOURCE "")
+list (APPEND SRCS cv30.c)
 else()
 list (APPEND SRCS ${I2S_SOURCE})
 endif()
@@ -303,11 +309,77 @@ target_compile_definitions("${COMPONENT_LIB}" PUBLIC MIN_FEED_RATE_OVERRIDE=1)
 target_compile_definitions("${COMPONENT_LIB}" PUBLIC MAX_FEED_RATE_OVERRIDE=999)
 endif()
 
+if(BOARD_CV30 AND "${target}" STREQUAL "esp32s2")
+# Creality CV-30 laser box. Motion defaults match the stock firmware's settings
+# (so a stock Creality setup behaves as before); they apply on first boot or
+# after $RST=$. Custom frames set $3, $23, $130/$131 etc. themselves.
+# Changes from stock: laser enable is active-high (metered: it switches the
+# laser's 24 V through Q1), homing is X+Y in one cycle (no Z) and homing sets
+# the machine origin to 0,0.
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC BOARD_CV30)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC CV30_BUILD="9") # shown in $I [BOARD:...]; bump for every CV-30-grblhal-N.bin
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC PROBE_ENABLE=0) # no probe input on this board
+# Networking: Wi-Fi (station + setup access point), telnet for LightBurn,
+# websocket, HTTP + WebDAV and FTP for file upload to the microSD card.
+# The ESP3D WebUI is left out for now (size; uploads go to the SD card and
+# $UPDATE hands them to the stock installer, see cv30.c).
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC WIFI_ENABLE=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC WIFI_SOFTAP=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBSOCKET_ENABLE=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC HTTP_ENABLE=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC WEBDAV_ENABLE=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC SDCARD_ENABLE=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC MDNS_ENABLE=1) # cv30-laser.local
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC NETWORK_STA_HOSTNAME="cv30-laser")
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC NETWORK_AP_SSID="CV30-Laser-Setup")
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC NETWORK_AP_HOSTNAME="cv30-laser")
+if(CONFIG_ESP_CONSOLE_USB_CDC)
+# Debug build (sdkconfig.debug): the IDF console, and with it panic output,
+# goes out over native USB, so the grblHAL stream moves to UART0.
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC USB_SERIAL_CDC=0)
+else()
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC USB_SERIAL_CDC=1) # the box talks over its native USB port
+endif()
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_LASER_MODE=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_INVERT_SPINDLE_PWM_PIN=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_INVERT_SPINDLE_ENABLE_PIN=0)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_SPINDLE_PWM_FREQ=1000)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_SPINDLE_RPM_MAX=1000.0f)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_STEP_PULSE_MICROSECONDS=10.0f)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_STEPPER_IDLE_LOCK_TIME=250)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_DIR_SIGNALS_INVERT_MASK=2)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_HOMING_ENABLE=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_HOMING_DIR_MASK=2)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_HOMING_FORCE_SET_ORIGIN=1)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_HOMING_CYCLE_0=3)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_HOMING_CYCLE_1=0)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_SOFT_LIMIT_ENABLE=0)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_HOMING_FEED_RATE=1500.0f)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_HOMING_SEEK_RATE=4500.0f)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_HOMING_DEBOUNCE_DELAY=20)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_HOMING_PULLOFF=5.0f)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_X_STEPS_PER_MM=80.008f)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_Y_STEPS_PER_MM=80.0f)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_X_MAX_RATE=10000.0f)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_Y_MAX_RATE=10000.0f)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_X_ACCELERATION=500.0f)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_Y_ACCELERATION=500.0f)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_X_MAX_TRAVEL=220.0f)
+target_compile_definitions("${COMPONENT_LIB}" PUBLIC DEFAULT_Y_MAX_TRAVEL=240.0f)
+endif()
+
 unset(BOARD_BLACKBOX_X32 CACHE)
+unset(BOARD_CV30 CACHE)
 unset(Ethernet CACHE)
 unset(AddMyPlugin CACHE)
 
 #target_compile_options("${COMPONENT_LIB}" PRIVATE -Werror -Wall -Wextra -Wmissing-field-initializers)
 target_compile_options("${COMPONENT_LIB}" PRIVATE -Wimplicit-fallthrough=1 -Wno-missing-field-initializers -Wno-maybe-uninitialized -Wno-stringop-truncation -Wno-expansion-to-defined)
+# IDF 5 toolchains define uint32_t as long unsigned int, so the shared grblHAL
+# core's "%u" for uint32_t warns, and IDF makes that an error. Keep it a
+# warning rather than patching the core submodules.
+if(IDF_VERSION_MAJOR GREATER_EQUAL 5)
+target_compile_options("${COMPONENT_LIB}" PRIVATE -Wno-error=format)
+endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

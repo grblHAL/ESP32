@@ -47,6 +47,12 @@
 #include "freertos/task.h"
 #include "sdkconfig.h"
 
+#ifdef BOARD_CV30
+#include "cv30.h"
+#include "esp_ota_ops.h"
+#include "esp_system.h"
+#endif
+
 static void vGrblTask (void *pvParameters)
 {
     grbl_enter();
@@ -54,6 +60,18 @@ static void vGrblTask (void *pvParameters)
 
 void app_main(void)
 {
+#ifdef BOARD_CV30
+    cv30_boot_guard(); // before anything that could crash
+#if CONFIG_ESP_CONSOLE_USB_CDC
+    // Debug build: give the host time to enumerate the USB console so a crash
+    // during grblHAL start-up is actually seen.
+    for(int s = 5; s > 0; s--) {
+        printf("cv30 debug: %s, reset reason %d, starting grblHAL in %d s\n",
+               esp_ota_get_running_partition()->label, (int)esp_reset_reason(), s);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+#endif
+#endif
 //    esp_log_level_set("*", ESP_LOG_NONE);
 
     esp_err_t ret = nvs_flash_init();
