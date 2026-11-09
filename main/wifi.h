@@ -26,6 +26,7 @@
 
 #include "driver.h"
 #include "esp_wifi.h"
+#include "lwip/ip4_addr.h" // ip4_addr_t: no longer pulled in by esp_wifi.h in IDF 5
 
 #ifndef STREAM_POLL_INTERVAL
 #define STREAM_POLL_INTERVAL 6 // Poll interval in milliseconds

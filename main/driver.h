@@ -28,6 +28,15 @@
 
 #include "sdkconfig.h"
 
+// ESP32-S2 and ESP32-S3 share a peripheral generation (LEDC low-speed only,
+// no input-only pins 34-39, cycle-counter delays, same GPIO pull logic) that
+// differs from the original ESP32. Use this where the S3 code applies to both.
+#if CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32S2
+#define ESP32_NEWGEN 1
+#else
+#define ESP32_NEWGEN 0
+#endif
+
 #ifndef OVERRIDE_MY_MACHINE
 
 #include "my_machine.h"
@@ -83,7 +92,12 @@
 #endif
 
 #ifndef GRBLHAL_TASK_CORE
+#include "soc/soc_caps.h"
+#if SOC_CPU_CORES_NUM > 1
 #define GRBLHAL_TASK_CORE 1
+#else
+#define GRBLHAL_TASK_CORE 0 // single-core chips (ESP32-S2): there is no core 1
+#endif
 #endif
 
 #define PROBE_ISR 0 // Catch probe state change by interrupt TODO: needs verification!
@@ -180,6 +194,8 @@ typedef struct {
   #include "boards/jackpot_map.h"
 #elif defined(BOARD_BTT_RODENT)
   #include "boards/btt_rodent_map.h"
+#elif defined(BOARD_CV30)
+  #include "boards/cv30_map.h"
 #elif defined(BOARD_MY_MACHINE)
   #include "boards/my_machine_map.h"
 #elif defined(BOARD_BLOX)

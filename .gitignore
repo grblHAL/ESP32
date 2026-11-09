@@ -33,3 +33,11 @@ build
 
 .vscode/settings.json
 .vscode/c_cpp_properties.json
+
+# Local build output
+build-*/
+*.log
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock

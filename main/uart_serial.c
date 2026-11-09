@@ -28,7 +28,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
-#if !CONFIG_IDF_TARGET_ESP32S3
+#if !(CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32S2)
 #include "esp32/rom/ets_sys.h"
 #include "esp32/rom/uart.h"
 #endif
@@ -41,6 +41,12 @@
 #include "driver/uart.h"
 #include "hal/uart_ll.h"
 #include "esp_intr_alloc.h"
+#include "esp_idf_version.h"
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include "soc/interrupts.h"            // ETS_UARTn_INTR_SOURCE moved here in IDF 5
+#include "esp_private/periph_ctrl.h"    // periph_module_reset/enable
+#include "esp_private/esp_clk.h"        // esp_clk_apb_freq()
+#endif
 
 #include "driver.h"
 #include "grbl/hal.h"
@@ -50,12 +56,20 @@
 #define ONE_STOP_BITS_CONF 0x1
 #define CONFIG_DISABLE_HAL_LOCKS 1
 
+#include "soc/soc_caps.h"
+#if SOC_UART_NUM > 2
 #define UART_REG_BASE(u)    ((u==0)?DR_REG_UART_BASE:(      (u==1)?DR_REG_UART1_BASE:(    (u==2)?DR_REG_UART2_BASE:0)))
 #define UART_RXD_IDX(u)     ((u==0)?U0RXD_IN_IDX:(          (u==1)?U1RXD_IN_IDX:(         (u==2)?U2RXD_IN_IDX:0)))
 #define UART_TXD_IDX(u)     ((u==0)?U0TXD_OUT_IDX:(         (u==1)?U1TXD_OUT_IDX:(        (u==2)?U2TXD_OUT_IDX:0)))
 #define UART_INTR_SOURCE(u) ((u==0)?ETS_UART0_INTR_SOURCE:( (u==1)?ETS_UART1_INTR_SOURCE:((u==2)?ETS_UART2_INTR_SOURCE:0)))
+#else // ESP32-S2: UART0 and UART1 only
+#define UART_REG_BASE(u)    ((u==0)?DR_REG_UART_BASE:(      (u==1)?DR_REG_UART1_BASE:0))
+#define UART_RXD_IDX(u)     ((u==0)?U0RXD_IN_IDX:(          (u==1)?U1RXD_IN_IDX:0))
+#define UART_TXD_IDX(u)     ((u==0)?U0TXD_OUT_IDX:(         (u==1)?U1TXD_OUT_IDX:0))
+#define UART_INTR_SOURCE(u) ((u==0)?ETS_UART0_INTR_SOURCE:( (u==1)?ETS_UART1_INTR_SOURCE:0))
+#endif
 
-#if CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32S2
 #ifndef UART_RX_PIN
 #define UART_RX_PIN 44
 #endif
@@ -90,7 +104,7 @@
 typedef void (*uart_isr_ptr)(void *arg);
 
 typedef struct {
-#if CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32S2
    uart_dev_t *dev;
 #else
    volatile uart_dev_t *dev;
@@ -111,7 +125,9 @@ typedef struct {
 static const uart_t _uart_bus_array[3] = {
     { (uart_dev_t *)(DR_REG_UART_BASE), 0, NULL, SOC_UART_FIFO_LEN },
     { (uart_dev_t *)(DR_REG_UART1_BASE), 1, NULL, SOC_UART_FIFO_LEN },
+#if SOC_UART_NUM > 2
     { (uart_dev_t *)(DR_REG_UART2_BASE), 2, NULL, SOC_UART_FIFO_LEN }
+#endif
 };
 
 #else
@@ -122,7 +138,9 @@ static const uart_t _uart_bus_array[3] = {
 static const uart_t _uart_bus_array[3] = {
     { (uart_dev_t *)(DR_REG_UART_BASE), NULL, 0, NULL, SOC_UART_FIFO_LEN },
     { (uart_dev_t *)(DR_REG_UART1_BASE), NULL, 1, NULL, SOC_UART_FIFO_LEN },
+#if SOC_UART_NUM > 2
     { (uart_dev_t *)(DR_REG_UART2_BASE), NULL, 2, NULL, SOC_UART_FIFO_LEN }
+#endif
 };
 
 #endif
@@ -329,7 +347,12 @@ static void uartSetBaudRate (uart_t *uart, uint32_t baud_rate)
         return;
 
     UART_MUTEX_LOCK(uart);
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    // IDF 5 wants the source clock; the UART is left on its default (APB) source.
+    uart_ll_set_baudrate(uart->dev, baud_rate, esp_clk_apb_freq());
+#else
     uart_ll_set_baudrate(uart->dev, baud_rate);
+#endif
     UART_MUTEX_UNLOCK(uart);
 }
 
@@ -355,7 +378,7 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
 //    uart->tx_len = 128;
     uart_ll_set_mode(uart->dev, UART_MODE_UART);
 
-#if CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32S2
 
     periph_module_reset((periph_module_t)(PERIPH_UART0_MODULE + uart->num));
     periph_module_enable((periph_module_t)(PERIPH_UART0_MODULE + uart->num));
@@ -390,7 +413,7 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
 
     // Note: UART0 pin mappings are set at boot, no need to set here unless override is required
 
-#if CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32S2
 #if UART_RX_PIN != 44 || UART_TX_PIN != 43
 #define UART0_PINS_REDEFINED
 #endif

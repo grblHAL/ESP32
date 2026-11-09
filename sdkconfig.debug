@@ -1,0 +1,7 @@
+# CV-30 debug build: console (and panic backtraces) over native USB via the
+# ROM CDC driver. Build with:
+#   idf.py -B build-s2-dbg -DSDKCONFIG=build-s2-dbg/sdkconfig -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.debug" set-target esp32s2
+CONFIG_ESP_CONSOLE_USB_CDC=y
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+CONFIG_ESP_SYSTEM_PANIC_PRINT_REBOOT=y
+CONFIG_TINYUSB_CDC_ENABLED=n
