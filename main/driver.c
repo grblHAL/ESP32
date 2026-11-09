@@ -40,6 +40,15 @@
 #include "esp_log.h"
 #include "sdkconfig.h"
 #include "esp_ota_ops.h"
+#include "esp_idf_version.h"
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+// IDF 5 renamed the timer group register fields (and they differ per chip),
+// so the step timer is driven through the inline timer_ll API instead.
+#include "soc/timer_group_struct.h"
+#include "hal/timer_ll.h"
+#include "esp_timer.h"
+#define STEP_TIMER_LL 1
+#endif
 #include "soc/rtc.h"
 #include "driver/gpio.h"
 #include "driver/timer.h"
@@ -60,7 +69,11 @@
 #endif
 
 #if CONFIG_IDF_TARGET_ESP32S3
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include "esp_private/esp_clk.h" // was esp32s3/clk.h before IDF 5
+#else
 #include "esp32s3/clk.h"
+#endif
 #if USB_SERIAL_CDC
 #include "usb_serial.h"
 status_code_t enter_bootloader (sys_state_t state, char *args)
@@ -75,6 +88,10 @@ status_code_t enter_bootloader (sys_state_t state, char *args)
 }
 
 #endif
+#endif
+
+#if CONFIG_IDF_TARGET_ESP32S2 && USB_SERIAL_CDC
+#include "usb_serial.h"
 #endif
 
 #if WIFI_ENABLE
@@ -151,7 +168,7 @@ static spindle_id_t spindle_id = -1;
 static pwm_spindle_t pwm_spindle = {
     .pwm_enabled = false,
     .timer = {
-#if CONFIG_IDF_TARGET_ESP32S3
+#if ESP32_NEWGEN
         .speed_mode = LEDC_LOW_SPEED_MODE,
 #else
         .speed_mode = LEDC_HIGH_SPEED_MODE,
@@ -162,7 +179,7 @@ static pwm_spindle_t pwm_spindle = {
     },
     .channel = {
         .gpio_num = SPINDLE_PWM_PIN,
-#if CONFIG_IDF_TARGET_ESP32S3
+#if ESP32_NEWGEN
         .speed_mode = LEDC_LOW_SPEED_MODE,
 #else
         .speed_mode = LEDC_HIGH_SPEED_MODE,
@@ -187,7 +204,7 @@ static spindle_id_t spindle1_id = -1;
 static pwm_spindle_t pwm_spindle1 = {
     .pwm_enabled = false,
     .timer = {
-#if CONFIG_IDF_TARGET_ESP32S3
+#if ESP32_NEWGEN
         .speed_mode = LEDC_LOW_SPEED_MODE,
 #else
         .speed_mode = LEDC_HIGH_SPEED_MODE,
@@ -198,7 +215,7 @@ static pwm_spindle_t pwm_spindle1 = {
     },
     .channel = {
         .gpio_num = SPINDLE1_PWM_PIN,
-#if CONFIG_IDF_TARGET_ESP32S3
+#if ESP32_NEWGEN
         .speed_mode = LEDC_LOW_SPEED_MODE,
 #else
         .speed_mode = LEDC_HIGH_SPEED_MODE,
@@ -704,7 +721,9 @@ static void stepperWakeUp (void)
 
     timer_set_counter_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 0x00000000ULL);
 //  timer_set_alarm_value(STEP_TIMER_GROUP, STEP_TIMER_INDEX, 5000ULL);
-#if CONFIG_IDF_TARGET_ESP32S3
+#if STEP_TIMER_LL
+    timer_ll_set_alarm_value(&TIMERG0, STEP_TIMER_INDEX, hal.f_step_timer / 500); // ~2ms delay to allow drivers time to wake up.
+#elif CONFIG_IDF_TARGET_ESP32S3
     TIMERG0.hw_timer[STEP_TIMER_INDEX].alarmhi.val = 0;
     TIMERG0.hw_timer[STEP_TIMER_INDEX].alarmlo.val = hal.f_step_timer / 500; // ~2ms delay to allow drivers time to wake up.
 #else
@@ -712,7 +731,9 @@ static void stepperWakeUp (void)
     TIMERG0.hw_timer[STEP_TIMER_INDEX].alarm_low = hal.f_step_timer / 500; // ~2ms delay to allow drivers time to wake up.
 #endif
     timer_start(STEP_TIMER_GROUP, STEP_TIMER_INDEX);
-#if CONFIG_IDF_TARGET_ESP32S3
+#if STEP_TIMER_LL
+    timer_ll_enable_alarm(&TIMERG0, STEP_TIMER_INDEX, true);
+#elif CONFIG_IDF_TARGET_ESP32S3
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.tn_alarm_en = TIMER_ALARM_EN;
 #else
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.alarm_en = TIMER_ALARM_EN;
@@ -723,7 +744,13 @@ static void stepperWakeUp (void)
 IRAM_ATTR static void stepperCyclesPerTick (uint32_t cycles_per_tick)
 {
 // Limit min steps/s to about 2 (hal.f_step_timer @ 20MHz)
-#if CONFIG_IDF_TARGET_ESP32S3
+#if STEP_TIMER_LL
+  #if ADAPTIVE_MULTI_AXIS_STEP_SMOOTHING
+    timer_ll_set_alarm_value(&TIMERG0, STEP_TIMER_INDEX, cycles_per_tick < (1UL << 18) ? max(cycles_per_tick, t_min_period) : (1UL << 18) - 1UL);
+  #else
+    timer_ll_set_alarm_value(&TIMERG0, STEP_TIMER_INDEX, cycles_per_tick < (1UL << 23) ? max(cycles_per_tick, t_min_period) : (1UL << 23) - 1UL);
+  #endif
+#elif CONFIG_IDF_TARGET_ESP32S3
   #if ADAPTIVE_MULTI_AXIS_STEP_SMOOTHING
     TIMERG0.hw_timer[STEP_TIMER_INDEX].alarmlo.val = cycles_per_tick < (1UL << 18) ? max(cycles_per_tick, t_min_period) : (1UL << 18) - 1UL;
   #else
@@ -879,11 +906,11 @@ static on_spindle_selected_ptr on_spindle_selected;
 // Set stepper pulse output pins
 inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits_1);
 
-#if !CONFIG_IDF_TARGET_ESP32S3
+#if !ESP32_NEWGEN
 
 IRAM_ATTR static void delay_us (uint32_t us)
 {
-#if CONFIG_IDF_TARGET_ESP32S3
+#if ESP32_NEWGEN
     int32_t t = XTHAL_GET_CCOUNT() + hal.f_mcu * us;
 
     while((XTHAL_GET_CCOUNT() - t) < 0) {
@@ -1676,7 +1703,7 @@ static axes_signals_t getGangedAxes (bool auto_squared)
 // Sets stepper direction and pulse pins and starts a step pulse
 // Called when in I2S passthrough mode
 
-#if CONFIG_IDF_TARGET_ESP32S3
+#if ESP32_NEWGEN
 
 IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
 {
@@ -1733,7 +1760,9 @@ IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
 // Disables stepper driver interrupt
 IRAM_ATTR static void stepperGoIdle (bool clear_signals)
 {
-#if CONFIG_IDF_TARGET_ESP32S3
+#if STEP_TIMER_LL
+    timer_ll_enable_counter(&TIMERG0, STEP_TIMER_INDEX, false);
+#elif CONFIG_IDF_TARGET_ESP32S3
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.tn_en = 0;
 #else
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.enable = 0;
@@ -1752,7 +1781,9 @@ IRAM_ATTR static void stepperGoIdle (bool clear_signals)
 
 static void i2s_set_streaming_mode (bool stream)
 {
-#if CONFIG_IDF_TARGET_ESP32S3
+#if STEP_TIMER_LL
+    timer_ll_enable_counter(&TIMERG0, STEP_TIMER_INDEX, false);
+#elif CONFIG_IDF_TARGET_ESP32S3
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.tn_en = 0;
 #else
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.enable = 0;
@@ -2966,7 +2997,7 @@ static void on_settings_changed (settings_t *settings, settings_changed_flags_t 
 
                 config.pin_bit_mask = 1ULL << signal->pin;
                 config.mode = GPIO_MODE_INPUT;
-#if CONFIG_IDF_TARGET_ESP32S3
+#if ESP32_NEWGEN
                 config.pull_up_en = signal->mode.pull_mode == PullMode_Up ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE;
                 config.pull_down_en = signal->mode.pull_mode == PullMode_Up ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE;
                 // Early versions(?) has an internal pullup on 45 - https://github.com/espressif/esp-idf/issues/9731
@@ -3241,7 +3272,7 @@ static bool driver_setup (settings_t *settings)
 
     } while(idx);
 
-#if !CONFIG_IDF_TARGET_ESP32S3
+#if !ESP32_NEWGEN
     if(mask & ((1ULL<<GPIO_NUM_34)|(1ULL<<GPIO_NUM_35)|(1ULL<<GPIO_NUM_36)|(1ULL<<GPIO_NUM_39))) {
         mask &= ~((1ULL<<GPIO_NUM_34)|(1ULL<<GPIO_NUM_35)|(1ULL<<GPIO_NUM_36)|(1ULL<< GPIO_NUM_39));
         task_run_on_startup(report_warning, "Input only pins configured for output!");
@@ -3417,6 +3448,8 @@ bool driver_init (void)
 
 #if CONFIG_IDF_TARGET_ESP32S3
     hal.info = "ESP32-S3";
+#elif CONFIG_IDF_TARGET_ESP32S2
+    hal.info = "ESP32-S2";
 #else
     hal.info = "ESP32";
 #endif
@@ -3895,7 +3928,10 @@ void pin_debounce (void *pin)
 // Main stepper driver
 IRAM_ATTR static void stepper_driver_isr (void *arg)
 {
-#if CONFIG_IDF_TARGET_ESP32S3
+#if STEP_TIMER_LL
+    timer_ll_clear_intr_status(&TIMERG0, TIMER_LL_EVENT_ALARM(STEP_TIMER_INDEX));
+    timer_ll_enable_alarm(&TIMERG0, STEP_TIMER_INDEX, true);
+#elif CONFIG_IDF_TARGET_ESP32S3
     TIMERG0.int_clr_timers.t0_int_clr = 1;
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.tn_alarm_en = TIMER_ALARM_EN;
 #else

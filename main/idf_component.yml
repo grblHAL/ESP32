@@ -1,0 +1,11 @@
+## IDF Component Manager Manifest
+dependencies:
+  idf: ">=5.0"
+  # Native USB CDC stream (usb_serial.c) on ESP32-S2/S3. 1.x keeps the
+  # tinyusb_driver_install / tusb_cdc_acm_init API the driver was written for.
+  espressif/esp_tinyusb:
+    version: "~1.7.6"
+    rules:
+      - if: "target in [esp32s2, esp32s3]"
+  # mDNS (wifi.c) left ESP-IDF in 5.0 and is a managed component now.
+  espressif/mdns: "^1.4"

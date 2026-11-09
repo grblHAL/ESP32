@@ -21,6 +21,128 @@
 */
 
 #include "driver.h"
+#include "esp_idf_version.h"
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+
+/*
+ * IDF 5: timer_hal_context_t lost its idx member and the timer_ll API was
+ * reworked (counter writes go through reload, alarm/interrupt calls renamed).
+ * Setup uses the legacy driver/timer.h API, which IDF 5 still ships;
+ * the ISRs and start/stop use the inline timer_ll calls so they stay in IRAM.
+ */
+
+#include "driver/timer.h"
+#include "hal/timer_ll.h"
+
+#define TIMER_ENTER_CRITICAL(mux)      portENTER_CRITICAL_SAFE(mux);
+#define TIMER_EXIT_CRITICAL(mux)       portEXIT_CRITICAL_SAFE(mux);
+
+typedef struct {
+    timg_dev_t *dev;
+    uint32_t idx;
+    uint32_t group;
+    portMUX_TYPE mux;
+    timer_resolution_t resolution;
+    bool claimed;
+    timer_cfg_t cfg;
+    timer_cap_t cap;
+    uint32_t freq_hz;
+    uint32_t timebase;
+    void (*isr)(void * arg);
+} dtimer_t;
+
+IRAM_ATTR static void timer_isr (void *arg)
+{
+    dtimer_t *dtimer = (dtimer_t *)arg;
+
+    timer_ll_clear_intr_status(dtimer->dev, TIMER_LL_EVENT_ALARM(dtimer->idx));
+    if(!dtimer->cfg.single_shot)
+        timer_ll_enable_alarm(dtimer->dev, dtimer->idx, true);
+
+    dtimer->cfg.timeout_callback(dtimer->cfg.context);
+}
+
+static dtimer_t timers[] = {
+    { .dev = &TIMERG0, .idx = 1, .group = 0, .freq_hz = 80000000, .isr = timer_isr, .mux = portMUX_INITIALIZER_UNLOCKED },
+    { .dev = &TIMERG1, .idx = 0, .group = 1, .freq_hz = 80000000, .isr = timer_isr, .mux = portMUX_INITIALIZER_UNLOCKED },
+    { .dev = &TIMERG1, .idx = 1, .group = 1, .freq_hz = 80000000, .isr = timer_isr, .mux = portMUX_INITIALIZER_UNLOCKED }
+};
+
+hal_timer_t timerClaim (timer_cap_t cap, uint32_t timebase)
+{
+    hal_timer_t t;
+    uint_fast8_t idx, n_timers = sizeof(timers) / sizeof(dtimer_t);
+
+    for(idx = 0; idx < n_timers; idx++) {
+        if((t = timers[idx].claimed ? NULL : &timers[idx])) {
+            timers[idx].claimed = true;
+            timers[idx].timebase = timebase;
+            break;
+        }
+    }
+
+    return t;
+}
+
+bool timerCfg (hal_timer_t timer, timer_cfg_t *cfg)
+{
+    bool ok;
+
+    if((ok = timer != NULL)) {
+
+        dtimer_t *dtimer = (dtimer_t *)timer;
+
+        memcpy(&dtimer->cfg, cfg, sizeof(timer_cfg_t));
+
+        timer_config_t timerConfig = {
+            .counter_dir = TIMER_COUNT_UP,
+            .counter_en  = TIMER_PAUSE,
+            .alarm_en    = TIMER_ALARM_EN,
+            .intr_type   = TIMER_INTR_LEVEL
+        };
+
+        timerConfig.auto_reload = !cfg->single_shot;
+        timerConfig.divider = ((dtimer->freq_hz / 1000) * dtimer->timebase) / 1000000;
+
+        timer_init(dtimer->group, dtimer->idx, &timerConfig);
+        timer_set_counter_value(dtimer->group, dtimer->idx, 0ULL);
+        timer_isr_register(dtimer->group, dtimer->idx, dtimer->isr, timer, ESP_INTR_FLAG_IRAM, NULL);
+        timer_enable_intr(dtimer->group, dtimer->idx);
+    }
+
+    return ok;
+}
+
+bool timerStart (hal_timer_t timer, uint32_t period)
+{
+    dtimer_t *dtimer = (dtimer_t *)timer;
+
+    if(dtimer->cfg.single_shot || period != dtimer->cfg.period) {
+
+        TIMER_ENTER_CRITICAL(&dtimer->mux);
+        dtimer->cfg.period = period;
+        // IDF 5 has no direct counter write: load 0 through the reload register.
+        timer_ll_set_reload_value(dtimer->dev, dtimer->idx, 0);
+        timer_ll_trigger_soft_reload(dtimer->dev, dtimer->idx);
+        timer_ll_set_alarm_value(dtimer->dev, dtimer->idx, (uint64_t)period);
+        timer_ll_enable_counter(dtimer->dev, dtimer->idx, true);
+        timer_ll_enable_alarm(dtimer->dev, dtimer->idx, true);
+        TIMER_EXIT_CRITICAL(&dtimer->mux);
+    }
+
+    return true;
+}
+
+bool timerStop (hal_timer_t timer)
+{
+    ((dtimer_t *)timer)->cfg.period = 0;
+    timer_ll_enable_counter(((dtimer_t *)timer)->dev, ((dtimer_t *)timer)->idx, false);
+
+    return true;
+}
+
+#else // IDF 4
 
 #include "hal/timer_hal.h"
 
@@ -143,3 +265,5 @@ bool timerStop (hal_timer_t timer)
 
     return true;
 }
+
+#endif // IDF 4

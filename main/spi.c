@@ -66,8 +66,8 @@ bool spi_bus_init (spi_host_device_t *host)
             .intr_flags      = ESP_INTR_FLAG_IRAM
         };
 
-#ifdef CONFIG_IDF_TARGET_ESP32S3
-		dma_ch = SPI_DMA_CH_AUTO;
+#if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32S2)
+		dma_ch = SPI_DMA_CH_AUTO; // fixed DMA channels exist on the original ESP32 only
         host_id = SDSPI_DEFAULT_HOST;
 #else
 		dma_ch = SPI_DMA_CH1;

@@ -31,7 +31,12 @@
 
 #include "driver.h"
 
-#if CONFIG_IDF_TARGET_ESP32S3 && USB_SERIAL_CDC
+#if (CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32S2) && USB_SERIAL_CDC
+
+#include "esp_idf_version.h"
+// IDF 5: TinyUSB is the esp_tinyusb managed component (main/idf_component.yml),
+// which installs the PHY itself; IDF 4.4 needed the hand-rolled install below.
+#define USB_SERIAL_IDF5 (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0))
 
 #include <stdint.h>
 #include "esp_log.h"
@@ -44,14 +49,18 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "hal/clk_gate_ll.h"
+#if CONFIG_IDF_TARGET_ESP32S3
 #include "hal/usb_phy_ll.h"
 #include "hal/usb_serial_jtag_ll.h"
 #include "soc/periph_defs.h"
 #include "soc/rtc_cntl_reg.h"
 #include "soc/usb_pins.h"
 #include "soc/usb_serial_jtag_reg.h"
+#endif
 #include "tinyusb.h"
+#if !USB_SERIAL_IDF5
 #include "tusb_tasks.h"
+#endif
 #include "tusb_cdc_acm.h"
 
 #include <string.h>
@@ -66,7 +75,9 @@ static stream_rx_buffer_t rxbuf;
 static volatile enqueue_realtime_command_ptr enqueue_realtime_command = protocol_enqueue_realtime_command;
 static bool usb_serial_started = false;
 static bool usb_bootloader_restart_pending = false;
+#if !USB_SERIAL_IDF5
 static usb_phy_handle_t usb_serial_phy_hdl = NULL;
+#endif
 
 /*
  * ESP-IDF 4.4 exposes TinyUSB install but not uninstall. The stock driver keeps
@@ -77,10 +88,14 @@ static usb_phy_handle_t usb_serial_phy_hdl = NULL;
  * - cores/esp32/esp32-hal-tinyusb.c: usb_switch_to_cdc_jtag()
  * - cores/esp32/USBCDC.cpp: usb_persist_restart(RESTART_BOOTLOADER)
  */
+#if !USB_SERIAL_IDF5
 extern tusb_desc_device_t descriptor_kconfig;
 extern tusb_desc_strarray_device_t descriptor_str_kconfig;
 void tusb_set_descriptor (tusb_desc_device_t *desc, const char **str_desc);
 
+#endif // !USB_SERIAL_IDF5
+
+#if CONFIG_IDF_TARGET_ESP32S3
 static void hw_cdc_reset_handler (void *arg)
 {
     BaseType_t xTaskWoken = pdFALSE;
@@ -102,6 +117,22 @@ static void usb_serial_bootloader_shutdown_handler (void)
 
     REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
 }
+
+#endif // CONFIG_IDF_TARGET_ESP32S3
+
+#if USB_SERIAL_IDF5
+
+static esp_err_t usb_serial_driver_install (const tinyusb_config_t *config)
+{
+    return tinyusb_driver_install(config);
+}
+
+static void usb_serial_driver_uninstall (void)
+{
+    tinyusb_driver_uninstall();
+}
+
+#else
 
 static esp_err_t usb_serial_driver_install (const tinyusb_config_t *config)
 {
@@ -152,6 +183,8 @@ static void usb_serial_driver_uninstall (void)
         usb_serial_phy_hdl = NULL;
     }
 }
+
+#endif // USB_SERIAL_IDF5
 
 static inline bool usb_connected (void)
 {
@@ -373,6 +406,7 @@ void usb_line_state_callback (int itf, cdcacm_event_t *event)
     stream_usb_linestate_changed(0, (serial_linestate_t){ .dtr = event->line_state_changed_data.dtr, .rts = event->line_state_changed_data.rts });
 }
 
+#if CONFIG_IDF_TARGET_ESP32S3
 bool usb_serialEnterBootloader (void)
 {
     intr_handle_t intr_handle = NULL;
@@ -424,6 +458,13 @@ bool usb_serialEnterBootloader (void)
 
     return true;
 }
+#else
+// The ESP32-S2 has no USB Serial/JTAG to hand the port over to.
+bool usb_serialEnterBootloader (void)
+{
+    return false;
+}
+#endif
 
 const io_stream_t *usb_serialInit (void)
 {
@@ -466,4 +507,4 @@ const io_stream_t *usb_serialInit (void)
     return &stream;
 }
 
-#endif // GRBL_ESP32S3
+#endif // (ESP32S3 || ESP32S2) && USB_SERIAL_CDC

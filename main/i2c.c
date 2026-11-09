@@ -97,7 +97,7 @@ i2c_cap_t i2c_start (void)
 
         TaskHandle_t I2CTaskHandle;
 
-        xTaskCreatePinnedToCore(I2CTask, "I2C", 2048, (void *)i2cQueue, GRBLHAL_TASK_PRIORITY + 1, &I2CTaskHandle, 1);
+        xTaskCreatePinnedToCore(I2CTask, "I2C", 2048, (void *)i2cQueue, GRBLHAL_TASK_PRIORITY + 1, &I2CTaskHandle, GRBLHAL_TASK_CORE);
 
         xSemaphoreGive(i2cBusy);
 
