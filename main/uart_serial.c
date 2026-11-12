@@ -132,20 +132,20 @@ static const DRAM_ATTR uint32_t rx_int_flags = UART_INTR_RXFIFO_FULL|UART_INTR_R
 
 static uart_t uart0;
 static stream_rx_buffer_t rxbuffer = {0};
-static enqueue_realtime_command_ptr enqueue_realtime_command;
+static enqueue_realtime_command_ptr enqueue_realtime_command = protocol_enqueue_realtime_command;
 static const io_stream_t *serialInit (uint32_t baud_rate);
 
 #ifdef SERIAL1_PORT
 static uart_t uart1;
 static stream_rx_buffer_t rxbuffer1 = {0};
-static enqueue_realtime_command_ptr enqueue_realtime_command2;
+static enqueue_realtime_command_ptr enqueue_realtime_command2 = protocol_enqueue_realtime_command;
 static const io_stream_t *serial1Init (uint32_t baud_rate);
 #endif
 
 #ifdef SERIAL2_PORT
 static uart_t uart2;
 static stream_rx_buffer_t rxbuffer2 = {0};
-static enqueue_realtime_command_ptr enqueue_realtime_command3;
+static enqueue_realtime_command_ptr enqueue_realtime_command3 = protocol_enqueue_realtime_command;
 static const io_stream_t *serial2Init (uint32_t baud_rate);
 #endif
 
