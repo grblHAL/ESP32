@@ -132,20 +132,20 @@ static const DRAM_ATTR uint32_t rx_int_flags = UART_INTR_RXFIFO_FULL|UART_INTR_R
 
 static uart_t uart0;
 static stream_rx_buffer_t rxbuffer = {0};
-static enqueue_realtime_command_ptr enqueue_realtime_command;
+static enqueue_realtime_command_ptr enqueue_realtime_command = stream_buffer_all;
 static const io_stream_t *serialInit (uint32_t baud_rate);
 
 #ifdef SERIAL1_PORT
 static uart_t uart1;
 static stream_rx_buffer_t rxbuffer1 = {0};
-static enqueue_realtime_command_ptr enqueue_realtime_command2;
+static enqueue_realtime_command_ptr enqueue_realtime_command2 = stream_buffer_all;
 static const io_stream_t *serial1Init (uint32_t baud_rate);
 #endif
 
 #ifdef SERIAL2_PORT
 static uart_t uart2;
 static stream_rx_buffer_t rxbuffer2 = {0};
-static enqueue_realtime_command_ptr enqueue_realtime_command3;
+static enqueue_realtime_command_ptr enqueue_realtime_command3 = stream_buffer_all;
 static const io_stream_t *serial2Init (uint32_t baud_rate);
 #endif
 
@@ -387,6 +387,8 @@ static void uartConfig (uart_t *uart, uint32_t baud_rate)
     uart_ll_set_data_bit_num(uart->dev, UART_DATA_8_BITS);
     uart_ll_set_stop_bits(uart->dev, UART_STOP_BITS_1);
     uart_ll_set_parity(uart->dev, UART_PARITY_DISABLE);
+    uart_ll_clr_intsts_mask(uart->dev, uart_ll_get_intsts_mask(uart->dev));
+    uart_ll_rxfifo_rst(uart->dev);
 
     // Note: UART0 pin mappings are set at boot, no need to set here unless override is required
 
