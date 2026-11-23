@@ -27,6 +27,10 @@
 
 #include "sdcard/sdcard.h"
 
+#if ETHERNET_ENABLE
+#include "networking/networking.h"
+#endif
+
 // TODO: Identify and implement the correct 4-channel I2C DAC for current control.
 // For now, this is a placeholder based on the original Ooznest board's MCP4725.
 
@@ -42,6 +46,34 @@ static ooznest_settings_t mks;
 static nvs_address_t nvs_address;
 static settings_changed_ptr on_settings_changed;
 static on_realtime_report_ptr prev_realtime_report;
+
+#if ETHERNET_ENABLE
+static on_report_options_ptr on_report_options;
+static bool ethernet_module_present;
+
+static bool report_ethernet_link (network_info_t *info, network_flags_t flags, void *data)
+{
+    UNUSED(flags);
+    UNUSED(data);
+
+    if(info->is_ethernet)
+        hal.stream.write(info->link_up ? "[ETHERNET LINK:UP]" ASCII_EOL : "[ETHERNET LINK:DOWN]" ASCII_EOL);
+
+    return info->is_ethernet;
+}
+
+static void ooznest_report_options (bool newopt)
+{
+    on_report_options(newopt);
+
+    if(!newopt) {
+        if(!ethernet_module_present)
+            hal.stream.write("[ETHERNET MODULE NOT INSTALLED]" ASCII_EOL);
+        else if(hal.driver_cap.ethernet)
+            networking_enumerate_interfaces(report_ethernet_link, NULL);
+    }
+}
+#endif
 
 static struct {
     float current;
@@ -570,6 +602,9 @@ void board_init (void)
 
     #if ETHERNET_ENABLE
 
+      on_report_options = grbl.on_report_options;
+      grbl.on_report_options = ooznest_report_options;
+
       gpio_config_t gpioConfig = {
           .pin_bit_mask = 1ULL << INPUT_GPIO_CS,
           .mode = GPIO_MODE_INPUT,
@@ -581,6 +616,7 @@ void board_init (void)
       gpio_config(&gpioConfig);
 
       hal.driver_cap.ethernet = !!DIGITAL_IN(INPUT_GPIO_CS);
+      ethernet_module_present = hal.driver_cap.ethernet;
 
     #endif
   }
