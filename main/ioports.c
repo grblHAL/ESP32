@@ -33,7 +33,7 @@ static input_signal_t *aux_in;
 static output_signal_t *aux_out;
 static volatile input_signal_t *event_port;
 
-static bool digital_out_cfg (xbar_t *output, gpio_out_config_t *config, bool persistent)
+IRAM_ATTR static bool digital_out_cfg (xbar_t *output, gpio_out_config_t *config, bool persistent)
 {
     if(output->id < digital.out.n_ports) {
 
@@ -89,7 +89,7 @@ static bool digital_in_cfg (xbar_t *input, gpio_in_config_t *config, bool persis
     return input->id < digital.in.n_ports;
 }
 
-static float digital_in_state (xbar_t *input)
+IRAM_ATTR static float digital_in_state (xbar_t *input)
 {
     float value = -1.0f;
 

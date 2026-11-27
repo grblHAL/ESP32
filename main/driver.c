@@ -621,7 +621,7 @@ IRAM_ATTR static void driver_delay_ms (uint32_t ms, void (*callback)(void))
 }
 
 // Enable/disable steppers
-static void stepperEnable (axes_signals_t enable, bool hold)
+IRAM_ATTR static void stepperEnable (axes_signals_t enable, bool hold)
 {
     enable.mask ^= settings.steppers.enable_invert.mask;
 
@@ -716,6 +716,9 @@ static void stepperWakeUp (void)
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.tn_alarm_en = TIMER_ALARM_EN;
 #else
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.alarm_en = TIMER_ALARM_EN;
+#endif
+#if USE_I2S_OUT
+    i2s_out_stepping(true);
 #endif
 }
 
@@ -866,19 +869,7 @@ static void StepperDisableMotors (axes_signals_t axes, squaring_mode_t mode)
 
 #endif // SQUARING_ENABLED
 
-#if USE_I2S_OUT
-
-static bool goIdlePending = false;
-static uint32_t t_max_period;
-static uint32_t i2s_step_length = I2S_OUT_USEC_PER_PULSE, i2s_delay_length = I2S_OUT_USEC_PER_PULSE, i2s_delay_samples = 1, i2s_step_samples = 1;
-static bool laser_mode = false;
-#if DRIVER_SPINDLE_ENABLE
-static on_spindle_selected_ptr on_spindle_selected;
-#endif
-
-// Set stepper pulse output pins
-inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits_1);
-
+/*
 #if !CONFIG_IDF_TARGET_ESP32S3
 
 IRAM_ATTR static void delay_us (uint32_t us)
@@ -899,79 +890,90 @@ IRAM_ATTR static void delay_us (uint32_t us)
 }
 
 #endif // !CONFIG_IDF_TARGET_ESP32S3
+*/
 
-IRAM_ATTR static void I2SStepperCyclesPerTick (uint32_t cycles_per_tick)
-{
-    i2s_out_set_pulse_period((cycles_per_tick < (1UL << 18) ? max(cycles_per_tick, t_min_period) : (1UL << 18) - 1) / t_max_period);
-}
-
-// Sets stepper direction and pulse pins and starts a step pulse
-// Called when in I2S stepping mode
-IRAM_ATTR static void I2SStepperPulseStart (stepper_t *stepper)
-{
-    if(stepper->dir_changed.bits) {
-        stepper->dir_changed.bits = 0;
-        set_dir_outputs(stepper->dir_out);
-        if(stepper->step_out.bits)
-            i2s_out_push_sample(i2s_delay_samples);
-    }
-
-    if(stepper->step_out.bits) {
-        i2s_set_step_outputs(stepper->step_out);
-        i2s_out_push_sample(i2s_step_samples);
-        i2s_set_step_outputs((axes_signals_t){0});
-    }
-}
-
-// Starts stepper driver ISR timer and forces a stepper driver interrupt callback
-static void I2SStepperWakeUp (void)
-{
-    // Enable stepper drivers.
-    hal.stepper.enable((axes_signals_t){AXES_BITMASK}, false);
-    i2s_out_set_stepping();
-}
+#if USE_I2S_OUT
 
 #ifdef SQUARING_ENABLED
 
 // Set stepper pulse output pins
 inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits_1)
 {
+    bool step_out = !!step_outbits_1.value;
+
     axes_signals_t step_outbits_2;
     step_outbits_2.mask = (step_outbits_1.mask & motors_2.mask) ^ settings.steppers.step_invert.mask;
     step_outbits_1.mask = (step_outbits_1.mask & motors_1.mask) ^ settings.steppers.step_invert.mask;
 
-    DIGITAL_OUT(X_STEP_PIN, step_outbits_1.x);
-    DIGITAL_OUT(Y_STEP_PIN, step_outbits_1.y);
+    if(step_out) {
+
+        STEP_OUT(X_STEP_PIN, step_outbits_1.x);
+        STEP_OUT(Y_STEP_PIN, step_outbits_1.y);
 #ifdef Z_STEP_PIN
-    DIGITAL_OUT(Z_STEP_PIN, step_outbits_1.z);
+        STEP_OUT(Z_STEP_PIN, step_outbits_1.z);
 #endif
 #ifdef X2_STEP_PIN
-    DIGITAL_OUT(X2_STEP_PIN, step_outbits_2.x);
+        STEP_OUT(X2_STEP_PIN, step_outbits_2.x);
 #endif
 #ifdef Y2_STEP_PIN
-    DIGITAL_OUT(Y2_STEP_PIN, step_outbits_2.y);
+        STEP_OUT(Y2_STEP_PIN, step_outbits_2.y);
 #endif
 #ifdef Z2_STEP_PIN
-    DIGITAL_OUT(Z2_STEP_PIN, step_outbits_2.z);
+        STEP_OUT(Z2_STEP_PIN, step_outbits_2.z);
 #endif
 #ifdef A_AXIS
-    DIGITAL_OUT(A_STEP_PIN, step_outbits_1.a);
+        STEP_OUT(A_STEP_PIN, step_outbits_1.a);
 #endif
 #ifdef B_AXIS
-    DIGITAL_OUT(B_STEP_PIN, step_outbits_1.b);
+        STEP_OUT(B_STEP_PIN, step_outbits_1.b);
 #endif
 #ifdef C_AXIS
-    DIGITAL_OUT(C_STEP_PIN, step_outbits_1.c);
+        STEP_OUT(C_STEP_PIN, step_outbits_1.c);
 #endif
 #ifdef U_AXIS
-    DIGITAL_OUT(U_STEP_PIN, step_outbits_1.u);
+        STEP_OUT(U_STEP_PIN, step_outbits_1.u);
 #endif
 #ifdef V_AXIS
-    DIGITAL_OUT(V_STEP_PIN, step_outbits_1.v);
+        STEP_OUT(V_STEP_PIN, step_outbits_1.v);
 #endif
 #ifdef W_AXIS
-    DIGITAL_OUT(W_STEP_PIN, step_outbits_1.w);
+        STEP_OUT(W_STEP_PIN, step_outbits_1.w);
 #endif
+    } else {
+
+        DIGITAL_OUT(X_STEP_PIN, step_outbits_1.x);
+        DIGITAL_OUT(Y_STEP_PIN, step_outbits_1.y);
+#ifdef Z_STEP_PIN
+        DIGITAL_OUT(Z_STEP_PIN, step_outbits_1.z);
+#endif
+#ifdef X2_STEP_PIN
+        DIGITAL_OUT(X2_STEP_PIN, step_outbits_2.x);
+#endif
+#ifdef Y2_STEP_PIN
+        DIGITAL_OUT(Y2_STEP_PIN, step_outbits_2.y);
+#endif
+#ifdef Z2_STEP_PIN
+        DIGITAL_OUT(Z2_STEP_PIN, step_outbits_2.z);
+#endif
+#ifdef A_AXIS
+        DIGITAL_OUT(A_STEP_PIN, step_outbits_1.a);
+#endif
+#ifdef B_AXIS
+        DIGITAL_OUT(B_STEP_PIN, step_outbits_1.b);
+#endif
+#ifdef C_AXIS
+        DIGITAL_OUT(C_STEP_PIN, step_outbits_1.c);
+#endif
+#ifdef U_AXIS
+        DIGITAL_OUT(U_STEP_PIN, step_outbits_1.u);
+#endif
+#ifdef V_AXIS
+        DIGITAL_OUT(V_STEP_PIN, step_outbits_1.v);
+#endif
+#ifdef W_AXIS
+        DIGITAL_OUT(W_STEP_PIN, step_outbits_1.w);
+#endif
+    }
 }
 
 #else // !SQUARING_ENABLED
@@ -979,73 +981,103 @@ inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs
 // Set stepper pulse output pins
 inline __attribute__((always_inline)) IRAM_ATTR static void i2s_set_step_outputs (axes_signals_t step_outbits)
 {
+    bool step_out = !!step_outbits.value;
+
     step_outbits.value ^= settings.steppers.step_invert.mask;
-    DIGITAL_OUT(X_STEP_PIN, step_outbits.x);
-    DIGITAL_OUT(Y_STEP_PIN, step_outbits.y);
+
+    if(step_out) {
+
+        STEP_OUT(X_STEP_PIN, step_outbits.x);
+        STEP_OUT(Y_STEP_PIN, step_outbits.y);
 #ifdef Z_STEP_PIN
-    DIGITAL_OUT(Z_STEP_PIN, step_outbits.z);
+        STEP_OUT(Z_STEP_PIN, step_outbits.z);
 #endif
 #ifdef X2_STEP_PIN
-    DIGITAL_OUT(X2_STEP_PIN, step_outbits.x);
+        STEP_OUT(X2_STEP_PIN, step_outbits.x);
 #endif
 #ifdef Y2_STEP_PIN
-    DIGITAL_OUT(Y2_STEP_PIN, step_outbits.y);
+        STEP_OUT(Y2_STEP_PIN, step_outbits.y);
 #endif
 #ifdef Z2_STEP_PIN
-    DIGITAL_OUT(Z2_STEP_PIN, step_outbits.z);
+        STEP_OUT(Z2_STEP_PIN, step_outbits.z);
 #endif
 #ifdef A_AXIS
-    DIGITAL_OUT(A_STEP_PIN, step_outbits.a);
+        STEP_OUT(A_STEP_PIN, step_outbits.a);
 #endif
 #ifdef B_AXIS
-    DIGITAL_OUT(B_STEP_PIN, step_outbits.b);
+        STEP_OUT(B_STEP_PIN, step_outbits.b);
 #endif
 #ifdef C_AXIS
-    DIGITAL_OUT(C_STEP_PIN, step_outbits.c);
+        STEP_OUT(C_STEP_PIN, step_outbits.c);
 #endif
 #ifdef U_AXIS
-    DIGITAL_OUT(U_STEP_PIN, step_outbits.u);
+        STEP_OUT(U_STEP_PIN, step_outbits.u);
 #endif
 #ifdef V_AXIS
-    DIGITAL_OUT(V_STEP_PIN, step_outbits.v);
+        STEP_OUT(V_STEP_PIN, step_outbits.v);
 #endif
 #ifdef W_AXIS
-    DIGITAL_OUT(W_STEP_PIN, step_outbits.w);
+        STEP_OUT(W_STEP_PIN, step_outbits.w);
 #endif
+    } else {
+        DIGITAL_OUT(X_STEP_PIN, step_outbits.x);
+        DIGITAL_OUT(Y_STEP_PIN, step_outbits.y);
+#ifdef Z_STEP_PIN
+        DIGITAL_OUT(Z_STEP_PIN, step_outbits.z);
+#endif
+#ifdef X2_STEP_PIN
+        DIGITAL_OUT(X2_STEP_PIN, step_outbits.x);
+#endif
+#ifdef Y2_STEP_PIN
+        DIGITAL_OUT(Y2_STEP_PIN, step_outbits.y);
+#endif
+#ifdef Z2_STEP_PIN
+        DIGITAL_OUT(Z2_STEP_PIN, step_outbits.z);
+#endif
+#ifdef A_AXIS
+        DIGITAL_OUT(A_STEP_PIN, step_outbits.a);
+#endif
+#ifdef B_AXIS
+        DIGITAL_OUT(B_STEP_PIN, step_outbits.b);
+#endif
+#ifdef C_AXIS
+        DIGITAL_OUT(C_STEP_PIN, step_outbits.c);
+#endif
+#ifdef U_AXIS
+        DIGITAL_OUT(U_STEP_PIN, step_outbits.u);
+#endif
+#ifdef V_AXIS
+        DIGITAL_OUT(V_STEP_PIN, step_outbits.v);
+#endif
+#ifdef W_AXIS
+        DIGITAL_OUT(W_STEP_PIN, step_outbits.w);
+#endif
+    }
 }
 
 #endif // !SQUARING_ENABLED
 
-void i2s_step_sink (void)
+// Sets stepper direction and pulse pins and starts a step pulse
+// Called when in I2S stepping mode
+IRAM_ATTR static void I2SStepperPulseStart (stepper_t *stepper)
 {
-    //NOOP
-}
+    i2s_pulse_t pulse = {0};
 
-void I2SReset (void)
-{
-    if(goIdlePending) {
-        i2s_out_set_passthrough();
-        i2s_out_delay();
-//      i2s_out_reset();
-        goIdlePending = false;
-    }
-}
-
-IRAM_ATTR static void I2SStepperGoIdle (bool clear_signals)
-{
-    if(clear_signals) {
-        i2s_set_step_outputs((axes_signals_t){0});
-        set_dir_outputs((axes_signals_t){0});
-        i2s_out_reset();
+    if((pulse.dir_changed = !!stepper->dir_changed.bits)) {
+        stepper->dir_changed.bits = 0;
+        set_dir_outputs(stepper->dir_out);
     }
 
-    if(!(goIdlePending = xPortInIsrContext())) {
-        i2s_out_set_passthrough();
-        i2s_out_delay();
-    }
+    if((pulse.step = !!stepper->step_out.bits))
+        i2s_set_step_outputs(stepper->step_out);
+
+    if(pulse.val)
+        i2s_out_push_step(pulse);
 }
 
-#else // RMT stepping
+#endif
+
+#if !USE_I2S_OUT // RMT stepping
 
 void initRMT (settings_t *settings)
 {
@@ -1673,63 +1705,6 @@ static axes_signals_t getGangedAxes (bool auto_squared)
 
 #endif // GANGING_ENABLED
 
-// Sets stepper direction and pulse pins and starts a step pulse
-// Called when in I2S passthrough mode
-
-#if CONFIG_IDF_TARGET_ESP32S3
-
-IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
-{
-#if USE_I2S_OUT
-    static bool add_dir_delay = false;
-#endif
-
-    if(stepper->dir_changed.bits) {
-        stepper->dir_changed.bits = 0;
-        set_dir_outputs(stepper->dir_out);
-#if USE_I2S_OUT
-        if(!(add_dir_delay = !!stepper->step_out.bits))
-            i2s_out_commit(0, i2s_delay_samples);
-#endif
-    }
-
-    if(stepper->step_out.bits) {
-#if USE_I2S_OUT
-        i2s_set_step_outputs(stepper->step_out);
-        i2s_out_commit(i2s_step_samples, add_dir_delay ? i2s_delay_samples : 0);
-        add_dir_delay = false;
-#else
-        set_step_outputs(stepper->step_out);
-#endif
-    }
-}
-
-#else
-
-IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
-{
-    if(stepper->dir_changed.bits) {
-        stepper->dir_changed.bits = 0;
-        set_dir_outputs(stepper->dir_out);
-#if USE_I2S_OUT
-        if(stepper->step_out.bits)
-            delay_us(i2s_delay_length + 1);
-#endif
-    }
-
-    if(stepper->step_out.bits) {
-#if USE_I2S_OUT
-        i2s_set_step_outputs(stepper->step_out);
-        delay_us(i2s_step_length + 1);
-        i2s_set_step_outputs((axes_signals_t){0});
-#else
-        set_step_outputs(stepper->step_out);
-#endif
-    }
-}
-
-#endif
-
 // Disables stepper driver interrupt
 IRAM_ATTR static void stepperGoIdle (bool clear_signals)
 {
@@ -1739,68 +1714,35 @@ IRAM_ATTR static void stepperGoIdle (bool clear_signals)
     TIMERG0.hw_timer[STEP_TIMER_INDEX].config.enable = 0;
 #endif
     if(clear_signals) {
-#if USE_I2S_OUT
-        i2s_set_step_outputs((axes_signals_t){0});
-#else
+        set_dir_outputs((axes_signals_t){0});
+#if !USE_I2S_OUT
         set_step_outputs((axes_signals_t){0});
 #endif
-        set_dir_outputs((axes_signals_t){0});
     }
-}
-
 #if USE_I2S_OUT
-
-static void i2s_set_streaming_mode (bool stream)
-{
-#if CONFIG_IDF_TARGET_ESP32S3
-    TIMERG0.hw_timer[STEP_TIMER_INDEX].config.tn_en = 0;
-#else
-    TIMERG0.hw_timer[STEP_TIMER_INDEX].config.enable = 0;
+    i2s_out_stepping(false);
 #endif
-
-    if(!stream && hal.stepper.wake_up == I2SStepperWakeUp && i2s_out_get_pulser_status() == STEPPING) {
-       i2s_out_set_passthrough();
-       i2s_out_delay();
-    }
-
-    if(stream) {
-        if(hal.stepper.wake_up != I2SStepperWakeUp) {
-            hal.stepper.wake_up = I2SStepperWakeUp;
-            hal.stepper.go_idle = I2SStepperGoIdle;
-            hal.stepper.cycles_per_tick = I2SStepperCyclesPerTick;
-            hal.stepper.pulse_start = I2SStepperPulseStart;
-            i2s_out_set_pulse_callback(hal.stepper.interrupt_callback);
-        }
-    } else if(hal.stepper.wake_up != stepperWakeUp) {
-        hal.stepper.wake_up = stepperWakeUp;
-        hal.stepper.go_idle = stepperGoIdle;
-        hal.stepper.cycles_per_tick = stepperCyclesPerTick;
-        hal.stepper.pulse_start = stepperPulseStart;
-        i2s_out_set_pulse_callback(i2s_step_sink);
-    }
 }
 
-#if DRIVER_SPINDLE_ENABLE
+#if !USE_I2S_OUT
 
-static void onSpindleSelected (spindle_ptrs_t *spindle)
+// Sets stepper direction and pulse pins and starts a step pulse
+IRAM_ATTR static void stepperPulseStart (stepper_t *stepper)
 {
-    i2s_set_streaming_mode(!(laser_mode = spindle->cap.laser));
+    if(stepper->dir_changed.bits) {
+        stepper->dir_changed.bits = 0;
+        set_dir_outputs(stepper->dir_out);
+    }
 
-    if(on_spindle_selected)
-        on_spindle_selected(spindle);
+    if(stepper->step_out.bits)
+       set_step_outputs(stepper->step_out);
 }
 
 #endif
-
-#endif // USE_I2S_OUT
 
 // Enable/disable limit pins interrupt
 static void limitsEnable (bool on, axes_signals_t homing_cycle)
 {
-#if USE_I2S_OUT
-    i2s_set_streaming_mode(!(homing_cycle.mask || laser_mode));
-#endif
-
     bool disable = !on;
     uint32_t i = limit_inputs.n_pins;
     axes_signals_t pin;
@@ -1982,7 +1924,7 @@ static void mpg_enable (void *data)
 #if DRIVER_PROBES
 
 // Returns the probe triggered pin state.
-static bool probeGetState (void * input)
+IRAM_ATTR static bool probeGetState (void * input)
 {
     return DIGITAL_IN(((input_signal_t *)input)->pin);
 }
@@ -2376,10 +2318,6 @@ bool spindleConfig (spindle_ptrs_t *spindle)
 
     spindle_update_caps(spindle, spindle->cap.variable ? &pwm_spindle.spindle_pwm : NULL);
 
-#if USE_I2S_OUT
-    if(spindle->id == spindle_get_default())
-        i2s_set_streaming_mode(!(laser_mode = spindle->cap.laser));
-#endif
     return true;
 }
 
@@ -2608,11 +2546,6 @@ bool spindle1Config (spindle_ptrs_t *spindle)
 
     spindle_update_caps(spindle, spindle->cap.variable ? &pwm_spindle1.spindle_pwm : NULL);
 
-#if USE_I2S_OUT
-    if(spindle->id == spindle_get_default())
-        i2s_set_streaming_mode(!(laser_mode = spindle->cap.laser));
-#endif
-
     return true;
 }
 
@@ -2733,12 +2666,12 @@ IRAM_ATTR static uint_fast16_t valueSetAtomic (volatile uint_fast16_t *ptr, uint
     return prev;
 }
 
-static void enable_irq (void)
+IRAM_ATTR static void enable_irq (void)
 {
     portEXIT_CRITICAL(&mux);
 }
 
-static void disable_irq (void)
+IRAM_ATTR static void disable_irq (void)
 {
     portENTER_CRITICAL(&mux);
 }
@@ -2816,27 +2749,11 @@ static void on_settings_changed (settings_t *settings, settings_changed_flags_t 
         t_min_period = (uint32_t)ceilf((hal.f_step_timer / 1000000.0f) * (settings->steppers.pulse_microseconds + STEP_PULSE_TOFF_MIN));
 
 #if USE_I2S_OUT
-
-        t_max_period = (uint32_t)(hal.f_step_timer / 1000000.0f);
-
-        i2s_delay_length = (uint32_t)ceilf(settings->steppers.pulse_delay_microseconds);
-        i2s_step_length = (uint32_t)ceilf(settings->steppers.pulse_microseconds);
-
-        if(i2s_delay_length % I2S_OUT_USEC_PER_PULSE)
-            i2s_delay_length += I2S_OUT_USEC_PER_PULSE - i2s_delay_length % I2S_OUT_USEC_PER_PULSE;
-
-        i2s_delay_length = min(max(i2s_delay_length, I2S_OUT_USEC_PER_PULSE), I2S_OUT_USEC_PER_PULSE * 2);
-
-        if(i2s_step_length % I2S_OUT_USEC_PER_PULSE)
-            i2s_step_length += I2S_OUT_USEC_PER_PULSE - i2s_step_length % I2S_OUT_USEC_PER_PULSE;
-
-        i2s_step_length = min(max(i2s_step_length, I2S_OUT_USEC_PER_PULSE), I2S_OUT_USEC_PER_PULSE * 4);
-
-        i2s_delay_samples = i2s_delay_length / I2S_OUT_USEC_PER_PULSE;
-        i2s_step_samples = i2s_step_length / I2S_OUT_USEC_PER_PULSE;
-
+        uint32_t min_step_us;
+        if((min_step_us = i2s_out_init(settings))) {
+            t_min_period = (uint32_t)ceilf((hal.f_step_timer / 1000000.0f) * min_step_us);
+        }
 //        hal.max_step_rate = 250000UL / (i2s_delay_samples + i2s_step_samples);
-
 #else
         initRMT(settings);
 #endif
@@ -3203,17 +3120,6 @@ static bool driver_setup (settings_t *settings)
     timer_isr_register(STEP_TIMER_GROUP, STEP_TIMER_INDEX, stepper_driver_isr, 0, ESP_INTR_FLAG_LEVEL3|ESP_INTR_FLAG_IRAM, NULL);
     timer_enable_intr(STEP_TIMER_GROUP, STEP_TIMER_INDEX);
 
-#if USE_I2S_OUT
-    if(i2s_out_init()) {
-#if CONFIG_IDF_TARGET_ESP32S3
-        i2s_set_step_outputs((axes_signals_t){ .mask = AXES_BITMASK });
-        i2s_set_step_mask();
-#endif
-        i2s_out_set_pulse_callback(hal.stepper.interrupt_callback);
-    }
-    // else report?
-#endif
-
     /********************
      *  Output signals  *
      ********************/
@@ -3331,11 +3237,6 @@ static bool driver_setup (settings_t *settings)
     grbl.on_settings_changed(settings, (settings_changed_flags_t){0});
     hal.stepper.go_idle(true);
 
-#if USE_I2S_OUT && defined(SPINDLE_PWM_PIN)
-    on_spindle_selected = grbl.on_spindle_selected;
-    grbl.on_spindle_selected = onSpindleSelected;
-#endif
-
 #if SDCARD_ENABLE
 
     sdcard_events_t *card = sdcard_init();
@@ -3420,7 +3321,7 @@ bool driver_init (void)
 #else
     hal.info = "ESP32";
 #endif
-    hal.driver_version = "261103";
+    hal.driver_version = "261127";
     hal.driver_url = GRBL_URL "/ESP32";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -3445,20 +3346,16 @@ bool driver_init (void)
     grbl.on_settings_changed = on_settings_changed;
 
 #if USE_I2S_OUT
-    hal.step_us_min = I2S_OUT_USEC_PER_PULSE;
-    hal.driver_reset = I2SReset;
-    hal.stepper.wake_up = I2SStepperWakeUp;
-    hal.stepper.go_idle = I2SStepperGoIdle;
-    hal.stepper.enable = stepperEnable;
-    hal.stepper.cycles_per_tick = I2SStepperCyclesPerTick;
+    hal.step_us_min = (float)I2S_OUT_USEC_PER_PULSE;
     hal.stepper.pulse_start = I2SStepperPulseStart;
 #else
+    hal.step_us_min = 2.0f;
+    hal.stepper.pulse_start = stepperPulseStart;
+#endif
     hal.stepper.wake_up = stepperWakeUp;
     hal.stepper.go_idle = stepperGoIdle;
     hal.stepper.enable = stepperEnable;
     hal.stepper.cycles_per_tick = stepperCyclesPerTick;
-    hal.stepper.pulse_start = stepperPulseStart;
-#endif
 #if STEP_INJECT_ENABLE
     hal.stepper.output_step = stepperOutputStep;
     hal.stepper.claim_motor = stepperClaimMotor;
@@ -3965,7 +3862,7 @@ IRAM_ATTR static void gpio_isr (void *arg)
                 if(inputpin[i].id == Input_SafetyDoor)
                     debounce.safety_door = On;
 #endif
-                gpio_intr_disable(inputpin[i].pin);
+                gpio_ll_intr_disable(&GPIO, inputpin[i].pin);
             } else if(inputpin[i].group & PinGroup_AuxInput)
                 ioports_event(&inputpin[i]);
             else

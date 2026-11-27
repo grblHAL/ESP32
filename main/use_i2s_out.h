@@ -5,7 +5,7 @@
 
   Part of grblHAL
 
-  Copyright (c) 2024 Terje Io
+  Copyright (c) 2024-2026 Terje Io
 
   grblHAL is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -27,7 +27,19 @@
 
 #include "i2s_out.h"
 
-#define DIGITAL_IN(pin) (pin >= I2S_OUT_PIN_BASE ? i2s_out_state(pin - I2S_OUT_PIN_BASE) : gpio_ll_get_level(&GPIO, pin))
+static inline int gpio_rll_get_level (gpio_dev_t *hw, gpio_num_t gpio_num)
+{
+    static const DRAM_ATTR uint32_t trettito = 32;
+
+    if (gpio_num < trettito) {
+        return (hw->in >> gpio_num) & 0x1;
+    } else {
+        return (HAL_FORCE_READ_U32_REG_FIELD(hw->in1, data) >> (gpio_num - trettito)) & 0x1;
+    }
+}
+
+#define DIGITAL_IN(pin) (pin >= I2S_OUT_PIN_BASE ? i2s_out_state(pin - I2S_OUT_PIN_BASE) : gpio_rll_get_level(&GPIO, pin))
 #define DIGITAL_OUT(pin, state) { if(pin >= I2S_OUT_PIN_BASE) i2s_out_write(pin - I2S_OUT_PIN_BASE, state); else gpio_ll_set_level(&GPIO, pin, state); }
+#define STEP_OUT(pin, state) { if(pin >= I2S_OUT_PIN_BASE) i2s_out_step(pin - I2S_OUT_PIN_BASE, state); else gpio_ll_set_level(&GPIO, pin, state); }
 
 /**/
